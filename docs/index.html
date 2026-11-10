@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OptiWin — Windows plus léger, sans risque</title>
+<meta name="description" content="Optimisation de Windows réversible, nettoyage, clés USB bootables et téléchargement de Windows. Un seul fichier de 565 Ko, gratuit et open source.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<meta property="og:title" content="OptiWin — Windows plus léger, sans risque">
+<meta property="og:description" content="Optimisation réversible, nettoyage, clés USB bootables. Un seul fichier, gratuit et open source.">
+<meta property="og:image" content="https://paulow78.github.io/OptiWin/img/accueil.png">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --bg: #0e1014; --bg-alt: #12151b; --surface: #1a1e26; --surface-2: #232833;
+    --stroke: #2a303b; --stroke-strong: #3d4554;
+    --text: #eef0f4; --muted: #a3acbb; --faint: #747d8d;
+    --accent: #3ddbb4; --accent-soft: rgba(61, 219, 180, .13); --on-accent: #04241b;
+    --warn: #ffb84d; --warn-soft: rgba(255, 184, 77, .14);
+    --shadow: 0 30px 80px rgba(0, 0, 0, .55);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f9; --bg-alt: #eceff3; --surface: #ffffff; --surface-2: #f1f3f6;
+      --stroke: #dce0e7; --stroke-strong: #bec5d1;
+      --text: #12161f; --muted: #525c6e; --faint: #818a9a;
+      --accent: #00806a; --accent-soft: rgba(0, 128, 106, .1); --on-accent: #ffffff;
+      --warn: #a85f00; --warn-soft: rgba(224, 138, 0, .12);
+      --shadow: 0 30px 70px rgba(18, 22, 31, .16);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  h1, h2, h3 { font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; line-height: 1.15; margin: 0; letter-spacing: -.01em; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  img { max-width: 100%; height: auto; display: block; }
+  code { font-family: "Cascadia Mono", Consolas, monospace; font-size: .9em; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  .icon { width: 22px; height: 22px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Navigation */
+  header.nav {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: saturate(150%) blur(14px); -webkit-backdrop-filter: saturate(150%) blur(14px);
+    border-bottom: 1px solid var(--stroke);
+  }
+  .nav .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 600; font-size: 18px; }
+  .brand:hover { text-decoration: none; }
+  .brand img { width: 30px; height: 30px; }
+  .nav nav { display: flex; gap: 22px; margin-left: auto; }
+  .nav nav a { color: var(--muted); font-size: 15px; }
+  .nav nav a:hover { color: var(--text); text-decoration: none; }
+  .nav .cta-small { padding: 8px 16px; font-size: 14px; }
+
+  /* Boutons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; border-radius: 10px;
+    padding: 13px 22px; font-weight: 600; font-size: 16px; border: 1px solid transparent;
+    transition: transform .12s ease, filter .12s ease, background .12s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: var(--on-accent); }
+  .btn-primary:hover { filter: brightness(1.07); }
+  .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--stroke); }
+  .btn-ghost:hover { background: var(--surface-2); }
+
+  /* Accroche */
+  .hero { padding: 88px 0 40px; text-align: center; position: relative; }
+  .hero::before {
+    content: ""; position: absolute; inset: -120px 0 auto; height: 620px; z-index: -1;
+    background: radial-gradient(52% 60% at 50% 30%, var(--accent-soft), transparent 70%);
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--stroke); color: var(--muted); font-size: 14px;
+  }
+  .pill b { color: var(--accent); font-weight: 600; }
+  .hero h1 { font-size: clamp(40px, 6.4vw, 72px); font-weight: 650; margin: 22px auto 0; max-width: 15ch; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .lead { color: var(--muted); font-size: clamp(17px, 2vw, 20px); max-width: 640px; margin: 20px auto 0; }
+  .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+  .meta { color: var(--faint); font-size: 14px; margin-top: 16px; }
+  .shot {
+    margin: 56px auto 0; max-width: 1080px; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--stroke-strong); box-shadow: var(--shadow), 0 0 0 6px var(--accent-soft);
+  }
+
+  /* Sections */
+  section { padding: 84px 0; }
+  section.alt { background: var(--bg-alt); border-top: 1px solid var(--stroke); border-bottom: 1px solid var(--stroke); }
+  .kicker { color: var(--accent); font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; }
+  .section-title { font-size: clamp(30px, 4vw, 42px); margin-top: 10px; max-width: 22ch; }
+  .section-lead { color: var(--muted); font-size: 18px; max-width: 680px; margin: 14px 0 0; }
+
+  .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
+  .card { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); padding: 24px; }
+  .card h3 { font-size: 19px; margin: 14px 0 8px; }
+  .card p { color: var(--muted); margin: 0; font-size: 15px; }
+  .badge-icon { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 40px; }
+  .feature { display: flex; gap: 16px; padding: 20px; }
+  .feature .icon { color: var(--accent); margin-top: 3px; }
+  .feature h3 { font-size: 17px; margin: 0 0 4px; }
+
+  .split { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; }
+  .split img { border-radius: 14px; border: 1px solid var(--stroke-strong); box-shadow: var(--shadow); }
+  .checks { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 12px; }
+  .checks li { display: flex; gap: 12px; color: var(--muted); }
+  .checks li .icon { color: var(--accent); width: 20px; height: 20px; margin-top: 3px; }
+  .checks li b { color: var(--text); font-weight: 600; }
+
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
+  .gallery figure { margin: 0; }
+  .gallery img { border-radius: 12px; border: 1px solid var(--stroke); }
+  .gallery figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; }
+
+  .never { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 36px; }
+  .never div { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: var(--surface); border: 1px solid var(--stroke); }
+  .never .icon { color: var(--warn); width: 20px; height: 20px; margin-top: 3px; }
+  .never p { margin: 0; color: var(--muted); font-size: 15px; }
+  .never b { color: var(--text); }
+
+  .status { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 36px; }
+  .status h3 { font-size: 18px; display: flex; align-items: center; gap: 10px; }
+  .status ul { margin: 14px 0 0; padding-left: 20px; color: var(--muted); }
+  .status li { margin-bottom: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .dot.warn { background: var(--warn); }
+
+  .download { text-align: center; }
+  .download .card { max-width: 760px; margin: 36px auto 0; text-align: left; padding: 32px; }
+  .download .actions { justify-content: flex-start; margin-top: 0; }
+  .hash { margin-top: 22px; padding: 14px 16px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--stroke); overflow-wrap: anywhere; color: var(--muted); font-size: 14px; }
+  .hash code { color: var(--text); }
+  .steps { margin: 22px 0 0; padding-left: 20px; color: var(--muted); }
+  .steps li { margin-bottom: 8px; }
+  .steps b { color: var(--text); }
+  .note { margin-top: 18px; padding: 12px 16px; border-radius: 10px; background: var(--warn-soft); color: var(--text); font-size: 14px; }
+
+  .faq { max-width: 820px; margin: 36px auto 0; }
+  details { border-bottom: 1px solid var(--stroke); padding: 18px 4px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { color: var(--muted); margin: 12px 0 0; }
+
+  footer { padding: 40px 0 56px; color: var(--faint); font-size: 14px; border-top: 1px solid var(--stroke); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 960px) {
+    .features, .gallery { grid-template-columns: repeat(2, 1fr); }
+    .split { grid-template-columns: 1fr; gap: 32px; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    .nav nav { display: none; }
+    .nav .cta-small { margin-left: auto; }
+    .hero { padding-top: 56px; }
+    section { padding: 60px 0; }
+    .principles, .features, .gallery, .never, .status { grid-template-columns: 1fr; }
+    .download .card { padding: 22px; }
+    .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.6 5.6 1.9-5.6 1.9L12 18l-1.9-5.6-5.6-1.9 5.6-1.9z"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></symbol>
+    <symbol id="i-usb" viewBox="0 0 24 24"><path d="M12 3v15M9 6l3-3 3 3M12 15l-5-3V9M12 12l5-3V7"/><circle cx="12" cy="20" r="2"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></symbol>
+  </defs>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="img/logo.svg" alt="" width="30" height="30">OptiWin</a>
+    <nav aria-label="Sections">
+      <a href="#fonctions">Fonctions</a>
+      <a href="#usb">Clés USB</a>
+      <a href="#transparence">Transparence</a>
+      <a href="#faq">Questions</a>
+      <a href="https://github.com/Paulow78/OptiWin">Code source</a>
+    </nav>
+    <a class="btn btn-primary cta-small" href="#telecharger">Télécharger</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero wrap">
+    <span class="pill"><b>Gratuit</b> · open source · Windows 10 et 11</span>
+    <h1>Un Windows plus léger. <em>Sans gadgets, sans risque.</em></h1>
+    <p class="lead">Optimisation réversible, nettoyage, programmes de démarrage, clés USB bootables et téléchargement de Windows. Tout tient dans un seul fichier de 565&nbsp;Ko, sans installation.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://github.com/Paulow78/OptiWin/releases/latest/download/OptiWin.exe">
+        <svg class="icon"><use href="#i-download"/></svg>Télécharger OptiWin
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/Paulow78/OptiWin">
+        <svg class="icon"><use href="#i-github"/></svg>Voir le code
+      </a>
+    </div>
+    <p class="meta">Version 26.3 · 565 Ko · Windows 10 et 11 · licence MIT</p>
+    <div class="shot">
+      <img src="img/accueil.png" width="1280" height="860" alt="Accueil d'OptiWin : score de santé de 98 sur 100, processeur et mémoire en direct, espace disque, et bouton « Optimiser ce PC »">
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <span class="kicker">Ses principes</span>
+      <h2 class="section-title">Ce que vous changez, vous pouvez le défaire.</h2>
+      <div class="principles">
+        <div class="card">
+          <div class="badge-icon"><svg class="icon"><use href="#i-undo"/></svg></div>
+          <h3>Tout est réversible</h3>
+          <p>La valeur d'origine est mémorisée avant chaque changement. Un réglage qui échoue en cours de route est défait entièrement, et la page Historique annule tout d'un clic.</p>
+        </div>
+        <div class="card">
+          <div class="badge-icon"><svg class="icon"><use href="#i-eye"/></svg></div>
+          <h3>Des chiffres, pas de promesses</h3>
+          <p>Le score de santé ne repose que sur des faits mesurés. La page Diagnostic compare l'avant et l'après, et affiche « stable » quand l'écart n'est que du bruit.</p>
+        </div>
+        <div class="card">
+          <div class="badge-icon"><svg class="icon"><use href="#i-shield"/></svg></div>
+          <h3>La sécurité reste en place</h3>
+          <p>Defender, Windows Update et les protections du processeur ne sont jamais touchés. Le disque système n'est jamais proposé à l'effacement.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="fonctions">
+    <div class="wrap">
+      <span class="kicker">Fonctions</span>
+      <h2 class="section-title">Pour un vieux PC comme pour un Windows tout neuf.</h2>
+      <p class="section-lead">OptiWin détecte le matériel et propose le profil adapté : vieux PC, Windows fraîchement installé, jeux, portable ou confidentialité.</p>
+      <div class="features">
+        <div class="card feature"><svg class="icon"><use href="#i-zap"/></svg><div><h3>50 réglages réversibles</h3><p>Effets visuels, services, télémétrie, publicités du menu Démarrer, mode Jeu… chacun avec son niveau de risque.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-spark"/></svg><div><h3>Nettoyage prudent</h3><p>Caches de navigateurs, de Windows Update et de shaders, fichiers temporaires. Jamais vos documents.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-power"/></svg><div><h3>Démarrage plus rapide</h3><p>Coupez les programmes inutiles au lancement de Windows, avec le même mécanisme que le Gestionnaire des tâches.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-grid"/></svg><div><h3>Applications</h3><p>Retirez les applications préinstallées d'office, installez 36 logiciels courants en une seule fois.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-package"/></svg><div><h3>Réinstaller sans tout refaire</h3><p>Emportez vos réglages et vos logiciels dans un fichier, et retrouvez-les sur un Windows neuf.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-usb"/></svg><div><h3>Clés USB et ISO</h3><p>Clé d'installation Windows, Linux ou multiboot, ISO allégée, téléchargement officiel de Windows.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-activity"/></svg><div><h3>Diagnostic</h3><p>Usure et température des disques, mesures avant/après pour juger du gain réel.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-tool"/></svg><div><h3>Réparations</h3><p>Fichiers système, réseau, Windows Update, icônes, sauvegarde des pilotes et test du DNS le plus rapide.</p></div></div>
+        <div class="card feature"><svg class="icon"><use href="#i-shield"/></svg><div><h3>Kit de secours</h3><p>Sur la clé d'installation : copiez vos fichiers et réparez le démarrage d'un PC qui ne démarre plus.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="usb">
+    <div class="wrap split">
+      <div>
+        <span class="kicker">Clés USB</span>
+        <h2 class="section-title">Une clé d'installation, sans risque pour vos disques.</h2>
+        <ul class="checks">
+          <li><svg class="icon"><use href="#i-check"/></svg><span><b>UEFI et ancien BIOS</b> sur la même clé, Secure Boot compris.</span></li>
+          <li><svg class="icon"><use href="#i-check"/></svg><span><b>Images de plus de 4 Go</b> découpées automatiquement pour FAT32.</span></li>
+          <li><svg class="icon"><use href="#i-check"/></svg><span><b>Seules les clés USB et SD</b> sont proposées. Le disque est revérifié juste avant l'effacement, qui demande de taper « EFFACER ».</span></li>
+          <li><svg class="icon"><use href="#i-check"/></svg><span><b>Options pour Windows 11</b> : PC non compatibles, compte local, pas de chiffrement automatique.</span></li>
+          <li><svg class="icon"><use href="#i-check"/></svg><span><b>Relecture après écriture</b> : la clé est comparée à l'image.</span></li>
+        </ul>
+      </div>
+      <img src="img/usb.png" width="1280" height="860" loading="lazy" alt="Page USB et ISO : choix de l'image, de la clé, du mode de démarrage et des options de Windows">
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <span class="kicker">Aperçu</span>
+      <h2 class="section-title">Clair, en thème sombre comme en thème clair.</h2>
+      <div class="gallery">
+        <figure><img src="img/optimiser-clair.png" width="1280" height="860" loading="lazy" alt="Page Optimiser en thème clair, avec les profils et les interrupteurs de réglages"><figcaption>Optimiser : profils et réglages, chacun avec son niveau de risque.</figcaption></figure>
+        <figure><img src="img/reinstaller.png" width="1280" height="860" loading="lazy" alt="Page Réinstaller : création et ouverture d'un profil"><figcaption>Réinstaller : vos réglages et logiciels, d'un PC à l'autre.</figcaption></figure>
+        <figure><img src="img/diagnostic.png" width="1280" height="860" loading="lazy" alt="Page Diagnostic : mesures avant/après et santé des disques"><figcaption>Diagnostic : l'état réel de vos disques.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <span class="kicker">Ce qu'il ne fera jamais</span>
+      <h2 class="section-title">Pas de faux remèdes.</h2>
+      <p class="section-lead">Beaucoup d'« optimiseurs » vendent des réglages inefficaces, voire dangereux. OptiWin les écarte volontairement.</p>
+      <div class="never">
+        <div><svg class="icon"><use href="#i-x"/></svg><p><b>Pas de nettoyeur de registre</b> : aucun gain mesurable, et un vrai risque de casse.</p></div>
+        <div><svg class="icon"><use href="#i-x"/></svg><p><b>Pas de « booster de RAM »</b> : vider la mémoire ralentit Windows, qui doit tout recharger.</p></div>
+        <div><svg class="icon"><use href="#i-x"/></svg><p><b>Pas de désactivation de Defender ni de Windows Update</b> : votre PC resterait exposé.</p></div>
+        <div><svg class="icon"><use href="#i-x"/></svg><p><b>Pas de contournement des protections de Windows</b> : quand Windows bloque un réglage, OptiWin ouvre la bonne page des Paramètres.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="transparence">
+    <div class="wrap">
+      <span class="kicker">Transparence</span>
+      <h2 class="section-title">Ce qui est vérifié, et ce qui ne l'est pas encore.</h2>
+      <p class="section-lead">OptiWin est un projet récent. Voici, sans enjoliver, ce qui a été testé en conditions réelles sur Windows 11.</p>
+      <div class="status">
+        <div class="card">
+          <h3><span class="dot"></span>Vérifié</h3>
+          <ul>
+            <li>104 auto-tests sans effet sur le système, lancés par <code>OptiWin.exe --selftest</code></li>
+            <li>Réglages, nettoyage et retrait d'applications lors d'un usage réel</li>
+            <li>Une vraie clé USB Windows : un PC a démarré dessus en UEFI, Secure Boot actif</li>
+            <li>Le kit de secours, lancé depuis l'installateur de Windows</li>
+            <li>La lecture du catalogue officiel de Microsoft</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3><span class="dot warn"></span>Pas encore vérifié</h3>
+          <ul>
+            <li>Le démarrage en ancien BIOS, et les modes GPT, image brute et multiboot</li>
+            <li>L'ISO allégée et le téléchargement complet de Windows</li>
+            <li>Une installation complète avec les options de Windows 11</li>
+            <li>Windows 10, 8.1 et 7</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="download" id="telecharger">
+    <div class="wrap">
+      <span class="kicker">Télécharger</span>
+      <h2 class="section-title" style="margin-left:auto;margin-right:auto">Un fichier, aucune installation.</h2>
+      <div class="card">
+        <div class="actions">
+          <a class="btn btn-primary" href="https://github.com/Paulow78/OptiWin/releases/latest/download/OptiWin.exe">
+            <svg class="icon"><use href="#i-download"/></svg>Télécharger OptiWin 26.3
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/Paulow78/OptiWin/releases">Toutes les versions</a>
+        </div>
+        <div class="hash">Empreinte SHA-256 de la version 26.3 :<br><code>7b94f0d8fae7e9cacaae37e5b4bf6ad14eaac1c363f238ee19adce2c9159d445</code></div>
+        <ol class="steps">
+          <li>Lancez <b>OptiWin.exe</b>. Windows SmartScreen affichera sans doute « Windows a protégé votre ordinateur », car le programme n'est pas signé numériquement : cliquez sur <b>Informations complémentaires</b>, puis sur <b>Exécuter quand même</b>.</li>
+          <li>Acceptez la demande d'administrateur. Si vous la refusez, OptiWin s'ouvre en mode limité, surtout en lecture seule.</li>
+          <li>Commencez par l'accueil : il propose le profil adapté à votre PC, et vous choisissez réglage par réglage.</li>
+        </ol>
+        <p class="note">Logiciel fourni tel quel, sans garantie. Sauvegardez vos données avant de modifier votre système ou d'effacer une clé USB.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="faq">
+    <div class="wrap">
+      <span class="kicker">Questions</span>
+      <h2 class="section-title">Questions fréquentes</h2>
+      <div class="faq">
+        <details>
+          <summary>Pourquoi Windows affiche-t-il un avertissement au premier lancement ?</summary>
+          <p>Le programme n'est pas signé avec un certificat payant, donc SmartScreen ne le connaît pas encore. Le code est public sur GitHub, et vous pouvez vérifier que le fichier téléchargé est bien celui publié en comparant son empreinte SHA-256 avec la commande <code>certutil -hashfile OptiWin.exe SHA256</code>.</p>
+        </details>
+        <details>
+          <summary>Mon antivirus le signale-t-il ?</summary>
+          <p>C'est possible : un outil qui modifie le registre, arrête des services et écrit directement sur une clé USB ressemble, vu de l'extérieur, à ce que font certains logiciels malveillants. Le code source est entièrement lisible, et vous pouvez compiler l'exécutable vous-même avec <code>build.ps1</code>.</p>
+        </details>
+        <details>
+          <summary>Comment annuler ce qu'OptiWin a changé ?</summary>
+          <p>Chaque réglage se désactive d'un clic dans la page Optimiser, ou dans la page Historique, qui offre aussi « Tout annuler ». Un point de restauration Windows est proposé avant chaque profil.</p>
+        </details>
+        <details>
+          <summary>Faut-il installer quelque chose ?</summary>
+          <p>Non. OptiWin s'appuie sur .NET Framework, déjà présent sur Windows 10 et 11. Pour le désinstaller, supprimez le fichier. Ses sauvegardes se trouvent dans <code>%LOCALAPPDATA%\OptiWin</code>.</p>
+        </details>
+        <details>
+          <summary>Est-ce que des données sont envoyées quelque part ?</summary>
+          <p>Non. OptiWin ne contacte Internet que si vous le lui demandez : pour installer un logiciel via winget, télécharger Windows depuis Microsoft, récupérer Ventoy ou mesurer la rapidité des serveurs DNS.</p>
+        </details>
+        <details>
+          <summary>Puis-je installer Windows 11 sur un PC non compatible ?</summary>
+          <p>La clé peut retirer les blocages TPM, Secure Boot, mémoire et processeur de l'installateur. Microsoft ne garantit pas les mises à jour sur ces PC : c'est un choix à faire en connaissance de cause.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>OptiWin · licence <a href="https://github.com/Paulow78/OptiWin/blob/main/LICENSE">MIT</a> · icônes Feather et Lucide</span>
+    <span><a href="https://github.com/Paulow78/OptiWin">Code source</a> · <a href="https://github.com/Paulow78/OptiWin/issues">Signaler un problème</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

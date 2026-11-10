@@ -1,0 +1,167 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OptiWin" Width="1200" Height="800" MinWidth="1000" MinHeight="640"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource WinBg}" Foreground="{DynamicResource Text}"
+        FontFamily="{StaticResource FontText}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
+  <WindowChrome.WindowChrome>
+    <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="-1" UseAeroCaptionButtons="False"/>
+  </WindowChrome.WindowChrome>
+
+  <Grid x:Name="Root">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="228"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Barre latérale -->
+    <Border Background="{DynamicResource SidebarBg}">
+      <DockPanel Margin="12,0,12,14">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,18,0,22">
+          <Border Width="32" Height="32" CornerRadius="9" Background="{DynamicResource Accent}">
+            <Path Data="{StaticResource IcoZap}" Width="24" Height="24" Stretch="None" Fill="{DynamicResource OnAccent}" Stroke="{DynamicResource OnAccent}" StrokeThickness="1.5" StrokeLineJoin="Round" HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Path.LayoutTransform><ScaleTransform ScaleX="0.72" ScaleY="0.72"/></Path.LayoutTransform>
+            </Path>
+          </Border>
+          <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+            <TextBlock Text="OptiWin" FontFamily="{StaticResource FontDisplay}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
+            <TextBlock x:Name="VersionText" Text="26.2" FontSize="11" Foreground="{DynamicResource TextFaint}" Margin="0,-2,0,0"/>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom">
+          <Border x:Name="AdminBadge" CornerRadius="8" Padding="11,8" Margin="0,0,0,6" Background="{DynamicResource WarnSoft}" Visibility="Collapsed">
+            <StackPanel>
+              <TextBlock Text="Mode limité" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Warn}"/>
+              <TextBlock Text="Lecture seule pour la plupart des réglages." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}" Margin="0,1,0,5"/>
+              <Button x:Name="BtnElevate" Content="Passer administrateur" Padding="8,4" FontSize="12"/>
+            </StackPanel>
+          </Border>
+          <Button x:Name="BtnTheme" Style="{StaticResource BtnGhost}" HorizontalContentAlignment="Left" Padding="13,8">
+            <StackPanel Orientation="Horizontal">
+              <Path x:Name="ThemeIcon" Style="{StaticResource Ico}" Data="{StaticResource IcoSun}"/>
+              <TextBlock x:Name="ThemeLabel" Text="Thème clair" Margin="12,0,0,0" FontSize="13" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <StackPanel x:Name="Nav">
+          <RadioButton x:Name="NavHome" Style="{StaticResource NavItem}" GroupName="Nav" Content="Accueil" Tag="{StaticResource IcoGauge}"/>
+          <RadioButton x:Name="NavOptimize" Style="{StaticResource NavItem}" GroupName="Nav" Content="Optimiser" Tag="{StaticResource IcoZap}"/>
+          <RadioButton x:Name="NavClean" Style="{StaticResource NavItem}" GroupName="Nav" Content="Nettoyer" Tag="{StaticResource IcoSpark}"/>
+          <RadioButton x:Name="NavStartup" Style="{StaticResource NavItem}" GroupName="Nav" Content="Démarrage" Tag="{StaticResource IcoPower}"/>
+          <RadioButton x:Name="NavApps" Style="{StaticResource NavItem}" GroupName="Nav" Content="Applications" Tag="{StaticResource IcoGrid}"/>
+          <RadioButton x:Name="NavReinstall" Style="{StaticResource NavItem}" GroupName="Nav" Content="Réinstaller" Tag="{StaticResource IcoPackage}"/>
+          <RadioButton x:Name="NavUsb" Style="{StaticResource NavItem}" GroupName="Nav" Content="USB et ISO" Tag="{StaticResource IcoUsb}"/>
+          <RadioButton x:Name="NavDiagnostic" Style="{StaticResource NavItem}" GroupName="Nav" Content="Diagnostic" Tag="{StaticResource IcoActivity}"/>
+          <RadioButton x:Name="NavTools" Style="{StaticResource NavItem}" GroupName="Nav" Content="Outils" Tag="{StaticResource IcoTool}"/>
+          <RadioButton x:Name="NavHistory" Style="{StaticResource NavItem}" GroupName="Nav" Content="Historique" Tag="{StaticResource IcoClock}"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Contenu -->
+    <Border Grid.Column="1" x:Name="ContentPanel" Margin="0,36,0,0" CornerRadius="10,0,0,0" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1,1,0,0">
+      <ContentControl x:Name="PageHost" Focusable="False"/>
+    </Border>
+
+    <!-- Boutons de fenêtre (remplacés par ceux de Windows quand Mica est actif) -->
+    <StackPanel x:Name="CaptionButtons" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True" Panel.ZIndex="50">
+      <Button x:Name="BtnMin" Style="{StaticResource CaptionBtn}" ToolTip="Réduire"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoMinus}"/></Button>
+      <Button x:Name="BtnMax" Style="{StaticResource CaptionBtn}" ToolTip="Agrandir"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSquare}"/></Button>
+      <Button x:Name="BtnClose" Style="{StaticResource CaptionClose}" ToolTip="Fermer"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoX}"/></Button>
+    </StackPanel>
+
+    <!-- Confirmation -->
+    <Grid x:Name="ConfirmLayer" Grid.ColumnSpan="2" Style="{StaticResource Scrim}" Panel.ZIndex="20">
+      <Border Style="{StaticResource Dialog}" Width="500">
+        <StackPanel>
+          <TextBlock x:Name="ConfirmTitle" Style="{StaticResource TxtH2}" FontSize="18" TextWrapping="Wrap"/>
+          <TextBlock x:Name="ConfirmBody" Style="{StaticResource TxtMuted}" Margin="0,10,0,0"/>
+          <StackPanel x:Name="ConfirmTyped" Margin="0,16,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="ConfirmTypedLabel" Style="{StaticResource TxtLabel}"/>
+            <TextBox x:Name="ConfirmInput"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+            <Button x:Name="ConfirmNo" Content="Annuler" Margin="0,0,8,0" IsCancel="True"/>
+            <Button x:Name="ConfirmYes" Content="Confirmer" Style="{StaticResource BtnPrimary}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- Plan d'optimisation -->
+    <Grid x:Name="PlanLayer" Grid.ColumnSpan="2" Style="{StaticResource Scrim}" Panel.ZIndex="20">
+      <Border Style="{StaticResource Dialog}" Width="660" MaxHeight="660">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top">
+            <TextBlock x:Name="PlanTitle" Style="{StaticResource TxtH2}" FontSize="20"/>
+            <TextBlock x:Name="PlanSub" Style="{StaticResource TxtMuted}" Margin="0,5,0,14"/>
+          </StackPanel>
+          <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+            <CheckBox x:Name="PlanRestore" Content="Créer d'abord un point de restauration Windows" IsChecked="True" Margin="0,0,0,8"/>
+            <CheckBox x:Name="PlanClean" Content="Nettoyer aussi les fichiers temporaires et les caches" IsChecked="True"/>
+            <DockPanel Margin="0,18,0,0">
+              <TextBlock x:Name="PlanCount" DockPanel.Dock="Left" Style="{StaticResource TxtSmall}" VerticalAlignment="Center"/>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="PlanNo" Content="Annuler" Margin="0,0,8,0"/>
+                <Button x:Name="PlanYes" Content="Appliquer" Style="{StaticResource BtnPrimary}" Padding="20,9"/>
+              </StackPanel>
+            </DockPanel>
+          </StackPanel>
+          <Border BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="10" Background="{DynamicResource SurfaceAlt}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
+              <ItemsControl x:Name="PlanList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" IsEnabled="{Binding Tweak.CanToggle}" Margin="10,8" ToolTip="{Binding Tweak.ToolTipText}" ToolTipService.ShowOnDisabled="True">
+                      <DockPanel>
+                        <Border DockPanel.Dock="Right" Style="{StaticResource RiskChip}" DataContext="{Binding Tweak}" Margin="10,0,0,0">
+                          <TextBlock Text="{Binding RiskLabel}" Style="{StaticResource RiskText}"/>
+                        </Border>
+                        <TextBlock Text="{Binding Tweak.TitleText}" Style="{StaticResource TxtBody}"/>
+                      </DockPanel>
+                    </CheckBox>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Border>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+    <!-- Tâche en cours -->
+    <Grid x:Name="JobLayer" Grid.ColumnSpan="2" Style="{StaticResource Scrim}" Panel.ZIndex="30">
+      <Border Style="{StaticResource Dialog}" Width="760" Height="540">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top">
+            <TextBlock x:Name="JobTitle" Style="{StaticResource TxtH2}" FontSize="20" TextTrimming="CharacterEllipsis"/>
+            <DockPanel Margin="0,6,0,10">
+              <TextBlock x:Name="JobDetail" DockPanel.Dock="Right" Style="{StaticResource TxtSmall}" Margin="12,0,0,0"/>
+              <TextBlock x:Name="JobStatus" Style="{StaticResource TxtMuted}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+            </DockPanel>
+            <ProgressBar x:Name="JobBar" Maximum="100" IsIndeterminate="True" Margin="0,0,0,14"/>
+          </StackPanel>
+          <DockPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <Button x:Name="JobCancel" Content="Annuler" Margin="0,0,8,0"/>
+              <Button x:Name="JobClose" Content="Fermer" Style="{StaticResource BtnPrimary}" IsEnabled="False" Padding="22,8"/>
+            </StackPanel>
+            <TextBlock x:Name="JobResult" Style="{StaticResource TxtBody}" VerticalAlignment="Center" Margin="0,0,16,0" FontWeight="SemiBold"/>
+          </DockPanel>
+          <TextBox x:Name="JobLog" IsReadOnly="True" FontFamily="{StaticResource FontMono}" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Padding="12"/>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+    <!-- Message éphémère -->
+    <Border x:Name="Toast" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,26" CornerRadius="10" Padding="16,10"
+            Background="{DynamicResource DialogBg}" BorderBrush="{DynamicResource StrokeStrong}" BorderThickness="1" Visibility="Collapsed" Panel.ZIndex="40" IsHitTestVisible="False" MaxWidth="700">
+      <StackPanel Orientation="Horizontal">
+        <Ellipse x:Name="ToastDot" Width="8" Height="8" Fill="{DynamicResource Ok}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <TextBlock x:Name="ToastText" Style="{StaticResource TxtBody}"/>
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>

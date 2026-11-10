@@ -1,0 +1,20 @@
+OptiWin : kit de secours
+========================
+
+Pour un PC qui ne démarre plus, à condition de démarrer sur une clé d'installation de Windows.
+
+1. Démarrez le PC sur la clé (menu de démarrage : souvent F12, F8, Échap ou F2).
+2. Au premier écran de l'installateur, appuyez sur Maj + F10 (Maj + Fn + F10 sur certains portables).
+   Une fenêtre de commande s'ouvre.
+3. Cherchez la lettre de la clé avec cette commande :
+
+   for %i in (C D E F G H I J K L) do @if exist %i:\OptiWin\Secours\secours.cmd echo %i
+
+4. Si la lettre affichée est D, lancez le kit ainsi :
+
+   D:\OptiWin\Secours\secours.cmd
+
+Conseil : commencez toujours par le choix 1, pour mettre vos fichiers à l'abri.
+
+Le script ne formate rien et ne supprime rien, et chaque réparation demande une confirmation.
+Fermez la fenêtre et l'installateur quand vous avez terminé, puis retirez la clé avant de redémarrer.

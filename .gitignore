@@ -1,0 +1,8 @@
+# L'exécutable est publié dans les « Releases » GitHub, pas dans le code.
+dist/
+# Captures de travail locales : celles du site sont dans docs/img.
+apercu/
+*.rsp
+.claude/
+Thumbs.db
+desktop.ini
