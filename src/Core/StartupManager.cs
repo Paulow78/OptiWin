@@ -44,6 +44,19 @@ namespace OptiWin
         }
         internal void Init(bool on) { enabled = on; }
         public static Action<StartupItem, Exception> Failed;
+        /// <summary>Ouvre l'Explorateur sur le programme concerné (lié au bouton de la ligne).</summary>
+        public System.Windows.Input.ICommand RevealCmd { get; set; }
+        public bool CanReveal { get { return ExePath != null && File.Exists(ExePath); } }
+
+        /// <summary>Vrai si le nom ou la commande contient le texte cherché.</summary>
+        public bool Matches(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return true;
+            var q = query.Trim();
+            return (Name ?? "").IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0
+                || (Command ?? "").IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0
+                || (Publisher ?? "").IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0;
+        }
     }
 
     /// <summary>

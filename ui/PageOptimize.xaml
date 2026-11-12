@@ -6,20 +6,50 @@
 
     <TextBlock Text="Appliquer un profil" Style="{StaticResource TxtLabel}"/>
     <UniformGrid Columns="5" Margin="-4,0,-4,16">
-      <Button x:Name="ProfOld" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Left">
-        <StackPanel><Path Style="{StaticResource Ico}" Data="{StaticResource IcoDrive}" HorizontalAlignment="Left"/><TextBlock Text="Vieux PC" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Priorité à la légèreté" Style="{StaticResource TxtSmall}" FontSize="11"/></StackPanel>
+      <Button x:Name="ProfOld" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Stretch">
+        <StackPanel>
+          <DockPanel>
+            <Border x:Name="RecOld" DockPanel.Dock="Right" Style="{StaticResource ChipBase}" Background="{DynamicResource AccentSoft}" Visibility="Collapsed"><TextBlock Text="Conseillé" Style="{StaticResource ChipText}" Foreground="{DynamicResource Accent}"/></Border>
+            <Path Style="{StaticResource Ico}" Data="{StaticResource IcoDrive}" HorizontalAlignment="Left"/>
+          </DockPanel>
+          <TextBlock Text="Vieux PC" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Priorité à la légèreté" Style="{StaticResource TxtSmall}" FontSize="11"/>
+        </StackPanel>
       </Button>
-      <Button x:Name="ProfFresh" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Left">
-        <StackPanel><Path Style="{StaticResource Ico}" Data="{StaticResource IcoSpark}" HorizontalAlignment="Left"/><TextBlock Text="Fraîchement installé" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Retirer le superflu" Style="{StaticResource TxtSmall}" FontSize="11"/></StackPanel>
+      <Button x:Name="ProfFresh" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Stretch">
+        <StackPanel>
+          <DockPanel>
+            <Border x:Name="RecFresh" DockPanel.Dock="Right" Style="{StaticResource ChipBase}" Background="{DynamicResource AccentSoft}" Visibility="Collapsed"><TextBlock Text="Conseillé" Style="{StaticResource ChipText}" Foreground="{DynamicResource Accent}"/></Border>
+            <Path Style="{StaticResource Ico}" Data="{StaticResource IcoSpark}" HorizontalAlignment="Left"/>
+          </DockPanel>
+          <TextBlock Text="Fraîchement installé" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Retirer le superflu" Style="{StaticResource TxtSmall}" FontSize="11"/>
+        </StackPanel>
       </Button>
-      <Button x:Name="ProfGame" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Left">
-        <StackPanel><Path Style="{StaticResource Ico}" Data="{StaticResource IcoGame}" HorizontalAlignment="Left"/><TextBlock Text="Jeux" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Latence et réactivité" Style="{StaticResource TxtSmall}" FontSize="11"/></StackPanel>
+      <Button x:Name="ProfGame" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Stretch">
+        <StackPanel>
+          <DockPanel>
+            <Border x:Name="RecGame" DockPanel.Dock="Right" Style="{StaticResource ChipBase}" Background="{DynamicResource AccentSoft}" Visibility="Collapsed"><TextBlock Text="Conseillé" Style="{StaticResource ChipText}" Foreground="{DynamicResource Accent}"/></Border>
+            <Path Style="{StaticResource Ico}" Data="{StaticResource IcoGame}" HorizontalAlignment="Left"/>
+          </DockPanel>
+          <TextBlock Text="Jeux" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Latence et réactivité" Style="{StaticResource TxtSmall}" FontSize="11"/>
+        </StackPanel>
       </Button>
-      <Button x:Name="ProfLaptop" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Left">
-        <StackPanel><Path Style="{StaticResource Ico}" Data="{StaticResource IcoLaptop}" HorizontalAlignment="Left"/><TextBlock Text="Portable" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Autonomie" Style="{StaticResource TxtSmall}" FontSize="11"/></StackPanel>
+      <Button x:Name="ProfLaptop" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Stretch">
+        <StackPanel>
+          <DockPanel>
+            <Border x:Name="RecLaptop" DockPanel.Dock="Right" Style="{StaticResource ChipBase}" Background="{DynamicResource AccentSoft}" Visibility="Collapsed"><TextBlock Text="Conseillé" Style="{StaticResource ChipText}" Foreground="{DynamicResource Accent}"/></Border>
+            <Path Style="{StaticResource Ico}" Data="{StaticResource IcoLaptop}" HorizontalAlignment="Left"/>
+          </DockPanel>
+          <TextBlock Text="Portable" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Autonomie" Style="{StaticResource TxtSmall}" FontSize="11"/>
+        </StackPanel>
       </Button>
-      <Button x:Name="ProfPrivacy" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Left">
-        <StackPanel><Path Style="{StaticResource Ico}" Data="{StaticResource IcoEyeOff}" HorizontalAlignment="Left"/><TextBlock Text="Confidentialité" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Moins de collecte" Style="{StaticResource TxtSmall}" FontSize="11"/></StackPanel>
+      <Button x:Name="ProfPrivacy" Margin="4,0" Padding="12,10" HorizontalContentAlignment="Stretch">
+        <StackPanel>
+          <DockPanel>
+            <Border x:Name="RecPrivacy" DockPanel.Dock="Right" Style="{StaticResource ChipBase}" Background="{DynamicResource AccentSoft}" Visibility="Collapsed"><TextBlock Text="Conseillé" Style="{StaticResource ChipText}" Foreground="{DynamicResource Accent}"/></Border>
+            <Path Style="{StaticResource Ico}" Data="{StaticResource IcoEyeOff}" HorizontalAlignment="Left"/>
+          </DockPanel>
+          <TextBlock Text="Confidentialité" FontWeight="SemiBold" Margin="0,6,0,0"/><TextBlock Text="Moins de collecte" Style="{StaticResource TxtSmall}" FontSize="11"/>
+        </StackPanel>
       </Button>
     </UniformGrid>
 
@@ -32,37 +62,44 @@
       </DockPanel>
     </Border>
 
-    <DockPanel Margin="0,0,0,12">
-      <TextBox x:Name="Search" DockPanel.Dock="Right" Width="210" Tag="Rechercher un réglage"/>
-      <StackPanel x:Name="Cats" Orientation="Horizontal" VerticalAlignment="Center"/>
+    <DockPanel Margin="0,0,0,6">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+        <ComboBox x:Name="StateFilter" Width="150" Margin="0,0,8,0" ToolTip="N'afficher que les réglages déjà appliqués, ou ceux qui restent à appliquer"/>
+        <TextBox x:Name="Search" Width="200" Tag="Rechercher (Ctrl+F)"/>
+      </StackPanel>
+      <WrapPanel x:Name="Cats" VerticalAlignment="Center"/>
     </DockPanel>
+    <TextBlock x:Name="CountText" Style="{StaticResource TxtSmall}" Margin="2,0,0,10"/>
   </StackPanel>
 
   <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-    <ItemsControl x:Name="List" Margin="32,0,32,28">
-      <ItemsControl.ItemTemplate>
-        <DataTemplate>
-          <Border Style="{StaticResource Row}" ToolTip="{Binding ToolTipText}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <WrapPanel>
-                  <TextBlock Text="{Binding TitleText}" Style="{StaticResource TxtRow}" Margin="0,0,9,0"/>
-                  <Border Style="{StaticResource RiskChip}" Margin="0,1,6,0"><TextBlock Text="{Binding RiskLabel}" Style="{StaticResource RiskText}"/></Border>
-                  <Border Style="{StaticResource ChipBase}" Background="{DynamicResource HoverLayer}" Margin="0,1,0,0" Visibility="{Binding HasEffect, Converter={StaticResource BoolVis}}">
-                    <TextBlock Text="{Binding EffectLabel}" Style="{StaticResource ChipText}" Foreground="{DynamicResource TextMuted}"/>
-                  </Border>
-                </WrapPanel>
-                <TextBlock Text="{Binding DescText}" Style="{StaticResource TxtSmall}" Margin="0,2,0,0"/>
-              </StackPanel>
-              <ToggleButton Grid.Column="1" Style="{StaticResource Switch}" Margin="18,0,0,0" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"/>
-            </Grid>
-          </Border>
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
+    <StackPanel Margin="32,0,32,28">
+      <ItemsControl x:Name="List">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Style="{StaticResource Row}" ToolTip="{Binding ToolTipText}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <WrapPanel>
+                    <TextBlock Text="{Binding TitleText}" Style="{StaticResource TxtRow}" Margin="0,0,9,0"/>
+                    <Border Style="{StaticResource RiskChip}" Margin="0,1,6,0"><TextBlock Text="{Binding RiskLabel}" Style="{StaticResource RiskText}"/></Border>
+                    <Border Style="{StaticResource ChipBase}" Background="{DynamicResource HoverLayer}" Margin="0,1,0,0" Visibility="{Binding HasEffect, Converter={StaticResource BoolVis}}">
+                      <TextBlock Text="{Binding EffectLabel}" Style="{StaticResource ChipText}" Foreground="{DynamicResource TextMuted}"/>
+                    </Border>
+                  </WrapPanel>
+                  <TextBlock Text="{Binding DescText}" Style="{StaticResource TxtSmall}" Margin="0,2,0,0"/>
+                </StackPanel>
+                <ToggleButton Grid.Column="1" Style="{StaticResource Switch}" Margin="18,0,0,0" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"/>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock x:Name="EmptyText" Style="{StaticResource TxtEmpty}"/>
+    </StackPanel>
   </ScrollViewer>
 </DockPanel>

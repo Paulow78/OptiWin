@@ -7,7 +7,7 @@
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
           <Button x:Name="BtnRestorePoint" Content="Créer un point de restauration" Margin="0,0,8,0"/>
-          <Button x:Name="BtnRstrui" Content="Restauration système" Margin="0,0,8,0"/>
+          <Button x:Name="BtnRstrui" Content="Restauration système" Margin="0,0,8,0" ToolTip="Ouvre l'outil de Windows pour revenir à un point de restauration"/>
           <Button x:Name="BtnUndoAll" Content="Tout annuler" Style="{StaticResource BtnDanger}"/>
         </StackPanel>
         <StackPanel VerticalAlignment="Center">
@@ -39,7 +39,19 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <TextBlock x:Name="NoneText" Style="{StaticResource TxtMuted}" Text="Aucun réglage OptiWin n'est appliqué pour le moment." Margin="2,0,0,12"/>
-      <TextBlock Text="Journal" Style="{StaticResource TxtLabel}" Margin="0,14,0,6"/>
+
+      <DockPanel Margin="0,14,0,8">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBox x:Name="LogSearch" Width="220" Margin="0,0,6,0" Tag="Filtrer le journal (Ctrl+F)"/>
+          <Button x:Name="BtnExport" Style="{StaticResource BtnGhost}" ToolTip="Enregistre tout le journal dans un fichier texte, à joindre à une demande d'aide">
+            <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFile}"/><TextBlock Text="Exporter" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+          <Button x:Name="BtnOpenLogs" Style="{StaticResource BtnGhost}" ToolTip="Ouvre le dossier des journaux détaillés d'OptiWin">
+            <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFolder}"/><TextBlock Text="Journaux détaillés" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+        </StackPanel>
+        <TextBlock Text="Journal" Style="{StaticResource TxtLabel}" VerticalAlignment="Center" Margin="0"/>
+      </DockPanel>
       <ItemsControl x:Name="LogList">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
@@ -56,6 +68,7 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <TextBlock x:Name="LogEmpty" Style="{StaticResource TxtEmpty}"/>
     </StackPanel>
   </ScrollViewer>
 </DockPanel>

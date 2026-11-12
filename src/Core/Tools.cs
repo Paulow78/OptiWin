@@ -54,6 +54,7 @@ namespace OptiWin
         public static List<ToolAction> Catalog()
         {
             var sys = Environment.GetEnvironmentVariable("SystemDrive") ?? "C:";
+            var weekly = WeeklyInstalled();
             return new List<ToolAction>
             {
                 new ToolAction { Id = "repair", Icon = "IcoShield", Title = "Réparer les fichiers système", Desc = "DISM puis SFC : compare Windows à une copie saine et remplace ce qui est abîmé.", Duration = "10 à 30 min", NeedsAdmin = true,
@@ -131,7 +132,41 @@ namespace OptiWin
                         Process.Start(path);
                         j.Summary = "Rapport enregistré : " + path;
                     } },
-                new ToolAction { Id = "weekly", Icon = "IcoClock", Title = "Entretien automatique chaque semaine", Desc = "Nettoie les fichiers temporaires sans intervention. Relancez pour le retirer.", Duration = "Immédiat", NeedsAdmin = true,
+                new ToolAction { Id = "memtest", Icon = "IcoCpu", Title = "Tester la mémoire vive", Desc = "Programme le Diagnostic de mémoire Windows au prochain redémarrage. Plantages aléatoires et écrans bleus viennent souvent d'une barrette défaillante.", Duration = "10 à 30 min, au redémarrage", NeedsAdmin = true,
+                    Confirm = "Le test s'exécute avant Windows, au prochain redémarrage, puis Windows reprend la main. Programmer le test ?",
+                    Run = (j, _) =>
+                    {
+                        Proc.RunChecked("bcdedit.exe", "/bootsequence {memdiag}", j.Log, j.Token);
+                        Store.AddHistory("memtest", "Diagnostic de mémoire", "Programmé au prochain redémarrage");
+                        j.Summary = "Test programmé. Redémarrez quand vous voulez : le résultat s'affiche à l'écran, puis dans l'Observateur d'événements.";
+                    } },
+                new ToolAction { Id = "energy", Icon = "IcoActivity", Title = "Rapport d'énergie", Desc = "Observe le PC pendant 60 secondes et liste ce qui l'empêche de dormir ou gaspille de l'énergie.", Duration = "1 min", NeedsAdmin = true,
+                    Run = (j, _) =>
+                    {
+                        var path = Path.Combine(Path.GetTempPath(), "OptiWin-energie.html");
+                        j.Status("Observation du système pendant 60 secondes");
+                        j.Progress(-1);
+                        // Le code de retour est le nombre de problèmes relevés : ce n'est pas une erreur.
+                        var n = Proc.Run("powercfg.exe", "/energy /duration 60 /output \"" + path + "\"", j.Log, j.Token);
+                        if (!File.Exists(path)) throw new InvalidOperationException("Le rapport n'a pas été produit : voir le journal.");
+                        Process.Start(path);
+                        j.Summary = n > 0 ? n + " point(s) signalé(s) : rapport ouvert dans le navigateur." : "Rapport ouvert dans le navigateur.";
+                    } },
+                new ToolAction { Id = "store", Icon = "IcoGrid", Title = "Réparer le Microsoft Store", Desc = "Vide le cache du Store et réenregistre l'application. Pour un Store qui ne s'ouvre plus ou ne télécharge plus.", Duration = "1 min",
+                    Run = (j, _) =>
+                    {
+                        j.Status("Vidage du cache du Store");
+                        Proc.Run("wsreset.exe", "", j.Log, j.Token);
+                        j.Status("Réenregistrement du Store");
+                        string err;
+                        PS.Run("Get-AppxPackage Microsoft.WindowsStore | ForEach-Object { Add-AppxPackage -DisableDevelopmentMode -Register ($_.InstallLocation + '\\AppXManifest.xml') -ErrorAction SilentlyContinue }", out err, j.Token);
+                        if (!string.IsNullOrWhiteSpace(err)) j.Log(err.Trim());
+                        j.Summary = "Store réparé. S'il reste muet, redémarrez le PC.";
+                    } },
+                new ToolAction { Id = "weekly", Icon = "IcoClock", Title = weekly ? "Retirer l'entretien automatique" : "Entretien automatique chaque semaine",
+                    Desc = weekly ? "Actif : fichiers temporaires nettoyés chaque dimanche à 12 h, ou dès que le PC est allumé. Lancer retire cette tâche planifiée."
+                                  : "Nettoie les fichiers temporaires sans intervention, chaque dimanche. Relancez pour le retirer.",
+                    Duration = "Immédiat", NeedsAdmin = true,
                     Run = (j, _) => ToggleWeekly(j) },
             };
         }

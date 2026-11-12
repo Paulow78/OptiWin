@@ -64,6 +64,7 @@ namespace OptiWin
                 DownloadTests(tmp);
                 MultibootTests(tmp);
                 Rescue(tmp);
+                Ergonomics();
             }
             finally
             {

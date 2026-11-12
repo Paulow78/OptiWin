@@ -561,6 +561,78 @@ namespace OptiWin
             });
         }
 
+        /// <summary>Ajouts de la version 26.11 : recherche, compteurs, catalogue étendu, mesures.</summary>
+        static void Ergonomics()
+        {
+            Line("Ergonomie et catalogue 26.11");
+            T("numéro de version lisible", () =>
+            {
+                Is(Shell.VersionText(new Version(26, 11, 1, 0)) == "26.11.1", "26.11.1");
+                Is(Shell.VersionText(new Version(26, 3, 0, 0)) == "26.3", "26.3");
+                var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                Is(v.Major == 26 && v.Minor == 11 && v.Build == 1, "version compilée : " + v);
+            });
+            T("accord du pluriel", () =>
+            {
+                Is(Fmt.N(1, "réglage") == "1 réglage" && Fmt.N(3, "réglage") == "3 réglages", "simple");
+                Is(Fmt.N(2, "programme superflu", "programmes superflus") == "2 programmes superflus", "pluriel irrégulier");
+                Is(Fmt.N(1, "réglage", "affiché", "affichés") == "1 réglage affiché" && Fmt.N(5, "réglage", "affiché", "affichés") == "5 réglages affichés", "adjectif");
+                Is(Fmt.When("pas une date") == "pas une date" && Fmt.When(null) == "", "date illisible conservée");
+            });
+            T("recherche d'un réglage : titre, description, catégorie, identifiant", () =>
+            {
+                var t = TweakCatalog.ById("priv.bing");
+                Is(TweakCatalog.Matches(t, "bing") && TweakCatalog.Matches(t, "BING") && TweakCatalog.Matches(t, "  web "), "titre et description");
+                Is(TweakCatalog.Matches(t, "confidentialité") && TweakCatalog.Matches(t, "priv.bing"), "catégorie et identifiant");
+                Is(!TweakCatalog.Matches(t, "xyzzy") && TweakCatalog.Matches(t, "") && TweakCatalog.Matches(t, null), "vide et absent");
+            });
+            T("nouveaux réglages présents, bornés et absents des profils quand ils sont contestés", () =>
+            {
+                foreach (var id in new[] { "perf.ntfsmem", "game.fso", "priv.consumer", "priv.wer", "ui.seconds", "ui.compact", "ui.recent", "ui.chat" })
+                    Is(TweakCatalog.ById(id) != null, "absent : " + id);
+                Is(TweakCatalog.ById("ui.chat").MaxBuild == 22630 && TweakCatalog.ById("ui.compact").MinBuild == 22000, "bornes de build");
+                Is(TweakCatalog.ById("game.fso").Profiles == Prof.None && TweakCatalog.ById("perf.ntfsmem").Profiles == Prof.None, "réglages contestés hors profil");
+                Is(TweakCatalog.All.Count >= 58, "catalogue : " + TweakCatalog.All.Count);
+            });
+            T("filtre des programmes de démarrage", () =>
+            {
+                var it = new StartupItem { Name = "Discord", Command = "\"C:\\Users\\x\\Discord\\Update.exe\" --processStart Discord.exe", Publisher = "Discord Inc." };
+                Is(it.Matches("disc") && it.Matches("update.exe") && it.Matches("inc.") && it.Matches("") && !it.Matches("steam"), "correspondances");
+                Is(!it.CanReveal, "programme inexistant signalé comme ouvrable");
+            });
+            T("programmes gourmands : classés, bornés, instances regroupées", () =>
+            {
+                var l = TopProcesses.Read(5);
+                Is(l.Count > 0 && l.Count <= 5, "nombre " + l.Count);
+                Is(l[0].Share == 100 && l.All(r => r.Share > 0 && r.Share <= 100), "part relative");
+                for (int i = 1; i < l.Count; i++) Is(l[i].Bytes <= l[i - 1].Bytes, "ordre");
+                Is(l.All(r => r.Count >= 1), "instances");
+                Line("        " + string.Join(", ", l.Take(3).Select(r => r.Name + " " + r.MemText)));
+            });
+            T("nouveaux outils et libellé de l'entretien", () =>
+            {
+                var tools = Tools.Catalog();
+                foreach (var id in new[] { "memtest", "energy", "store", "weekly" }) Is(tools.Any(t => t.Id == id), "outil absent : " + id);
+                var w = tools.First(t => t.Id == "weekly");
+                Is(Tools.WeeklyInstalled() ? w.Title.StartsWith("Retirer") : w.Title.StartsWith("Entretien"), "libellé : " + w.Title);
+                Is(tools.First(t => t.Id == "memtest").Confirm != null, "le test mémoire demande confirmation");
+            });
+            T("dernier nettoyage lu dans l'historique", () =>
+            {
+                Is(Cleaner.LastCleanup() == null, "historique vide attendu");
+                Store.AddHistory("clean", "Nettoyage", "12 Mo libérés");
+                var last = Cleaner.LastCleanup();
+                Is(last != null && last.Action == "12 Mo libérés", "entrée non retrouvée");
+            });
+            T("catalogue des logiciels : groupes connus, identifiants winget valides", () =>
+            {
+                var s = AppsCatalog.Software();
+                Is(s.Count >= 46, "nombre " + s.Count);
+                Is(s.All(x => PcProfiles.FilterSoftware(new[] { x.Id }).Count == 1 || x.Id.StartsWith("Microsoft.", StringComparison.Ordinal)), "identifiant refusé par le filtre");
+                Is(s.Select(x => x.Group).Distinct().Count() >= 10, "groupes");
+            });
+        }
+
         static void Rescue(string tmp)
         {
             Line("Kit de secours");

@@ -46,6 +46,7 @@
       <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="20,12">
         <DockPanel>
           <Button x:Name="BtnInstall" DockPanel.Dock="Right" Style="{StaticResource BtnPrimary}" Content="Installer la sélection" Padding="18,8" IsEnabled="False"/>
+          <TextBox x:Name="InstallSearch" DockPanel.Dock="Right" Width="210" Margin="12,0" VerticalAlignment="Center" Tag="Rechercher un logiciel (Ctrl+F)"/>
           <StackPanel VerticalAlignment="Center">
             <TextBlock x:Name="InstallInfo" Text="Choisissez vos logiciels" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
             <TextBlock x:Name="InstallNote" Text="Téléchargés depuis les sources officielles via winget. Installer un logiciel vaut acceptation de la licence de son éditeur." Style="{StaticResource TxtSmall}"/>
