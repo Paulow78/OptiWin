@@ -109,18 +109,19 @@ namespace OptiWin
     {
         readonly ComboBox baseCombo, afterCombo;
         readonly StackPanel table;
-        readonly ItemsControl metricRows, diskList;
-        readonly TextBlock note, empty, diskStatus;
-        readonly Button btnMeasure, btnClear;
-        bool disksLoaded, filling;
+        readonly ItemsControl metricRows, diskList, procList;
+        readonly TextBlock note, empty, diskStatus, procStatus;
+        readonly Button btnMeasure, btnClear, btnProcs;
+        bool disksLoaded, filling, procsBusy;
 
         public DiagnosticPage()
         {
             View = (FrameworkElement)Ui.Load("PageDiagnostic.xaml");
             baseCombo = F<ComboBox>("BaseCombo"); afterCombo = F<ComboBox>("AfterCombo"); table = F<StackPanel>("MetricTable");
-            metricRows = F<ItemsControl>("MetricRows"); diskList = F<ItemsControl>("DiskList");
-            note = F<TextBlock>("MetricNote"); empty = F<TextBlock>("MetricEmpty"); diskStatus = F<TextBlock>("DiskStatus");
-            btnMeasure = F<Button>("BtnMeasure"); btnClear = F<Button>("BtnClearMetrics");
+            metricRows = F<ItemsControl>("MetricRows"); diskList = F<ItemsControl>("DiskList"); procList = F<ItemsControl>("ProcList");
+            note = F<TextBlock>("MetricNote"); empty = F<TextBlock>("MetricEmpty"); diskStatus = F<TextBlock>("DiskStatus"); procStatus = F<TextBlock>("ProcStatus");
+            btnMeasure = F<Button>("BtnMeasure"); btnClear = F<Button>("BtnClearMetrics"); btnProcs = F<Button>("BtnProcs");
+            btnProcs.Click += delegate { LoadProcs(); };
             baseCombo.SelectionChanged += delegate { if (!filling) Compare(); };
             afterCombo.SelectionChanged += delegate { if (!filling) Compare(); };
             btnMeasure.Click += delegate { Measure(); };
@@ -136,7 +137,25 @@ namespace OptiWin
         public override void OnShow()
         {
             Reload();
+            LoadProcs();
             if (!disksLoaded) LoadDisks();
+        }
+        public override void OnRefresh() { Reload(); LoadProcs(); LoadDisks(); }
+
+        /// <summary>Les programmes qui pèsent le plus en mémoire, instances regroupées.</summary>
+        void LoadProcs()
+        {
+            if (procsBusy) return;
+            procsBusy = true;
+            btnProcs.IsEnabled = false;
+            Task.Factory.StartNew(() => TopProcesses.Read(8)).ContinueWith(t =>
+            {
+                procsBusy = false;
+                btnProcs.IsEnabled = true;
+                if (t.IsFaulted) { procStatus.Text = t.Exception.GetBaseException().Message; return; }
+                procList.ItemsSource = t.Result;
+                procStatus.Text = "Mémoire de travail à " + DateTime.Now.ToString("HH:mm:ss") + ", pages partagées comprises : un total peut dépasser la mémoire réellement occupée.";
+            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         void Reload()
@@ -205,6 +224,8 @@ namespace OptiWin
         readonly Button btnRead, btnGo;
         readonly Action<string> onIsoReady;
         List<EsdFile> files = new List<EsdFile>();
+        // Un emplacement choisi à la main n'est plus écrasé quand la langue ou l'architecture change.
+        bool outputCustom;
 
         T F<T>(string n) where T : class
         {
@@ -221,16 +242,15 @@ namespace OptiWin
             btnRead = F<Button>("BtnDlRead"); btnGo = F<Button>("BtnDlGo");
             product.ItemsSource = WinDownload.Products;
             product.SelectedIndex = 0;
-            product.SelectionChanged += delegate { files = new List<EsdFile>(); lang.ItemsSource = null; arch.ItemsSource = null; UpdateInfo(); };
+            product.SelectionChanged += delegate { files = new List<EsdFile>(); lang.ItemsSource = null; arch.ItemsSource = null; outputCustom = false; UpdateInfo(); };
             lang.SelectionChanged += delegate { UpdateArch(); };
             arch.SelectionChanged += delegate { UpdateInfo(); };
             btnRead.Click += delegate { ReadCatalog(); };
             btnGo.Click += delegate { Go(); };
             F<Button>("BtnDlOut").Click += delegate
             {
-                var f = Current();
                 var p = Dialogs.PickSave("Enregistrer l'ISO", "Image ISO (*.iso)|*.iso", output.Text.Length > 0 ? Path.GetFileName(output.Text) : "Windows.iso");
-                if (p != null) output.Text = p;
+                if (p != null) { output.Text = p; outputCustom = true; }
             };
             UpdateInfo();
         }
@@ -281,7 +301,8 @@ namespace OptiWin
             info.Text = p.Name + ", build " + f.Build + " — téléchargement de " + Fmt.Size(f.Size) + ", " + Fmt.Size(WinDownload.SpaceNeeded(f)) + " d'espace libre requis le temps de l'opération."
                 + " Ce catalogue peut avoir une version de retard : Windows Update fera le reste après l'installation."
                 + (Os.IsAdmin ? "" : " Créer l'ISO demande le mode administrateur.");
-            output.Text = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"), p.IsoLabel + "-" + f.LanguageCode + "-" + f.Arch + ".iso");
+            if (!outputCustom)
+                output.Text = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"), p.IsoLabel + "-" + f.LanguageCode + "-" + f.Arch + ".iso");
         }
 
         async void Go()

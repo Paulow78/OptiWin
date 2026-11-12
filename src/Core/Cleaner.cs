@@ -187,10 +187,19 @@ namespace OptiWin
             return new[] { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi" }.Where(n => Process.GetProcessesByName(n).Length > 0).ToArray();
         }
 
-        static bool UpdatePending()
+        /// <summary>Une mise à jour attend un redémarrage pour se terminer.</summary>
+        public static bool RebootPending()
         {
             return Reg.KeyExists(RegistryHive.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired")
+                || Reg.KeyExists(RegistryHive.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending")
                 || File.Exists(W(@"WinSxS\pending.xml"));
+        }
+        static bool UpdatePending() { return RebootPending(); }
+
+        /// <summary>Dernier nettoyage consigné dans l'historique, ou null.</summary>
+        public static HistoryEntry LastCleanup()
+        {
+            return Store.History().LastOrDefault(h => h.Id == "clean" || h.Id == "maintenance");
         }
 
         public static List<CleanCat> BuildCatalog()

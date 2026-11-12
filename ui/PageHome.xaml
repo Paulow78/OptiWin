@@ -5,34 +5,38 @@
   <StackPanel Margin="32,22,32,32" MaxWidth="1240">
 
     <!-- Score et action principale -->
-    <Border Style="{StaticResource Card}" Padding="28,24" Margin="0,0,0,14">
+    <Border Style="{StaticResource Card}" Padding="0" Margin="0,0,0,14">
       <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <Grid Width="124" Height="124">
-          <o:RingGauge x:Name="Ring" Track="{DynamicResource SurfaceHover}" Stroke="{DynamicResource Accent}" Thickness="10"/>
-          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock x:Name="ScoreText" Text="—" HorizontalAlignment="Center" FontFamily="{StaticResource FontDisplay}" FontSize="40" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
-            <TextBlock Text="sur 100" HorizontalAlignment="Center" Style="{StaticResource TxtSmall}" Margin="0,-5,0,0"/>
+        <!-- Halo de couleur discret derrière la jauge, construit par le thème -->
+        <Border CornerRadius="11" Background="{DynamicResource HeroGlow}"/>
+        <Grid Margin="28,24">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <Grid Width="124" Height="124">
+            <o:RingGauge x:Name="Ring" Track="{DynamicResource SurfaceHover}" Stroke="{DynamicResource Accent}" Thickness="10"/>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+              <TextBlock x:Name="ScoreText" Text="—" HorizontalAlignment="Center" FontFamily="{StaticResource FontDisplay}" FontSize="40" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
+              <TextBlock Text="sur 100" HorizontalAlignment="Center" Style="{StaticResource TxtSmall}" Margin="0,-5,0,0"/>
+            </StackPanel>
+          </Grid>
+          <StackPanel Grid.Column="1" Margin="28,0,24,0" VerticalAlignment="Center">
+            <TextBlock x:Name="Verdict" Text="Analyse de ce PC…" Style="{StaticResource TxtTitle}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="VerdictSub" Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,6,0,0"/>
+          </StackPanel>
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Width="248">
+            <Button x:Name="BtnOptimize" Style="{StaticResource BtnPrimary}" FontSize="15" Padding="18,13">
+              <StackPanel Orientation="Horizontal">
+                <Path Style="{StaticResource Ico}" Data="{StaticResource IcoZap}"/>
+                <TextBlock Text="Optimiser ce PC" Margin="10,0,0,0" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <TextBlock x:Name="ProfileName" Style="{StaticResource TxtBody}" FontWeight="SemiBold" TextAlignment="Center" Margin="0,10,0,0"/>
+            <TextBlock x:Name="ProfileReason" Style="{StaticResource TxtSmall}" TextAlignment="Center" Margin="0,2,0,0"/>
           </StackPanel>
         </Grid>
-        <StackPanel Grid.Column="1" Margin="28,0,24,0" VerticalAlignment="Center">
-          <TextBlock x:Name="Verdict" Text="Analyse de ce PC…" Style="{StaticResource TxtTitle}" TextWrapping="Wrap"/>
-          <TextBlock x:Name="VerdictSub" Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,6,0,0"/>
-        </StackPanel>
-        <StackPanel Grid.Column="2" VerticalAlignment="Center" Width="248">
-          <Button x:Name="BtnOptimize" Style="{StaticResource BtnPrimary}" FontSize="15" Padding="18,13">
-            <StackPanel Orientation="Horizontal">
-              <Path Style="{StaticResource Ico}" Data="{StaticResource IcoZap}"/>
-              <TextBlock Text="Optimiser ce PC" Margin="10,0,0,0" VerticalAlignment="Center"/>
-            </StackPanel>
-          </Button>
-          <TextBlock x:Name="ProfileName" Style="{StaticResource TxtBody}" FontWeight="SemiBold" TextAlignment="Center" Margin="0,10,0,0"/>
-          <TextBlock x:Name="ProfileReason" Style="{StaticResource TxtSmall}" TextAlignment="Center" Margin="0,2,0,0"/>
-        </StackPanel>
       </Grid>
     </Border>
 
@@ -40,21 +44,30 @@
     <UniformGrid Columns="4" Margin="-6,0,-6,8">
       <Border Style="{StaticResource Card}" Margin="6,0,6,6" Padding="18,16">
         <StackPanel>
-          <TextBlock Text="Processeur" Style="{StaticResource TxtSmall}"/>
+          <DockPanel>
+            <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoCpu}" TextElement.Foreground="{DynamicResource TextFaint}" Margin="0,0,7,0"/>
+            <TextBlock Text="Processeur" Style="{StaticResource TxtSmall}" VerticalAlignment="Center"/>
+          </DockPanel>
           <TextBlock x:Name="CpuVal" Text="—" Style="{StaticResource TxtMetric}"/>
           <o:Sparkline x:Name="CpuSpark" Height="34" Margin="0,8,0,0" Stroke="{DynamicResource Accent}"/>
         </StackPanel>
       </Border>
       <Border Style="{StaticResource Card}" Margin="6,0,6,6" Padding="18,16">
         <StackPanel>
-          <TextBlock Text="Mémoire" Style="{StaticResource TxtSmall}"/>
+          <DockPanel>
+            <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoRam}" TextElement.Foreground="{DynamicResource TextFaint}" Margin="0,0,7,0"/>
+            <TextBlock Text="Mémoire utilisée" Style="{StaticResource TxtSmall}" VerticalAlignment="Center"/>
+          </DockPanel>
           <TextBlock x:Name="RamVal" Text="—" Style="{StaticResource TxtMetric}"/>
           <o:Sparkline x:Name="RamSpark" Height="34" Margin="0,8,0,0" Stroke="{DynamicResource Info}"/>
         </StackPanel>
       </Border>
       <Border Style="{StaticResource Card}" Margin="6,0,6,6" Padding="18,16">
         <StackPanel>
-          <TextBlock x:Name="DiskLabel" Text="Disque système" Style="{StaticResource TxtSmall}"/>
+          <DockPanel>
+            <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoDrive}" TextElement.Foreground="{DynamicResource TextFaint}" Margin="0,0,7,0"/>
+            <TextBlock x:Name="DiskLabel" Text="Disque système" Style="{StaticResource TxtSmall}" VerticalAlignment="Center"/>
+          </DockPanel>
           <TextBlock x:Name="DiskVal" Text="—" Style="{StaticResource TxtMetric}"/>
           <ProgressBar x:Name="DiskBar" Maximum="100" Margin="0,12,0,8"/>
           <TextBlock x:Name="DiskSub" Style="{StaticResource TxtSmall}"/>
@@ -62,7 +75,10 @@
       </Border>
       <Border Style="{StaticResource Card}" Margin="6,0,6,6" Padding="18,16">
         <StackPanel>
-          <TextBlock Text="Allumé depuis" Style="{StaticResource TxtSmall}"/>
+          <DockPanel>
+            <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoClock}" TextElement.Foreground="{DynamicResource TextFaint}" Margin="0,0,7,0"/>
+            <TextBlock Text="Allumé depuis" Style="{StaticResource TxtSmall}" VerticalAlignment="Center"/>
+          </DockPanel>
           <TextBlock x:Name="UptimeVal" Text="—" Style="{StaticResource TxtMetric}"/>
           <TextBlock x:Name="ProcSub" Style="{StaticResource TxtSmall}" Margin="0,12,0,0"/>
           <TextBlock x:Name="StartupSub" Style="{StaticResource TxtSmall}" Margin="0,2,0,0"/>

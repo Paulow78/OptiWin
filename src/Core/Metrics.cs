@@ -131,6 +131,41 @@ namespace OptiWin
         }
     }
 
+    /// <summary>Un programme et la mémoire qu'il occupe, toutes ses instances réunies.</summary>
+    public sealed class ProcRow
+    {
+        public string Name { get; set; }
+        public long Bytes { get; set; }
+        public int Count { get; set; }
+        public double Share { get; set; }
+        public string MemText { get { return Fmt.Size(Bytes); } }
+        public string CountText { get { return Count > 1 ? Count + " instances" : ""; } }
+    }
+
+    /// <summary>Programmes les plus gourmands en mémoire, pour comprendre ce qui pèse sur le PC en ce moment.</summary>
+    public static class TopProcesses
+    {
+        public static List<ProcRow> Read(int n)
+        {
+            var groups = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in Process.GetProcesses())
+            {
+                try
+                {
+                    long[] g;
+                    if (!groups.TryGetValue(p.ProcessName, out g)) { g = new long[2]; groups[p.ProcessName] = g; }
+                    g[0] += p.WorkingSet64;
+                    g[1]++;
+                }
+                catch { }
+                finally { p.Dispose(); }
+            }
+            var top = groups.OrderByDescending(kv => kv.Value[0]).Take(n).ToList();
+            var max = top.Count == 0 ? 1.0 : Math.Max(1.0, top[0].Value[0]);
+            return top.Select(kv => new ProcRow { Name = kv.Key, Bytes = kv.Value[0], Count = (int)kv.Value[1], Share = 100.0 * kv.Value[0] / max }).ToList();
+        }
+    }
+
     public sealed class DiskFact
     {
         public string Key { get; set; }

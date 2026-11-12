@@ -65,6 +65,22 @@ namespace OptiWin
         public static string Num(double v, string f) { return v.ToString(f, Fr); }
         public static string Date(DateTime d) { return d.ToString("d MMM yyyy", Fr); }
         public static string DateTimeText(DateTime d) { return d.ToString("d MMM yyyy à HH:mm", Fr); }
+        /// <summary>« 1 réglage », « 3 réglages » : l'accord du pluriel en un seul endroit.</summary>
+        public static string N(int n, string singular, string plural = null)
+        {
+            return n + " " + (n > 1 ? (plural ?? singular + "s") : singular);
+        }
+        /// <summary>Même chose avec un adjectif accordé : « 2 réglages appliqués ».</summary>
+        public static string N(int n, string singular, string adjective, string adjectivePlural)
+        {
+            return N(n, singular) + " " + (n > 1 ? adjectivePlural : adjective);
+        }
+        /// <summary>Date ISO (telle que stockée dans l'historique) rendue lisible.</summary>
+        public static string When(string iso)
+        {
+            DateTime d;
+            return DateTime.TryParse(iso, out d) ? DateTimeText(d) : (iso ?? "");
+        }
     }
 
     public static class Paths

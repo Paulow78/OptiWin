@@ -16,7 +16,9 @@
       <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="20,14">
         <DockPanel>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button x:Name="BtnScan" Margin="0,0,8,0">
+            <Button x:Name="BtnSelectAll" Style="{StaticResource BtnGhost}" Content="Tout cocher" ToolTip="Coche tout ce qui peut l'être sans perte définitive" Margin="0,0,2,0"/>
+            <Button x:Name="BtnSelectNone" Style="{StaticResource BtnGhost}" Content="Tout décocher" Margin="0,0,10,0"/>
+            <Button x:Name="BtnScan" Margin="0,0,8,0" ToolTip="F5">
               <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoRefresh}"/><TextBlock Text="Analyser" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
             </Button>
             <Button x:Name="BtnClean" Style="{StaticResource BtnPrimary}" Padding="18,8" IsEnabled="False">

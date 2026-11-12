@@ -6,7 +6,7 @@
 
 <p align="center">
   Optimisation de Windows, nettoyage et clés USB bootables.<br>
-  Un seul fichier de 565 Ko, sans installation. Tout est réversible.
+  Un seul fichier de moins d'un Mo, sans installation. Tout est réversible.
 </p>
 
 <p align="center">
@@ -26,15 +26,17 @@
 | Page | Contenu |
 |---|---|
 | **Accueil** | Score de santé calculé sur des faits mesurés, processeur et mémoire en direct, profil conseillé pour le PC |
-| **Optimiser** | 50 réglages réversibles, 5 profils : Vieux PC, Fraîchement installé, Jeux, Portable, Confidentialité |
+| **Optimiser** | 58 réglages réversibles, 5 profils : Vieux PC, Fraîchement installé, Jeux, Portable, Confidentialité. Recherche et filtre par état |
 | **Nettoyer** | Caches et fichiers temporaires, et analyse de ce qui occupe le disque |
-| **Démarrage** | Activer ou couper les programmes, avec le mécanisme du Gestionnaire des tâches |
-| **Applications** | Retirer les applications préinstallées, installer 36 logiciels courants via winget |
+| **Démarrage** | Activer ou couper les programmes, avec le mécanisme du Gestionnaire des tâches. Les superflus se coupent d'un coup |
+| **Applications** | Retirer les applications préinstallées, installer 46 logiciels courants via winget |
 | **Réinstaller** | Exporter réglages et logiciels dans un fichier, puis tout retrouver sur un Windows neuf |
 | **USB et ISO** | Clé bootable Windows ou Linux, clé multiboot, création d'ISO, ISO allégée, téléchargement de Windows, vérification SHA-256 |
-| **Diagnostic** | Mesures avant/après, santé réelle des disques (usure, température, erreurs) |
-| **Outils** | Réparation DISM/SFC, réseau, Windows Update, sauvegarde des pilotes, kit de secours, test DNS, compatibilité Windows 11 |
-| **Historique** | Tout ce qui a été changé, annulable un par un ou d'un coup |
+| **Diagnostic** | Mesures avant/après, programmes qui occupent la mémoire, santé réelle des disques (usure, température, erreurs) |
+| **Outils** | Réparation DISM/SFC, réseau, Windows Update, Store, test de la mémoire, rapport d'énergie, sauvegarde des pilotes, kit de secours, test DNS, compatibilité Windows 11 |
+| **Historique** | Tout ce qui a été changé, annulable un par un ou d'un coup, journal filtrable et exportable |
+
+Raccourcis clavier : Ctrl+1 à Ctrl+0 pour changer de page, F5 pour actualiser, Ctrl+F pour chercher, Ctrl+T pour le thème, Échap pour fermer un dialogue. Les nouveautés de chaque version sont dans [CHANGELOG.md](CHANGELOG.md).
 
 ## Ses règles
 
@@ -74,7 +76,7 @@ Un `install.wim` de plus de 4 Go est découpé automatiquement. Chaque clé Wind
 
 **Vérifié en conditions réelles, sur Windows 11 :**
 
-- 104 auto-tests (`OptiWin.exe --selftest`) qui ne touchent pas au système : retour arrière des réglages, protection contre les liens symboliques, ISO BIOS + UEFI, téléchargement face à un serveur qui coupe la connexion, fichiers de profil piégés…
+- 113 auto-tests (`OptiWin.exe --selftest`) qui ne touchent pas au système : retour arrière des réglages, protection contre les liens symboliques, ISO BIOS + UEFI, téléchargement face à un serveur qui coupe la connexion, fichiers de profil piégés…
 - l'application de réglages, le nettoyage et le retrait d'applications, lors d'un usage normal ;
 - une vraie clé USB créée en mode « UEFI et BIOS » : un PC a démarré dessus en UEFI, avec Secure Boot actif, et le kit de secours a fonctionné dans l'installateur ;
 - la lecture du vrai catalogue de téléchargement de Microsoft.

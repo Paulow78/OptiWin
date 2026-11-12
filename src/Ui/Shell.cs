@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -69,13 +70,17 @@ namespace OptiWin
 
             Win.SourceInitialized += OnSourceInitialized;
             Win.StateChanged += delegate { UpdateMaxMargin(); };
+            Win.Loaded += delegate { UpdateMaxMargin(); };
+            Win.PreviewKeyDown += OnKey;
             Win.Closing += delegate(object s, System.ComponentModel.CancelEventArgs e)
             {
-                if (jobRunning) { e.Cancel = true; Toast("Une opération est en cours : attendez la fin ou annulez-la.", "warn"); }
+                if (jobRunning) { e.Cancel = true; Toast("Une opération est en cours : attendez la fin ou annulez-la.", "warn"); return; }
+                if (!solid) WindowMemory.Save(Win);
             };
+            if (!solid) WindowMemory.Restore(Win);
 
             var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            F<TextBlock>("VersionText").Text = "Version " + ver.Major + "." + ver.Minor;
+            F<TextBlock>("VersionText").Text = "Version " + VersionText(ver);
 
             if (!Os.IsAdmin)
             {
@@ -89,6 +94,39 @@ namespace OptiWin
             WirePlan();
             WireJob();
             UpdateThemeButton();
+        }
+
+        /// <summary>« 26.11.1 » : année, mois, puis numéro de publication dans le mois (omis s'il vaut 0).</summary>
+        public static string VersionText(Version v)
+        {
+            return v.Major + "." + v.Minor + (v.Build > 0 ? "." + v.Build : "");
+        }
+
+        static readonly string[] PageOrder = { "home", "optimize", "clean", "startup", "apps", "reinstall", "usb", "diagnostic", "tools", "history" };
+
+        bool DialogOpen { get { return F<Grid>("ConfirmLayer").IsVisible || F<Grid>("PlanLayer").IsVisible || F<Grid>("JobLayer").IsVisible; } }
+
+        // Raccourcis : Ctrl+1 à Ctrl+0 pour les pages, F5 pour actualiser, Ctrl+F pour chercher, Ctrl+T pour le thème, Échap pour fermer.
+        void OnKey(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                if (F<Grid>("ConfirmLayer").IsVisible) { CloseConfirm(false); e.Handled = true; }
+                else if (F<Grid>("PlanLayer").IsVisible) { F<Grid>("PlanLayer").Visibility = Visibility.Collapsed; e.Handled = true; }
+                else if (F<Grid>("JobLayer").IsVisible && !jobRunning) { F<Grid>("JobLayer").Visibility = Visibility.Collapsed; e.Handled = true; }
+                return;
+            }
+            if (DialogOpen) return;
+            if (e.Key == Key.F5) { if (current != null) current.OnRefresh(); e.Handled = true; return; }
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+            if (e.Key == Key.F) { if (current != null && current.OnFind()) e.Handled = true; return; }
+            if (e.Key == Key.T) { SetTheme(!Themes.IsDark); e.Handled = true; return; }
+            int n = -1;
+            if (e.Key >= Key.D1 && e.Key <= Key.D9) n = e.Key - Key.D1;
+            else if (e.Key == Key.D0) n = 9;
+            else if (e.Key >= Key.NumPad1 && e.Key <= Key.NumPad9) n = e.Key - Key.NumPad1;
+            else if (e.Key == Key.NumPad0) n = 9;
+            if (n >= 0 && n < PageOrder.Length) { Go(PageOrder[n]); e.Handled = true; }
         }
 
         void OnSourceInitialized(object sender, EventArgs e)
@@ -117,7 +155,8 @@ namespace OptiWin
             {
                 try
                 {
-                    int v = l.ToInt32();
+                    // Les 32 bits bas suffisent : ToInt32 déborderait sur un lParam 64 bits non étendu.
+                    var v = unchecked((int)(l.ToInt64() & 0xFFFFFFFF));
                     var pt = btnMax.PointFromScreen(new Point((short)(v & 0xFFFF), (short)((v >> 16) & 0xFFFF)));
                     if (pt.X >= 0 && pt.Y >= 0 && pt.X < btnMax.ActualWidth && pt.Y < btnMax.ActualHeight && btnMax.IsVisible)
                     {
@@ -206,10 +245,22 @@ namespace OptiWin
             F<TextBlock>("ToastText").Text = text;
             F<System.Windows.Shapes.Ellipse>("ToastDot").Fill = (Brush)Application.Current.Resources[kind == "bad" ? "Danger" : kind == "warn" ? "Warn" : kind == "info" ? "Info" : "Ok"];
             t.Visibility = Visibility.Visible;
-            t.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, new Duration(TimeSpan.FromMilliseconds(120))));
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            t.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, new Duration(TimeSpan.FromMilliseconds(160))) { EasingFunction = ease });
+            var slide = new TranslateTransform(0, 14);
+            t.RenderTransform = slide;
+            slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(14, 0, new Duration(TimeSpan.FromMilliseconds(200))) { EasingFunction = ease });
             if (toastTimer != null) toastTimer.Stop();
-            toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(kind == "bad" ? 7 : 4) };
-            toastTimer.Tick += delegate { toastTimer.Stop(); t.Visibility = Visibility.Collapsed; };
+            // Un message long reste plus longtemps lisible, une erreur aussi.
+            var seconds = Math.Max(kind == "bad" ? 7 : 4, Math.Min(12, text.Length / 18));
+            toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+            toastTimer.Tick += delegate
+            {
+                toastTimer.Stop();
+                var fade = new DoubleAnimation(1, 0, new Duration(TimeSpan.FromMilliseconds(220)));
+                fade.Completed += delegate { if (t.Opacity < 0.05) t.Visibility = Visibility.Collapsed; };
+                t.BeginAnimation(UIElement.OpacityProperty, fade);
+            };
             toastTimer.Start();
         }
 
@@ -230,7 +281,7 @@ namespace OptiWin
                 if (on && !t.IsApplied) Toast("Réglage appliqué partiellement : voir le journal.", "warn");
                 else Toast((on ? "Appliqué : " : "Annulé : ") + t.Title + EffectHint(t.Effect));
                 var o = CurrentOptimize();
-                if (o != null) o.NotePending(t.Effect);
+                if (o != null) { o.NotePending(t.Effect); o.UpdateCount(); }
             }
             catch (SettingProtectedException e) { Logger.Error("Réglage protégé " + t.Id, e); blocked = e; }
             catch (Exception e)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -33,6 +34,47 @@ namespace OptiWin
         }
         public virtual void OnShow() { }
         public virtual void OnHide() { }
+        /// <summary>F5 : recharge ce que la page affiche.</summary>
+        public virtual void OnRefresh() { }
+        /// <summary>Ctrl+F : donne le focus au champ de recherche de la page, s'il y en a un.</summary>
+        public virtual bool OnFind() { return false; }
+    }
+
+    /// <summary>Taille, position et état de la fenêtre, retrouvés d'une session à l'autre.</summary>
+    public static class WindowMemory
+    {
+        const string Key = "win.bounds";
+
+        public static void Restore(Window w)
+        {
+            var v = Store.Setting(Key);
+            if (v == null) return;
+            var p = v.Split(',');
+            double x, y, cw, ch;
+            if (p.Length < 5 || !TryD(p[0], out x) || !TryD(p[1], out y) || !TryD(p[2], out cw) || !TryD(p[3], out ch)) return;
+            if (cw < w.MinWidth || ch < w.MinHeight) return;
+            // La fenêtre doit rester attrapable : un écran débranché depuis ne doit pas la faire disparaître.
+            var left = SystemParameters.VirtualScreenLeft; var top = SystemParameters.VirtualScreenTop;
+            var right = left + SystemParameters.VirtualScreenWidth; var bottom = top + SystemParameters.VirtualScreenHeight;
+            if (x + cw < left + 120 || x > right - 120 || y < top - 10 || y > bottom - 120) return;
+            w.WindowStartupLocation = WindowStartupLocation.Manual;
+            w.Left = x; w.Top = y; w.Width = cw; w.Height = ch;
+            if (p[4] == "1") w.WindowState = WindowState.Maximized;
+        }
+
+        public static void Save(Window w)
+        {
+            try
+            {
+                var b = w.WindowState == WindowState.Normal ? new Rect(w.Left, w.Top, w.Width, w.Height) : w.RestoreBounds;
+                if (b.IsEmpty || b.Width <= 0 || b.Height <= 0) return;
+                Store.SetSetting(Key, string.Join(",", new[] { S(b.X), S(b.Y), S(b.Width), S(b.Height), w.WindowState == WindowState.Maximized ? "1" : "0" }));
+            }
+            catch (Exception e) { Logger.Error("Mémorisation de la fenêtre", e); }
+        }
+
+        static string S(double d) { return Math.Round(d).ToString(CultureInfo.InvariantCulture); }
+        static bool TryD(string s, out double d) { return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out d); }
     }
 
     /// <summary>Jauge circulaire du score de santé.</summary>
@@ -153,7 +195,8 @@ namespace OptiWin
         {
             IsDark = dark;
             var res = Application.Current.Resources;
-            foreach (var kv in dark ? Dark : Light) res[kv.Key] = Make(kv.Value);
+            var map = dark ? Dark : Light;
+            foreach (var kv in map) res[kv.Key] = Make(kv.Value);
             if (Mica)
             {
                 // Le fond Mica de Windows 11 traverse la fenêtre : on laisse transparaître une partie.
@@ -161,13 +204,43 @@ namespace OptiWin
                 res["SidebarBg"] = Brushes.Transparent;
                 res["ContentBg"] = Make(dark ? "#B0101319" : "#B8F6F7FA");
             }
+            // Halos construits ici : un dégradé ne peut pas pointer vers une couleur dynamique du thème.
+            var accent = Hex(map["Accent"]);
+            res["AccentColor"] = accent;
+            res["HeroGlow"] = Glow(accent, (byte)(dark ? 0x3A : 0x26));
+            res["ScoreGlow"] = Glow(accent, (byte)(dark ? 0x22 : 0x14));
+            res["CardSheen"] = Sheen((byte)(dark ? 0x0A : 0x40));
         }
+
+        static Color Hex(string hex) { return (Color)ColorConverter.ConvertFromString(hex); }
 
         static SolidColorBrush Make(string hex)
         {
-            var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+            var b = new SolidColorBrush(Hex(hex));
             b.Freeze();
             return b;
+        }
+
+        /// <summary>Halo radial discret, ancré dans le coin gauche d'une carte.</summary>
+        static RadialGradientBrush Glow(Color c, byte alpha)
+        {
+            var g = new RadialGradientBrush
+            {
+                Center = new Point(0.1, 0.5), GradientOrigin = new Point(0.1, 0.5), RadiusX = 0.55, RadiusY = 1.8,
+                MappingMode = BrushMappingMode.RelativeToBoundingBox
+            };
+            g.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, c.R, c.G, c.B), 0));
+            g.GradientStops.Add(new GradientStop(Color.FromArgb(0, c.R, c.G, c.B), 1));
+            g.Freeze();
+            return g;
+        }
+
+        /// <summary>Léger reflet blanc en haut des cartes, qui donne du relief sans ombre portée.</summary>
+        static LinearGradientBrush Sheen(byte alpha)
+        {
+            var g = new LinearGradientBrush(Color.FromArgb(alpha, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90);
+            g.Freeze();
+            return g;
         }
 
         public static bool SystemPrefersDark()

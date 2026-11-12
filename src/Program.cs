@@ -16,14 +16,17 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("OptiWin")]
 [assembly: AssemblyProduct("OptiWin")]
 [assembly: AssemblyDescription("Optimisation de Windows et création de clés bootables")]
-[assembly: AssemblyVersion("26.3.0.0")]
-[assembly: AssemblyFileVersion("26.3.0.0")]
+[assembly: AssemblyVersion("26.11.1.0")]
+[assembly: AssemblyFileVersion("26.11.1.0")]
+[assembly: AssemblyInformationalVersion("26.11.1")]
 
 namespace OptiWin
 {
     public static class Program
     {
         [DllImport("kernel32")] static extern bool AttachConsole(int pid);
+        // Conservé pendant toute la vie du processus : relâché, il laisserait démarrer une seconde instance.
+        static System.Threading.Mutex instanceMutex;
 
         [STAThread]
         public static int Main(string[] args)
@@ -80,6 +83,16 @@ namespace OptiWin
                     return 0;
                 }
                 catch (System.ComponentModel.Win32Exception) { }
+            }
+
+            // Une seule fenêtre à la fois : deux instances écriraient le même state.json chacune de son côté.
+            // Le nom distingue le mode limité du mode administrateur : l'élévation lance la seconde pendant que la première vit encore.
+            bool first;
+            instanceMutex = new System.Threading.Mutex(true, @"Local\OptiWin-" + (has("--elevated") || Os.IsAdmin ? "admin" : "user"), out first);
+            if (!first && screenshot == null)
+            {
+                SingleInstance.Activate();
+                return 0;
             }
 
             var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
@@ -161,6 +174,35 @@ namespace OptiWin
             var enc = new PngBitmapEncoder();
             enc.Frames.Add(BitmapFrame.Create(rtb));
             using (var f = File.Create(Path.Combine(dir, name + ".png"))) enc.Save(f);
+        }
+    }
+
+    /// <summary>Ramène au premier plan la fenêtre d'OptiWin déjà ouverte, plutôt que d'en ouvrir une seconde.</summary>
+    static class SingleInstance
+    {
+        [DllImport("user32")] static extern bool SetForegroundWindow(IntPtr h);
+        [DllImport("user32")] static extern bool ShowWindow(IntPtr h, int cmd);
+        [DllImport("user32")] static extern bool IsIconic(IntPtr h);
+
+        public static void Activate()
+        {
+            try
+            {
+                var me = Process.GetCurrentProcess();
+                foreach (var p in Process.GetProcessesByName(me.ProcessName))
+                {
+                    try
+                    {
+                        if (p.Id == me.Id || p.MainWindowHandle == IntPtr.Zero) continue;
+                        if (IsIconic(p.MainWindowHandle)) ShowWindow(p.MainWindowHandle, 9); // SW_RESTORE
+                        SetForegroundWindow(p.MainWindowHandle);
+                        return;
+                    }
+                    catch { }
+                    finally { p.Dispose(); }
+                }
+            }
+            catch { }
         }
     }
 }

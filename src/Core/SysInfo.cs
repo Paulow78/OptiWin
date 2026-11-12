@@ -259,7 +259,12 @@ namespace OptiWin
             }
 
             if (SysInfo.Uptime.TotalDays > 14) add(5, "info", "Allumé depuis " + Fmt.Span(SysInfo.Uptime), "Un redémarrage libère la mémoire et termine les mises à jour.", null, null);
-            if (SysInfo.RamLoad() > 85) add(10, "warn", "Mémoire saturée", SysInfo.RamLoad() + " % de la RAM est utilisée en ce moment.", "Démarrage", "startup");
+            if (SysInfo.RamLoad() > 85) add(10, "warn", "Mémoire saturée", SysInfo.RamLoad() + " % de la RAM est utilisée en ce moment.", "Voir", "diagnostic");
+
+            try { if (Cleaner.RebootPending()) add(3, "info", "Un redémarrage est en attente", "Une mise à jour de Windows attend un redémarrage pour se terminer.", null, null); }
+            catch { }
+            if (s.SystemDiskIsHdd)
+                add(0, "info", "Windows est sur un disque dur mécanique", "Un SSD est, de loin, l'amélioration la plus sensible pour ce PC. Les réglages ne remplacent pas ce changement.", null, null);
 
             if (r.Insights.Count == 0)
                 r.Insights.Add(new Insight { Level = "ok", Title = "Rien à signaler", Detail = "Aucun point mesuré ne demande d'action." });

@@ -49,6 +49,16 @@ namespace OptiWin
             return All.Where(t => (t.Profiles & p) != 0 && t.IsSupported && t.FitsThisPc && !t.Blocked);
         }
 
+        /// <summary>Recherche libre : titre, description, catégorie ou identifiant, sans tenir compte de la casse.</summary>
+        public static bool Matches(Tweak t, string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return true;
+            var q = query.Trim();
+            var cmp = StringComparison.CurrentCultureIgnoreCase;
+            return t.Title.IndexOf(q, cmp) >= 0 || t.Desc.IndexOf(q, cmp) >= 0 || t.Cat.IndexOf(q, cmp) >= 0
+                || t.Id.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         static List<Tweak> Build()
         {
             const Prof All5 = Prof.OldPc | Prof.Fresh | Prof.Gaming | Prof.Laptop | Prof.Privacy;
@@ -129,6 +139,11 @@ namespace OptiWin
                   Risk.Safe, Prof.Fresh | Prof.OldPc, Effect.Immediate,
                   U(@"Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy", "01", 1, 0)).MinB(17763),
 
+                T("perf.ntfsmem", CatPerf, "Cache NTFS élargi",
+                  "Windows garde davantage de métadonnées de fichiers en mémoire : les gros dossiers s'ouvrent plus vite. Réservé aux PC qui ont au moins 16 Go de RAM.",
+                  Risk.Moderate, Prof.None, Effect.Reboot,
+                  M(@"SYSTEM\CurrentControlSet\Control\FileSystem", "NtfsMemoryUsage", 2, null)).If(() => SysInfo.Current.Ram >= 15L << 30),
+
                 // ───────────── JEUX ─────────────
                 T("game.mode", CatGame, "Activer le mode Jeu",
                   "Windows donne la priorité au jeu et suspend les mises à jour de pilotes pendant la partie.",
@@ -158,6 +173,14 @@ namespace OptiWin
                 T("game.highperf", CatGame, "Plan d'alimentation Performances élevées",
                   "Le processeur reste à sa fréquence haute. À réserver à un PC fixe : consommation et chaleur augmentent.",
                   Risk.Moderate, Prof.Gaming, Effect.Immediate, new PowerPlanOp()).If(() => Desktop),
+
+                T("game.fso", CatGame, "Désactiver les optimisations plein écran",
+                  "Les jeux en plein écran retrouvent le mode exclusif classique. Corrige parfois des saccades ou un délai d'affichage ; à essayer jeu par jeu.",
+                  Risk.Moderate, Prof.None, Effect.Logoff,
+                  U(@"System\GameConfigStore", "GameDVR_FSEBehaviorMode", 2, 0),
+                  U(@"System\GameConfigStore", "GameDVR_HonorUserFSEBehaviorMode", 1, 0),
+                  U(@"System\GameConfigStore", "GameDVR_FSEBehavior", 2, 0),
+                  U(@"System\GameConfigStore", "GameDVR_DXGIHonorFSEWindowsCompatible", 1, 0)),
 
                 T("game.hvci", CatGame, "Désactiver l'intégrité de la mémoire",
                   "Gain possible en jeu, documenté par Microsoft, mais baisse réelle de la protection contre les pilotes malveillants.",
@@ -254,6 +277,16 @@ namespace OptiWin
                   new TaskOp(@"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip"),
                   new TaskOp(@"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector")),
 
+                T("priv.consumer", CatPriv, "Bloquer les contenus promotionnels de Windows",
+                  "Stratégie « expériences grand public » : plus d'applications suggérées ni d'offres installées en arrière-plan. L'édition Famille ignore cette stratégie.",
+                  Risk.Safe, Prof.Fresh | Prof.Privacy, Effect.Logoff,
+                  M(POL + @"\CloudContent", "DisableWindowsConsumerFeatures", 1, null)),
+
+                T("priv.wer", CatPriv, "Ne plus envoyer les rapports d'erreurs",
+                  "Windows ne collecte plus, ni n'envoie à Microsoft, les rapports des programmes qui plantent.",
+                  Risk.Safe, Prof.Privacy, Effect.Immediate,
+                  M(POL + @"\Windows Error Reporting", "Disabled", 1, null)),
+
                 T("priv.location", CatPriv, "Refuser la localisation aux applications",
                   "Coupe l'accès à la position pour toutes les applications. La météo locale et « Localiser mon appareil » cesseront de fonctionner.",
                   Risk.Moderate, Prof.None, Effect.Immediate,
@@ -292,6 +325,16 @@ namespace OptiWin
                   U(@"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement", "ScoobeSystemSettingEnabled", 0, null)),
                 T("ui.longpaths", CatUi, "Autoriser les chemins de plus de 260 caractères", "Évite des erreurs de copie sur les arborescences profondes.",
                   Risk.Safe, Prof.Fresh, Effect.Immediate, M(@"SYSTEM\CurrentControlSet\Control\FileSystem", "LongPathsEnabled", 1, 0)),
+                T("ui.seconds", CatUi, "Afficher les secondes dans l'horloge", "Dans la barre des tâches, à côté de l'heure. Réveille l'écran un peu plus souvent : à éviter sur batterie.",
+                  Risk.Safe, Prof.None, Effect.Explorer, U(ADV, "ShowSecondsInSystemClock", 1, 0)),
+                T("ui.compact", CatUi, "Explorateur en affichage compact", "Resserre les lignes de l'Explorateur de Windows 11, comme sur Windows 10.",
+                  Risk.Safe, Prof.None, Effect.Explorer, U(ADV, "UseCompactMode", 1, 0)).MinB(22000),
+                T("ui.recent", CatUi, "Ne plus lister les fichiers récents", "L'accueil de l'Explorateur et les listes de raccourcis n'affichent plus les derniers fichiers ouverts.",
+                  Risk.Safe, Prof.None, Effect.Explorer,
+                  U(@"Software\Microsoft\Windows\CurrentVersion\Explorer", "ShowRecent", 0, 1),
+                  U(@"Software\Microsoft\Windows\CurrentVersion\Explorer", "ShowFrequent", 0, 1)),
+                T("ui.chat", CatUi, "Masquer le bouton Chat (Teams)", "Libère de la place dans la barre des tâches de Windows 11.",
+                  Risk.Safe, Prof.Fresh, Effect.Immediate, U(ADV, "TaskbarMn", 0, 1)).MinB(22000).MaxB(22630),
 
                 // ───────────── RÉSEAU ET MISES À JOUR ─────────────
                 T("net.p2p", CatNet, "Ne plus partager les mises à jour en P2P",

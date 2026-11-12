@@ -44,6 +44,14 @@ namespace OptiWin
 
         public override void OnShow() { timer.Start(); Sample(); }
         public override void OnHide() { timer.Stop(); }
+        public override void OnRefresh() { RefreshAnalysis(); }
+
+        static int ProcessCount()
+        {
+            var all = Process.GetProcesses();
+            foreach (var p in all) p.Dispose();
+            return all.Length;
+        }
 
         void Sample()
         {
@@ -51,11 +59,11 @@ namespace OptiWin
             var r = SysInfo.RamLoad();
             cpu.Push(c); ram.Push(r);
             cpuVal.Text = Fmt.Num(c, "0") + " %";
-            ramVal.Text = Fmt.Size(SysInfo.RamUsed());
+            ramVal.Text = Fmt.Size(SysInfo.RamUsed()) + " · " + r + " %";
             if (tick++ % 5 == 0)
             {
                 uptimeVal.Text = Fmt.Span(SysInfo.Uptime);
-                procSub.Text = Process.GetProcesses().Length + " processus";
+                procSub.Text = ProcessCount() + " processus";
                 try
                 {
                     var d = SysInfo.SystemDrive;
@@ -83,7 +91,8 @@ namespace OptiWin
                 foreach (var t in plan) t.RefreshState();
                 var missing = plan.Count(t => !t.IsApplied);
                 var health = Health.Compute(s, clean, startup, missing, go);
-                return new { s, prof, health, startup };
+                var last = Cleaner.LastCleanup();
+                return new { s, prof, health, startup, last };
             }).ContinueWith(t =>
             {
                 if (t.IsFaulted) { Logger.Error("Analyse", t.Exception); verdict.Text = "Analyse incomplète"; verdictSub.Text = t.Exception.GetBaseException().Message; return; }
@@ -109,6 +118,7 @@ namespace OptiWin
                     new KeyValuePair<string,string>("Démarrage", (r.s.IsUefi ? "UEFI" : "BIOS") + ", Secure Boot " + (r.s.SecureBoot ? "actif" : "inactif")),
                 };
                 if (r.s.InstalledOn.HasValue) f.Add(new KeyValuePair<string, string>("Windows installé le", Fmt.Date(r.s.InstalledOn.Value)));
+                if (r.last != null) f.Add(new KeyValuePair<string, string>("Dernier nettoyage", Fmt.When(r.last.When) + " — " + r.last.Action));
                 facts.ItemsSource = f;
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
@@ -117,16 +127,18 @@ namespace OptiWin
     // ─────────────────────────── Optimiser ───────────────────────────
     public sealed class OptimizePage : Page
     {
-        readonly ItemsControl list; readonly TextBox search; readonly StackPanel cats;
-        readonly Border pendingBar; readonly TextBlock pendingText; readonly Button btnExplorer;
+        readonly ItemsControl list; readonly TextBox search; readonly Panel cats; readonly ComboBox stateFilter;
+        readonly Border pendingBar; readonly TextBlock pendingText, countText, emptyText; readonly Button btnExplorer;
+        readonly DispatcherTimer searchTimer;
         string cat = "Tous";
         bool needExplorer, needLogoff, needReboot;
 
         public OptimizePage()
         {
             View = (FrameworkElement)Ui.Load("PageOptimize.xaml");
-            list = F<ItemsControl>("List"); search = F<TextBox>("Search"); cats = F<StackPanel>("Cats");
+            list = F<ItemsControl>("List"); search = F<TextBox>("Search"); cats = F<Panel>("Cats"); stateFilter = F<ComboBox>("StateFilter");
             pendingBar = F<Border>("PendingBar"); pendingText = F<TextBlock>("PendingText"); btnExplorer = F<Button>("BtnRestartExplorer");
+            countText = F<TextBlock>("CountText"); emptyText = F<TextBlock>("EmptyText");
 
             F<Button>("ProfOld").Click += delegate { Shell.I.ShowProfile(Prof.OldPc); };
             F<Button>("ProfFresh").Click += delegate { Shell.I.ShowProfile(Prof.Fresh); };
@@ -142,7 +154,13 @@ namespace OptiWin
                 r.Checked += delegate { cat = label; Refresh(); };
                 cats.Children.Add(r);
             }
-            search.TextChanged += delegate { Refresh(); };
+            stateFilter.ItemsSource = new[] { "Tous les états", "Appliqués", "Non appliqués" };
+            stateFilter.SelectedIndex = 0;
+            stateFilter.SelectionChanged += delegate { Refresh(); };
+            // La liste n'est refaite qu'une fois la frappe terminée : chaque lettre ne reconstruit pas 58 lignes.
+            searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(140) };
+            searchTimer.Tick += delegate { searchTimer.Stop(); Refresh(); };
+            search.TextChanged += delegate { searchTimer.Stop(); searchTimer.Start(); };
             btnExplorer.Click += async delegate
             {
                 btnExplorer.IsEnabled = false;
@@ -152,6 +170,19 @@ namespace OptiWin
                 UpdatePending();
                 Shell.I.Toast("Explorateur redémarré.");
             };
+            MarkRecommended();
+        }
+
+        /// <summary>Signale, sur sa carte, le profil que l'accueil conseille pour ce PC.</summary>
+        void MarkRecommended()
+        {
+            Task.Factory.StartNew(() => SysInfo.RecommendedProfile(SysInfo.Current)).ContinueWith(t =>
+            {
+                if (t.IsFaulted) return;
+                var chips = new Dictionary<Prof, string> { { Prof.OldPc, "RecOld" }, { Prof.Fresh, "RecFresh" }, { Prof.Gaming, "RecGame" }, { Prof.Laptop, "RecLaptop" }, { Prof.Privacy, "RecPrivacy" } };
+                string name;
+                if (chips.TryGetValue(t.Result, out name)) F<FrameworkElement>(name).Visibility = Visibility.Visible;
+            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         public override void OnShow()
@@ -159,13 +190,31 @@ namespace OptiWin
             Task.Factory.StartNew(() => { foreach (var t in TweakCatalog.All) if (t.IsSupported) t.RefreshState(); })
                 .ContinueWith(_ => Refresh(), TaskScheduler.FromCurrentSynchronizationContext());
         }
+        public override void OnRefresh() { OnShow(); }
+        public override bool OnFind() { search.Focus(); search.SelectAll(); return true; }
 
         void Refresh()
         {
             var q = (search.Text ?? "").Trim();
-            list.ItemsSource = TweakCatalog.All.Where(t => t.IsSupported
+            var state = stateFilter.SelectedIndex;
+            var shown = TweakCatalog.All.Where(t => t.IsSupported
                 && (cat == "Tous" || t.Cat == cat)
-                && (q.Length == 0 || t.Title.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0 || t.Desc.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0)).ToList();
+                && (state <= 0 || (state == 1) == t.IsApplied)
+                && TweakCatalog.Matches(t, q)).ToList();
+            list.ItemsSource = shown;
+            emptyText.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            emptyText.Text = q.Length > 0 ? "Aucun réglage ne correspond à « " + q + " »." : "Aucun réglage dans cette sélection.";
+            UpdateCount(shown.Count);
+        }
+
+        int shownCount = -1;
+        /// <summary>Compteur sous la liste, recalculé sans reconstruire les lignes.</summary>
+        public void UpdateCount(int shown = -1)
+        {
+            if (shown >= 0) shownCount = shown;
+            var applied = TweakCatalog.All.Count(t => t.IsSupported && t.IsApplied);
+            var total = TweakCatalog.All.Count(t => t.IsSupported);
+            countText.Text = (shownCount >= 0 ? Fmt.N(shownCount, "réglage", "affiché", "affichés") + "  ·  " : "") + applied + " sur " + total + " appliqué" + (applied > 1 ? "s" : "");
         }
 
         public void NotePending(Effect e)
@@ -199,6 +248,7 @@ namespace OptiWin
         bool scanned, scanning;
         DirNode node;
         CancellationTokenSource analyzeCts;
+        HistoryEntry lastCleanup;
 
         public ICommand Open { get; private set; }
 
@@ -213,6 +263,10 @@ namespace OptiWin
             foreach (var c in catsAll) c.PropertyChanged += OnCatChanged;
             btnScan.Click += delegate { Scan(); };
             btnClean.Click += delegate { Clean(); };
+            // Sélection rapide : les choix définitifs (corbeille, Windows.old) ne se cochent jamais d'un bloc.
+            F<Button>("BtnSelectAll").Click += delegate { foreach (var c in catsAll) if (c.Available && !c.Permanent) c.Selected = true; };
+            F<Button>("BtnSelectNone").Click += delegate { foreach (var c in catsAll) c.Selected = false; };
+            lastCleanup = Cleaner.LastCleanup();
 
             var panelClean = F<Grid>("PanelClean"); var panelAnalyze = F<Grid>("PanelAnalyze");
             F<RadioButton>("TabClean").Checked += delegate { panelClean.Visibility = Visibility.Visible; panelAnalyze.Visibility = Visibility.Collapsed; };
@@ -229,6 +283,7 @@ namespace OptiWin
         }
 
         public override void OnShow() { if (!scanned && !scanning) Scan(); }
+        public override void OnRefresh() { if (!scanning) Scan(); }
 
         // L'analyse tourne en arrière-plan : la mise à jour de l'écran doit revenir sur le thread de l'interface.
         void OnCatChanged(object s, PropertyChangedEventArgs e) { if (e.PropertyName == "Selected" || e.PropertyName == "Size") View.Dispatcher.BeginInvoke(new Action(UpdateTotal)); }
@@ -238,7 +293,8 @@ namespace OptiWin
             var sel = catsAll.Where(c => c.Selected).ToList();
             var bytes = sel.Where(c => c.Size > 0).Sum(c => c.Size);
             total.Text = scanned || scanning ? Fmt.Size(bytes) + " récupérables" : "—";
-            sub.Text = scanning ? "Analyse en cours…" : sel.Count + " catégorie" + (sel.Count > 1 ? "s" : "") + " sélectionnée" + (sel.Count > 1 ? "s" : "") + ".";
+            var last = lastCleanup != null ? "  ·  Dernier nettoyage : " + Fmt.When(lastCleanup.When) + " (" + lastCleanup.Action + ")" : "";
+            sub.Text = scanning ? "Analyse en cours…" : Fmt.N(sel.Count, "catégorie", "sélectionnée", "sélectionnées") + "." + last;
             btnClean.IsEnabled = scanned && !scanning && sel.Count > 0;
         }
 
@@ -252,14 +308,17 @@ namespace OptiWin
             {
                 foreach (var c in catsAll)
                 {
+                    if (!c.SizeUnknown) c.Status = "Analyse…";
                     long n = 0;
                     try { n = c.Scanner(CancellationToken.None); } catch (Exception e) { Logger.Error("Analyse " + c.Id, e); }
                     c.Size = n;
+                    c.Status = "";
                 }
             }).ContinueWith(_ =>
             {
                 scanning = false; scanned = true;
                 btnScan.IsEnabled = true;
+                lastCleanup = Cleaner.LastCleanup();
                 UpdateTotal();
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
@@ -349,23 +408,70 @@ namespace OptiWin
     // ─────────────────────────── Démarrage ───────────────────────────
     public sealed class StartupPage : Page
     {
-        readonly ItemsControl list; readonly TextBlock sub;
+        readonly ItemsControl list; readonly TextBlock sub, emptyText; readonly TextBox search; readonly Button btnUseless;
+        List<StartupItem> items = new List<StartupItem>();
+
         public StartupPage()
         {
             View = (FrameworkElement)Ui.Load("PageStartup.xaml");
-            list = F<ItemsControl>("List"); sub = F<TextBlock>("Sub");
+            list = F<ItemsControl>("List"); sub = F<TextBlock>("Sub"); emptyText = F<TextBlock>("EmptyText");
+            search = F<TextBox>("Search"); btnUseless = F<Button>("BtnUseless");
             F<Button>("BtnRefresh").Click += delegate { Load(); };
+            search.TextChanged += delegate { Filter(); };
+            btnUseless.Click += delegate { CutUseless(); };
         }
+
         public override void OnShow() { Load(); }
+        public override void OnRefresh() { Load(); }
+        public override bool OnFind() { search.Focus(); search.SelectAll(); return true; }
+
         void Load()
         {
             Task.Factory.StartNew(() => StartupManager.List()).ContinueWith(t =>
             {
                 if (t.IsFaulted) { Shell.I.Toast(t.Exception.GetBaseException().Message, "bad"); return; }
-                list.ItemsSource = t.Result;
-                var on = t.Result.Count(i => i.IsOn);
-                sub.Text = on + " sur " + t.Result.Count + " actifs. Même mécanisme que le Gestionnaire des tâches : rien n'est supprimé, tout se réactive d'un clic.";
+                items = t.Result;
+                foreach (var i in items)
+                {
+                    var it = i;
+                    it.RevealCmd = new RelayCommand(() => StartupManager.Reveal(it));
+                    it.PropertyChanged += delegate { UpdateSub(); };
+                }
+                Filter();
             }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void Filter()
+        {
+            var q = search.Text;
+            var shown = items.Where(i => i.Matches(q)).ToList();
+            list.ItemsSource = shown;
+            emptyText.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            emptyText.Text = items.Count == 0 ? "Aucun programme ne se lance avec Windows sur ce compte." : "Aucun programme ne correspond à « " + (q ?? "").Trim() + " ».";
+            UpdateSub();
+        }
+
+        void UpdateSub()
+        {
+            var on = items.Count(i => i.IsOn);
+            var useless = items.Count(i => i.IsOn && i.OftenUseless && i.CanToggle);
+            sub.Text = on + " sur " + items.Count + " actifs. Même mécanisme que le Gestionnaire des tâches : rien n'est supprimé, tout se réactive d'un clic.";
+            btnUseless.IsEnabled = useless > 0;
+            btnUseless.Content = useless > 0 ? "Couper " + Fmt.N(useless, "programme superflu", "programmes superflus") : "Couper les superflus";
+        }
+
+        /// <summary>Coupe d'un coup tout ce qui porte l'étiquette « souvent superflu » : réactivable ligne par ligne.</summary>
+        async void CutUseless()
+        {
+            var sel = items.Where(i => i.IsOn && i.OftenUseless && i.CanToggle).ToList();
+            if (sel.Count == 0) return;
+            var ok = await Shell.I.Confirm("Couper " + Fmt.N(sel.Count, "programme") + " au démarrage ?",
+                string.Join(", ", sel.Select(i => i.Name)) + ".\n\nIls ne se lanceront plus avec Windows, mais restent installés et se réactivent d'un clic.", "Couper", false);
+            if (!ok) return;
+            foreach (var i in sel) i.IsOn = false;
+            var done = sel.Count(i => !i.IsOn);
+            UpdateSub();
+            Shell.I.Toast(Fmt.N(done, "programme coupé", "programmes coupés") + " au démarrage.");
         }
     }
 
@@ -375,6 +481,8 @@ namespace OptiWin
         readonly ItemsControl removeList, installGroups;
         readonly TextBlock removeInfo, installInfo, installNote;
         readonly Button btnRemove, btnInstall;
+        readonly TextBox installSearch;
+        readonly Grid panelInstall;
         List<BloatApp> bloat = new List<BloatApp>();
         readonly List<SoftApp> soft = AppsCatalog.Software();
         bool loaded, wingetChecked, wingetOk;
@@ -384,17 +492,34 @@ namespace OptiWin
             View = (FrameworkElement)Ui.Load("PageApps.xaml");
             removeList = F<ItemsControl>("RemoveList"); installGroups = F<ItemsControl>("InstallGroups");
             removeInfo = F<TextBlock>("RemoveInfo"); installInfo = F<TextBlock>("InstallInfo"); installNote = F<TextBlock>("InstallNote");
-            btnRemove = F<Button>("BtnRemove"); btnInstall = F<Button>("BtnInstall");
-            var pr = F<Grid>("PanelRemove"); var pi = F<Grid>("PanelInstall");
+            btnRemove = F<Button>("BtnRemove"); btnInstall = F<Button>("BtnInstall"); installSearch = F<TextBox>("InstallSearch");
+            var pr = F<Grid>("PanelRemove"); panelInstall = F<Grid>("PanelInstall");
+            var pi = panelInstall;
             F<RadioButton>("TabRemove").Checked += delegate { pr.Visibility = Visibility.Visible; pi.Visibility = Visibility.Collapsed; };
             F<RadioButton>("TabInstall").Checked += delegate { pr.Visibility = Visibility.Collapsed; pi.Visibility = Visibility.Visible; CheckWinget(); };
-            installGroups.ItemsSource = soft.GroupBy(s => s.Group).Select(g => new KeyValuePair<string, List<SoftApp>>(g.Key, g.ToList())).ToList();
+            FilterInstall();
+            installSearch.TextChanged += delegate { FilterInstall(); };
             foreach (var s in soft) s.PropertyChanged += delegate { UpdateInstall(); };
             btnRemove.Click += delegate { Remove(); };
             btnInstall.Click += delegate { Install(); };
         }
 
         public override void OnShow() { if (!loaded) LoadBloat(); }
+        public override void OnRefresh() { LoadBloat(); }
+        public override bool OnFind()
+        {
+            if (!panelInstall.IsVisible) return false;
+            installSearch.Focus(); installSearch.SelectAll();
+            return true;
+        }
+
+        void FilterInstall()
+        {
+            var q = (installSearch.Text ?? "").Trim();
+            var cmp = StringComparison.CurrentCultureIgnoreCase;
+            var shown = soft.Where(s => q.Length == 0 || s.Label.IndexOf(q, cmp) >= 0 || (s.Note ?? "").IndexOf(q, cmp) >= 0 || s.Group.IndexOf(q, cmp) >= 0 || s.Id.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0);
+            installGroups.ItemsSource = shown.GroupBy(s => s.Group).Select(g => new KeyValuePair<string, List<SoftApp>>(g.Key, g.ToList())).ToList();
+        }
 
         void LoadBloat()
         {
@@ -588,6 +713,7 @@ namespace OptiWin
             F<Button>("BtnCustRead").IsEnabled = Os.IsAdmin;
             if (!Os.IsAdmin) diskInfo.Text = "Écrire sur une clé demande le mode administrateur (bouton en bas à gauche).";
         }
+        public override void OnRefresh() { LoadDisks(); multi.Refresh(); }
 
         void ShowTab(int idx)
         {
@@ -744,13 +870,7 @@ namespace OptiWin
         public ToolsPage()
         {
             View = (FrameworkElement)Ui.Load("PageTools.xaml");
-            var tools = Tools.Catalog().Where(t => t.Id != "battery" || SysInfo.Current.IsLaptop).ToList();
-            foreach (var t in tools)
-            {
-                var tool = t;
-                tool.Cmd = new RelayCommand(() => Launch(tool));
-            }
-            F<ItemsControl>("ToolList").ItemsSource = tools;
+            LoadTools();
             dnsList = F<ItemsControl>("DnsList"); dnsCurrent = F<TextBlock>("DnsCurrent");
             foreach (var d in dns)
             {
@@ -766,6 +886,18 @@ namespace OptiWin
             };
         }
 
+        /// <summary>La liste est refaite après chaque outil : l'entretien automatique change de libellé selon son état.</summary>
+        void LoadTools()
+        {
+            var tools = Tools.Catalog().Where(t => t.Id != "battery" || SysInfo.Current.IsLaptop).ToList();
+            foreach (var t in tools)
+            {
+                var tool = t;
+                tool.Cmd = new RelayCommand(() => Launch(tool));
+            }
+            F<ItemsControl>("ToolList").ItemsSource = tools;
+        }
+
         public override void OnShow()
         {
             RefreshDns();
@@ -773,6 +905,7 @@ namespace OptiWin
             if (list.ItemsSource == null)
                 Task.Factory.StartNew(() => Win11Check.Run(SysInfo.Current)).ContinueWith(t => { if (!t.IsFaulted) list.ItemsSource = t.Result; }, TaskScheduler.FromCurrentSynchronizationContext());
         }
+        public override void OnRefresh() { LoadTools(); RefreshDns(); }
 
         void RefreshDns()
         {
@@ -789,6 +922,7 @@ namespace OptiWin
                 if (folder == null) return;
             }
             await Shell.I.RunJob(t.Title, true, job => t.Run(job, folder));
+            if (t.Id == "weekly") LoadTools();
         }
 
         void TestDns()
@@ -832,13 +966,19 @@ namespace OptiWin
     public sealed class HistoryPage : Page
     {
         readonly ItemsControl activeList, logList;
-        readonly TextBlock count, none;
+        readonly TextBlock count, none, logEmpty;
+        readonly TextBox logSearch;
+        List<LogRow> allRows = new List<LogRow>();
 
         public HistoryPage()
         {
             View = (FrameworkElement)Ui.Load("PageHistory.xaml");
             activeList = F<ItemsControl>("ActiveList"); logList = F<ItemsControl>("LogList");
-            count = F<TextBlock>("ActiveCount"); none = F<TextBlock>("NoneText");
+            count = F<TextBlock>("ActiveCount"); none = F<TextBlock>("NoneText"); logEmpty = F<TextBlock>("LogEmpty");
+            logSearch = F<TextBox>("LogSearch");
+            logSearch.TextChanged += delegate { FilterLog(); };
+            F<Button>("BtnExport").Click += delegate { Export(); };
+            F<Button>("BtnOpenLogs").Click += delegate { try { Process.Start("explorer.exe", "\"" + Paths.Logs + "\""); } catch (Exception e) { Shell.I.Toast(e.Message, "bad"); } };
             F<Button>("BtnRstrui").Click += delegate { try { Process.Start("rstrui.exe"); } catch (Exception e) { Shell.I.Toast(e.Message, "bad"); } };
             F<Button>("BtnRestorePoint").IsEnabled = Os.IsAdmin;
             F<Button>("BtnRestorePoint").Click += async delegate
@@ -855,10 +995,12 @@ namespace OptiWin
         }
 
         public override void OnShow() { Reload(); }
+        public override void OnRefresh() { Reload(); }
+        public override bool OnFind() { logSearch.Focus(); logSearch.SelectAll(); return true; }
 
         void Reload()
         {
-            var active = Store.BackupIds().Select(TweakCatalog.ById).Where(t => t != null).ToList();
+            var active = Store.BackupIds().Select(TweakCatalog.ById).Where(t => t != null).OrderBy(t => t.Cat).ThenBy(t => t.Title).ToList();
             activeList.ItemsSource = active.Select(t => new ActiveTweak
             {
                 Title = t.Title, Cat = t.Cat,
@@ -867,11 +1009,36 @@ namespace OptiWin
             count.Text = active.Count.ToString();
             none.Visibility = active.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             F<Button>("BtnUndoAll").IsEnabled = active.Count > 0;
-            logList.ItemsSource = Store.History().AsEnumerable().Reverse().Take(200).Select(h =>
+            allRows = Store.History().AsEnumerable().Reverse().Take(400)
+                .Select(h => new LogRow { When = Fmt.When(h.When), Title = h.Title, Action = h.Action }).ToList();
+            FilterLog();
+        }
+
+        void FilterLog()
+        {
+            var q = (logSearch.Text ?? "").Trim();
+            var cmp = StringComparison.CurrentCultureIgnoreCase;
+            var shown = allRows.Where(r => q.Length == 0 || (r.Title ?? "").IndexOf(q, cmp) >= 0 || (r.Action ?? "").IndexOf(q, cmp) >= 0 || (r.When ?? "").IndexOf(q, cmp) >= 0).ToList();
+            logList.ItemsSource = shown;
+            logEmpty.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            logEmpty.Text = allRows.Count == 0 ? "Le journal est vide : OptiWin n'a encore rien changé sur ce PC." : "Aucune entrée ne correspond à « " + q + " ».";
+        }
+
+        /// <summary>Le journal complet dans un fichier texte, à joindre à une demande d'aide.</summary>
+        void Export()
+        {
+            var path = Dialogs.PickSave("Exporter le journal", "Fichier texte (*.txt)|*.txt", "OptiWin-journal-" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt");
+            if (path == null) return;
+            try
             {
-                DateTime d;
-                return new LogRow { When = DateTime.TryParse(h.When, out d) ? Fmt.DateTimeText(d) : h.When, Title = h.Title, Action = h.Action };
-            }).ToList();
+                var b = new System.Text.StringBuilder();
+                b.AppendLine("Journal OptiWin — " + Environment.MachineName + " — exporté le " + Fmt.DateTimeText(DateTime.Now));
+                b.AppendLine();
+                foreach (var h in Store.History()) b.AppendLine(Fmt.When(h.When).PadRight(22) + h.Title + "  —  " + h.Action);
+                File.WriteAllText(path, b.ToString(), System.Text.Encoding.UTF8);
+                Shell.I.Toast("Journal exporté : " + Path.GetFileName(path));
+            }
+            catch (Exception e) { Shell.I.Toast("Export impossible : " + e.Message, "bad"); }
         }
 
         async void UndoOne(Tweak t)

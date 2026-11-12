@@ -45,6 +45,9 @@
   <Geometry x:Key="IcoFile">M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6</Geometry>
   <Geometry x:Key="IcoPackage">M16.5 9.4l-9-5.19 M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12</Geometry>
   <Geometry x:Key="IcoTrash">M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6</Geometry>
+  <Geometry x:Key="IcoRam">M6 19v-3 M10 19v-3 M14 19v-3 M18 19v-3 M8 11V9 M16 11V9 M12 11V9 M2 15h20 M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.1a2 2 0 0 0 0 3.837V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.1a2 2 0 0 0 0-3.837z</Geometry>
+  <Geometry x:Key="IcoLayers">M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5</Geometry>
+  <Geometry x:Key="IcoExternal">M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3</Geometry>
 
   <ScaleTransform x:Key="Scale18" ScaleX="0.75" ScaleY="0.75"/>
   <ScaleTransform x:Key="Scale14" ScaleX="0.6" ScaleY="0.6"/>
@@ -142,6 +145,16 @@
     <Setter Property="CornerRadius" Value="10"/>
     <Setter Property="Padding" Value="16,12"/>
     <Setter Property="Margin" Value="0,0,0,6"/>
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource StrokeStrong}"/></Trigger>
+    </Style.Triggers>
+  </Style>
+  <!-- Texte d'état vide, centré, pour une liste sans résultat -->
+  <Style x:Key="TxtEmpty" TargetType="TextBlock" BasedOn="{StaticResource TxtMuted}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="0,28,0,20"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Visibility" Value="Collapsed"/>
   </Style>
   <Style x:Key="Scrim" TargetType="Grid">
     <Setter Property="Background" Value="{DynamicResource ScrimBg}"/>
@@ -155,9 +168,25 @@
     <Setter Property="Padding" Value="24"/>
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
+    <!-- Chaque dialogue déclare son propre ScaleTransform : un transform partagé par le style serait figé, donc inanimable -->
+    <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
     <Setter Property="Effect">
       <Setter.Value><DropShadowEffect BlurRadius="40" ShadowDepth="10" Opacity="0.45" Color="Black"/></Setter.Value>
     </Setter>
+    <Style.Triggers>
+      <!-- Entrée en douceur à chaque ouverture : léger zoom et fondu -->
+      <Trigger Property="IsVisible" Value="True">
+        <Trigger.EnterActions>
+          <BeginStoryboard>
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" From="0.96" To="1" Duration="0:0:0.18"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+              <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" From="0.96" To="1" Duration="0:0:0.18"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+              <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.14"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </Trigger.EnterActions>
+      </Trigger>
+    </Style.Triggers>
   </Style>
 
   <!-- Pastilles -->
@@ -247,6 +276,20 @@
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
     <Setter Property="Padding" Value="8,6"/>
   </Style>
+  <!-- Bouton discret à icône seule, pour une action secondaire sur une ligne -->
+  <Style x:Key="BtnIcon" TargetType="Button" BasedOn="{StaticResource BtnGhost}">
+    <Setter Property="Padding" Value="6,5"/>
+    <Setter Property="Margin" Value="6,0,0,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- Pastille d'icône sur fond accentué, pour les cartes d'outils -->
+  <Style x:Key="IconBadge" TargetType="Border">
+    <Setter Property="Width" Value="36"/>
+    <Setter Property="Height" Value="36"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Background" Value="{DynamicResource AccentSoft}"/>
+    <Setter Property="VerticalAlignment" Value="Top"/>
+  </Style>
   <Style x:Key="CaptionBtn" TargetType="Button">
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
     <Setter Property="Background" Value="Transparent"/>
@@ -281,6 +324,13 @@
   </Style>
 
   <!-- Navigation -->
+  <Style x:Key="NavSection" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource FontText}"/>
+    <Setter Property="FontSize" Value="10.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextFaint}"/>
+    <Setter Property="Margin" Value="14,12,0,5"/>
+  </Style>
   <Style x:Key="NavItem" TargetType="RadioButton">
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
     <Setter Property="FontSize" Value="13.5"/>
@@ -291,11 +341,11 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
-          <Border x:Name="B" CornerRadius="8" Background="Transparent" Height="38">
+          <Border x:Name="B" CornerRadius="8" Background="Transparent" Height="36">
             <Grid>
               <Border x:Name="Marker" Width="3" Height="16" CornerRadius="2" Background="{DynamicResource Accent}" HorizontalAlignment="Left" Visibility="Hidden"/>
               <StackPanel Orientation="Horizontal" Margin="13,0,8,0">
-                <Path Style="{StaticResource Ico}" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                <Path x:Name="NavIco" Style="{StaticResource Ico}" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
                 <ContentPresenter Margin="12,0,0,0" VerticalAlignment="Center"/>
               </StackPanel>
             </Grid>
@@ -306,6 +356,7 @@
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="B" Property="Background" Value="{DynamicResource SelectedLayer}"/>
               <Setter TargetName="Marker" Property="Visibility" Value="Visible"/>
+              <Setter TargetName="NavIco" Property="TextElement.Foreground" Value="{DynamicResource Accent}"/>
               <Setter Property="Foreground" Value="{DynamicResource Text}"/>
               <Setter Property="FontWeight" Value="SemiBold"/>
             </Trigger>
@@ -375,8 +426,13 @@
       <Setter.Value>
         <ControlTemplate TargetType="ToggleButton">
           <Border x:Name="Track" Width="42" Height="22" CornerRadius="11" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource StrokeStrong}" BorderThickness="1.5">
-            <Ellipse x:Name="Knob" Width="12" Height="12" HorizontalAlignment="Left" Margin="3.500,0,0,0" Fill="{DynamicResource TextMuted}">
-              <Ellipse.RenderTransform><TranslateTransform x:Name="Tx" X="0"/></Ellipse.RenderTransform>
+            <Ellipse x:Name="Knob" Width="12" Height="12" HorizontalAlignment="Left" Margin="3.500,0,0,0" Fill="{DynamicResource TextMuted}" RenderTransformOrigin="0.5,0.5">
+              <Ellipse.RenderTransform>
+                <TransformGroup>
+                  <ScaleTransform x:Name="Ks" ScaleX="1" ScaleY="1"/>
+                  <TranslateTransform x:Name="Tx" X="0"/>
+                </TransformGroup>
+              </Ellipse.RenderTransform>
             </Ellipse>
           </Border>
           <ControlTemplate.Triggers>
@@ -391,7 +447,21 @@
               <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Accent}"/>
               <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource OnAccent}"/>
             </Trigger>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Knob" Property="Opacity" Value="0.82"/></Trigger>
+            <!-- Au survol, le curseur grossit légèrement : on voit que l'interrupteur répond -->
+            <Trigger Property="IsMouseOver" Value="True">
+              <Trigger.EnterActions>
+                <BeginStoryboard><Storyboard>
+                  <DoubleAnimation Storyboard.TargetName="Ks" Storyboard.TargetProperty="ScaleX" To="1.2" Duration="0:0:0.1"/>
+                  <DoubleAnimation Storyboard.TargetName="Ks" Storyboard.TargetProperty="ScaleY" To="1.2" Duration="0:0:0.1"/>
+                </Storyboard></BeginStoryboard>
+              </Trigger.EnterActions>
+              <Trigger.ExitActions>
+                <BeginStoryboard><Storyboard>
+                  <DoubleAnimation Storyboard.TargetName="Ks" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.1"/>
+                  <DoubleAnimation Storyboard.TargetName="Ks" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.1"/>
+                </Storyboard></BeginStoryboard>
+              </Trigger.ExitActions>
+            </Trigger>
             <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Text}"/></Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Track" Property="Opacity" Value="0.42"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
           </ControlTemplate.Triggers>

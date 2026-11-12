@@ -88,6 +88,10 @@ namespace OptiWin
                 B("Netflix", "Netflix", false, ""),
                 B("22364Disney.", "Disney+", true, "Installé d'office"),
                 B("Microsoft.Advertising.Xaml", "Bibliothèque publicitaire", true, "Ancienne, inutile"),
+                B("Microsoft.WindowsAlarms", "Horloge", false, "Alarmes, minuteurs, horloges mondiales"),
+                B("Microsoft.MicrosoftStickyNotes", "Pense-bêtes", false, "Notes sur le bureau"),
+                B("Microsoft.WindowsCamera", "Caméra", false, "Inutile sans webcam"),
+                B("Microsoft.Whiteboard", "Whiteboard", false, "Tableau blanc collaboratif"),
             };
         }
 
@@ -141,22 +145,30 @@ namespace OptiWin
                 S("Notepad++.Notepad++", "Notepad++", "Utilitaires", "Éditeur de texte"),
                 S("ShareX.ShareX", "ShareX", "Utilitaires", "Captures d'écran"),
                 S("SumatraPDF.SumatraPDF", "Sumatra PDF", "Utilitaires", "Lecteur PDF très léger"),
+                S("qBittorrent.qBittorrent", "qBittorrent", "Utilitaires", "Client BitTorrent libre, sans publicité"),
 
                 S("VideoLAN.VLC", "VLC", "Multimédia", "Lit tout"),
                 S("OBSProject.OBSStudio", "OBS Studio", "Multimédia", "Enregistrement et diffusion"),
                 S("HandBrake.HandBrake", "HandBrake", "Multimédia", "Conversion vidéo"),
                 S("Audacity.Audacity", "Audacity", "Multimédia", "Édition audio"),
                 S("KDE.Krita", "Krita", "Multimédia", "Dessin"),
+                S("GIMP.GIMP", "GIMP", "Multimédia", "Retouche d'images"),
+                S("Inkscape.Inkscape", "Inkscape", "Multimédia", "Dessin vectoriel"),
+                S("Spotify.Spotify", "Spotify", "Multimédia", "Musique en streaming"),
 
                 S("TheDocumentFoundation.LibreOffice", "LibreOffice", "Bureautique", "Suite bureautique gratuite"),
                 S("Mozilla.Thunderbird", "Thunderbird", "Bureautique", "Messagerie"),
+                S("Adobe.Acrobat.Reader.64-bit", "Acrobat Reader", "Bureautique", "Lecteur PDF d'Adobe"),
+                S("Obsidian.Obsidian", "Obsidian", "Bureautique", "Notes et base de connaissances"),
 
                 S("Discord.Discord", "Discord", "Communication", ""),
                 S("OpenWhisperSystems.Signal", "Signal", "Communication", "Messagerie chiffrée"),
                 S("Zoom.Zoom", "Zoom", "Communication", ""),
+                S("Telegram.TelegramDesktop", "Telegram", "Communication", ""),
 
                 S("Valve.Steam", "Steam", "Jeux", ""),
                 S("EpicGames.EpicGamesLauncher", "Epic Games", "Jeux", ""),
+                S("GOG.Galaxy", "GOG Galaxy", "Jeux", "Jeux sans DRM"),
 
                 S("Bitwarden.Bitwarden", "Bitwarden", "Sécurité", "Gestionnaire de mots de passe"),
                 S("KeePassXCTeam.KeePassXC", "KeePassXC", "Sécurité", "Mots de passe, hors ligne"),
@@ -174,6 +186,8 @@ namespace OptiWin
                 S("Microsoft.VisualStudioCode", "VS Code", "Développement", ""),
                 S("Git.Git", "Git", "Développement", ""),
                 S("Python.Python.3.13", "Python 3.13", "Développement", ""),
+                S("Microsoft.WindowsTerminal", "Windows Terminal", "Développement", "Terminal moderne à onglets"),
+                S("Oracle.VirtualBox", "VirtualBox", "Développement", "Machines virtuelles"),
 
                 S("Microsoft.VCRedist.2015+.x64", "Visual C++ 2015+", "Composants", "Requis par beaucoup de jeux"),
                 S("Microsoft.DotNet.DesktopRuntime.8", ".NET Desktop 8", "Composants", "Requis par certaines applications"),
