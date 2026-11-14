@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 
-namespace OptiWin
+namespace OptiTech
 {
     /// <summary>Ce qu'on emporte d'un PC vers un Windows neuf. Fichier JSON lisible, sans donnée personnelle.</summary>
     public sealed class PcProfile
@@ -93,7 +93,7 @@ namespace OptiWin
         /// <summary>Identifiants winget des logiciels présents sur ce PC.</summary>
         public static List<string> InstalledWinget(Job job)
         {
-            var tmp = Path.Combine(Path.GetTempPath(), "optiwin-export-" + Guid.NewGuid().ToString("N") + ".json");
+            var tmp = Path.Combine(Path.GetTempPath(), "optitech-export-" + Guid.NewGuid().ToString("N") + ".json");
             try
             {
                 // Le code de retour n'est pas fiable : winget signale aussi les paquets absents de ses sources.
@@ -129,10 +129,10 @@ namespace OptiWin
         /// <summary>Lit un profil. Il peut venir d'ailleurs : tout ce qui n'est pas reconnu est écarté.</summary>
         public static PcProfile Load(string path)
         {
-            if (new FileInfo(path).Length > MaxFileSize) throw new InvalidDataException("Ce fichier est trop gros pour être un profil OptiWin.");
+            if (new FileInfo(path).Length > MaxFileSize) throw new InvalidDataException("Ce fichier est trop gros pour être un profil OptiTech.");
             PcProfile p;
             try { p = new JavaScriptSerializer().Deserialize<PcProfile>(File.ReadAllText(path, Encoding.UTF8)); }
-            catch (Exception e) { throw new InvalidDataException("Ce fichier n'est pas un profil OptiWin lisible.", e); }
+            catch (Exception e) { throw new InvalidDataException("Ce fichier n'est pas un profil OptiTech lisible.", e); }
             if (p == null || p.Format != 1) throw new InvalidDataException("Format de profil inconnu.");
             var known = new HashSet<string>(TweakCatalog.All.Select(t => t.Id));
             var patterns = new HashSet<string>(AppsCatalog.AllPatterns());
@@ -239,7 +239,7 @@ namespace OptiWin
             if (restorePoint && chosen.Any(r => r.Group != "Logiciels à installer"))
             {
                 job.Status("Création d'un point de restauration");
-                TweakEngine.CreateRestorePoint("Avant import d'un profil OptiWin", job.Log);
+                TweakEngine.CreateRestorePoint("Avant import d'un profil OptiTech", job.Log);
             }
             var failed = new List<string>();
             for (int i = 0; i < chosen.Count; i++)

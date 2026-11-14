@@ -1,4 +1,4 @@
-# Compile OptiWin sur un Windows de GitHub avec le compilateur C# fourni avec Windows (build.ps1),
+# Compile OptiTech sur un Windows de GitHub avec le compilateur C# fourni avec Windows (build.ps1),
 # lance les auto-tests, puis publie la release quand un tag « vAA.MM.N » est poussé.
 # Si les auto-tests échouent, la release est créée en brouillon : rien n'est publié sans un regard humain.
 name: Build
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag de release à créer sur ce commit, ex. v26.11.1 (vide : compilation et tests seulement)"
+        description: "Tag de release à créer sur ce commit, ex. v26.11.2 (vide : compilation et tests seulement)"
         required: false
         default: ''
 
@@ -36,8 +36,8 @@ jobs:
       - name: Vérifier la version de l'exécutable
         shell: pwsh
         run: |
-          $v = (Get-Item dist\OptiWin.exe).VersionInfo
-          "Version du fichier : $($v.FileVersion) - $((Get-Item dist\OptiWin.exe).Length) octets"
+          $v = (Get-Item dist\OptiTech.exe).VersionInfo
+          "Version du fichier : $($v.FileVersion) - $((Get-Item dist\OptiTech.exe).Length) octets"
           if ($env:RELEASE_TAG) {
             if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') { throw "Tag attendu sous la forme vAA.MM.N, reçu : $env:RELEASE_TAG" }
             $tag = $env:RELEASE_TAG.TrimStart('v')
@@ -51,7 +51,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $exe = (Resolve-Path dist\OptiWin.exe).Path
+          $exe = (Resolve-Path dist\OptiTech.exe).Path
           $log = Join-Path $PWD 'selftest.log'
           $p = Start-Process -FilePath $exe -ArgumentList '--selftest', '--log', "`"$log`"" -PassThru
           $null = $p.Handle
@@ -60,11 +60,24 @@ jobs:
           if ($null -eq $p.ExitCode) { throw 'Code de retour des auto-tests inconnu.' }
           exit $p.ExitCode
 
+      - name: Captures d'écran de contrôle
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path dist\OptiTech.exe).Path
+          foreach ($theme in 'dark', 'light') {
+            $dir = Join-Path $PWD "captures\$theme"
+            $p = Start-Process -FilePath $exe -ArgumentList '--screenshot', "`"$dir`"", '--showcase', '--theme', $theme -PassThru
+            $null = $p.Handle
+            if (-not $p.WaitForExit(240000)) { try { $p.Kill() } catch {}; "Captures $theme interrompues." }
+          }
+          Get-ChildItem captures -Recurse -File | Select-Object -ExpandProperty FullName
+
       - name: Empreinte SHA-256
         shell: pwsh
         run: |
-          $h = (Get-FileHash dist\OptiWin.exe -Algorithm SHA256).Hash.ToLowerInvariant()
-          [IO.File]::WriteAllText((Join-Path $PWD 'dist\SHA256SUMS.txt'), "$h  OptiWin.exe`n")
+          $h = (Get-FileHash dist\OptiTech.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText((Join-Path $PWD 'dist\SHA256SUMS.txt'), "$h  OptiTech.exe`n")
           Get-Content dist\SHA256SUMS.txt
 
       - name: Résumé
@@ -72,7 +85,7 @@ jobs:
         shell: pwsh
         run: |
           $ok = '${{ steps.selftest.outcome }}' -eq 'success'
-          $lines = @('## OptiWin', '', '- Compilation : réussie', ('- Auto-tests : ' + $(if ($ok) { 'réussis' } else { '**en échec** : voir selftest.log dans les artefacts' })))
+          $lines = @('## OptiTech', '', '- Compilation : réussie', ('- Auto-tests : ' + $(if ($ok) { 'réussis' } else { '**en échec** : voir selftest.log dans les artefacts' })))
           if (Test-Path selftest.log) { $lines += ''; $lines += '```text'; $lines += (Get-Content selftest.log | Select-Object -Last 6); $lines += '```' }
           $lines -join "`n" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
 
@@ -80,12 +93,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: OptiWin-${{ github.sha }}
+          name: OptiTech-${{ github.sha }}
           if-no-files-found: ignore
           path: |
-            dist/OptiWin.exe
+            dist/OptiTech.exe
             dist/SHA256SUMS.txt
             selftest.log
+            captures/**
 
       - name: Notes de version
         if: env.RELEASE_TAG != ''
@@ -110,10 +124,10 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ github.sha }}
-          name: OptiWin ${{ env.VERSION }}
+          name: OptiTech ${{ env.VERSION }}
           body_path: release-body.md
           draft: ${{ steps.selftest.outcome != 'success' }}
           fail_on_unmatched_files: true
           files: |
-            dist/OptiWin.exe
+            dist/OptiTech.exe
             dist/SHA256SUMS.txt

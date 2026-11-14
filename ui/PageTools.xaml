@@ -93,5 +93,24 @@
         </StackPanel>
       </Border>
     </Grid>
+
+    <!-- À propos et mises à jour -->
+    <Border Style="{StaticResource Card}" Margin="0,14,0,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button x:Name="BtnReleases" Style="{StaticResource BtnGhost}" Margin="0,0,6,0" ToolTip="Ouvre la page des versions sur GitHub">
+            <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoExternal}"/><TextBlock Text="Notes de version" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+          <Button x:Name="BtnCheckUpdate" Style="{StaticResource BtnPrimary}" Padding="16,8">
+            <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoRefresh}"/><TextBlock Text="Rechercher une mise à jour" Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+        </StackPanel>
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock x:Name="AboutVersion" Text="OptiTech" Style="{StaticResource TxtH2}"/>
+          <TextBlock Style="{StaticResource TxtSmall}" Margin="0,2,0,8" Text="Les nouvelles versions sont publiées sur GitHub. Chaque mise à jour est téléchargée en HTTPS et son empreinte SHA-256 contrôlée avant de remplacer l'exécutable."/>
+          <CheckBox x:Name="ChkAutoUpdate" Content="Rechercher une nouvelle version au lancement, une fois par jour au plus"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
   </StackPanel>
 </ScrollViewer>

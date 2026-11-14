@@ -5,7 +5,7 @@ using System.Linq;
 using System.Security;
 using System.Text;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class UnattendOptions
     {

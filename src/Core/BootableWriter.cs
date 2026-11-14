@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace OptiWin
+namespace OptiTech
 {
     public enum FlashMode { WindowsMbr, WindowsGpt, Raw }
 
@@ -15,7 +15,7 @@ namespace OptiWin
         public UsbDisk Disk;
         public FlashMode Mode;
         public bool Verify = true;
-        public bool CopyOptiWin;
+        public bool CopyOptiTech;
         public UnattendOptions Unattend = new UnattendOptions();
     }
 
@@ -69,7 +69,7 @@ namespace OptiWin
                     throw new InvalidOperationException(tooBig[0].Name + " dépasse 4 Go et ne peut pas être découpé. Créez d'abord une version plus légère, avec une seule édition, dans l'onglet « ISO personnalisée ». Rien n'a été effacé.");
 
                 var capacity = Math.Min(o.Disk.Size, Fat32MaxPartition);
-                var needed = total + (total / 20) + (o.CopyOptiWin ? 8L << 20 : 0);
+                var needed = total + (total / 20) + (o.CopyOptiTech ? 8L << 20 : 0);
                 if (needed > capacity) throw new InvalidOperationException("Espace insuffisant : " + Fmt.Size(needed) + " nécessaires, " + Fmt.Size(capacity) + " utilisables sur la clé.");
 
                 job.Status("Vérification du périphérique");
@@ -77,7 +77,7 @@ namespace OptiWin
 
                 var letter = Disks.FreeLetter();
                 job.Status("Partitionnement et formatage (" + (o.Mode == FlashMode.WindowsGpt ? "GPT" : "MBR") + ", FAT32)");
-                Disks.RunDiskPart(Disks.DiskPartScript(o.Disk.Index, o.Mode == FlashMode.WindowsGpt, o.Disk.Size, letter, "OPTIWINUSB"), job);
+                Disks.RunDiskPart(Disks.DiskPartScript(o.Disk.Index, o.Mode == FlashMode.WindowsGpt, o.Disk.Size, letter, "OPTITECHUSB"), job);
                 var dst = letter + @":\";
                 WaitReady(dst, job);
 
@@ -132,12 +132,12 @@ namespace OptiWin
                     File.WriteAllText(Path.Combine(dst, "autounattend.xml"), Unattend.Build(o.Unattend, arch), new UTF8Encoding(false));
                     job.Log("autounattend.xml ajouté (" + arch + "). L'installateur demandera toujours sur quel disque installer.");
                 }
-                if (o.CopyOptiWin)
+                if (o.CopyOptiTech)
                 {
-                    Directory.CreateDirectory(Path.Combine(dst, "OptiWin"));
-                    File.Copy(Paths.Exe, Path.Combine(dst, @"OptiWin\OptiWin.exe"), true);
-                    RescueKit.WriteTo(Path.Combine(dst, @"OptiWin\Secours"));
-                    job.Log("OptiWin et le kit de secours copiés sur la clé (mode d'emploi : OptiWin\\Secours\\LISEZMOI.txt).");
+                    Directory.CreateDirectory(Path.Combine(dst, "OptiTech"));
+                    File.Copy(Paths.Exe, Path.Combine(dst, @"OptiTech\OptiTech.exe"), true);
+                    RescueKit.WriteTo(Path.Combine(dst, @"OptiTech\Secours"));
+                    job.Log("OptiTech et le kit de secours copiés sur la clé (mode d'emploi : OptiTech\\Secours\\LISEZMOI.txt).");
                 }
 
                 if (o.Mode == FlashMode.WindowsMbr) WriteBiosBootSector(src, dst, letter, job);
@@ -227,7 +227,7 @@ namespace OptiWin
     {
         public string SourceIso, OutIso, WorkDir;
         public int EditionIndex = 1;
-        public bool RemoveBloat, InjectDrivers, CopyOptiWin;
+        public bool RemoveBloat, InjectDrivers, CopyOptiTech;
         public UnattendOptions Unattend = new UnattendOptions();
     }
 
@@ -273,7 +273,7 @@ namespace OptiWin
         public static void Run(CustomIsoOptions o, Job job)
         {
             if (!Os.IsAdmin) throw new InvalidOperationException("Droits administrateur requis.");
-            var work = Path.Combine(o.WorkDir, "OptiWin-Image-" + DateTime.Now.ToString("yyyyMMddHHmmss"));
+            var work = Path.Combine(o.WorkDir, "OptiTech-Image-" + DateTime.Now.ToString("yyyyMMddHHmmss"));
             var isoDir = Path.Combine(work, "iso");
             var mnt = Path.Combine(work, "mnt");
             var drivers = Path.Combine(work, "drivers");
@@ -343,14 +343,14 @@ namespace OptiWin
 
                 if (!o.Unattend.IsEmpty)
                     File.WriteAllText(Path.Combine(isoDir, "autounattend.xml"), Unattend.Build(o.Unattend, Unattend.ArchOf(isoDir)), new UTF8Encoding(false));
-                if (o.CopyOptiWin)
+                if (o.CopyOptiTech)
                 {
-                    Directory.CreateDirectory(Path.Combine(isoDir, "OptiWin"));
-                    File.Copy(Paths.Exe, Path.Combine(isoDir, @"OptiWin\OptiWin.exe"), true);
-                    RescueKit.WriteTo(Path.Combine(isoDir, @"OptiWin\Secours"));
+                    Directory.CreateDirectory(Path.Combine(isoDir, "OptiTech"));
+                    File.Copy(Paths.Exe, Path.Combine(isoDir, @"OptiTech\OptiTech.exe"), true);
+                    RescueKit.WriteTo(Path.Combine(isoDir, @"OptiTech\Secours"));
                 }
 
-                IsoBuilder.Create(isoDir, o.OutIso, "WINDOWS_OPTIWIN", false, job);
+                IsoBuilder.Create(isoDir, o.OutIso, "WINDOWS_OPTITECH", false, job);
                 job.Summary = "ISO personnalisée créée : " + o.OutIso + " (" + Fmt.Size(new FileInfo(o.OutIso).Length) + ").";
             }
             finally

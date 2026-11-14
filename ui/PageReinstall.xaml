@@ -32,7 +32,7 @@
           </Button>
           <StackPanel>
             <TextBlock Text="2. Sur le Windows neuf" Style="{StaticResource TxtH2}"/>
-            <TextBlock Style="{StaticResource TxtMuted}" Margin="0,5,0,0" Text="OptiWin compare le profil à ce PC et ne propose que ce qui changerait vraiment. Vous cochez, il applique. Rien ne se fait sans votre accord."/>
+            <TextBlock Style="{StaticResource TxtMuted}" Margin="0,5,0,0" Text="OptiTech compare le profil à ce PC et ne propose que ce qui changerait vraiment. Vous cochez, il applique. Rien ne se fait sans votre accord."/>
             <TextBlock x:Name="ImportInfo" Style="{StaticResource TxtSmallAuto}" Foreground="{DynamicResource Accent}" Margin="0,8,0,0"/>
           </StackPanel>
         </DockPanel>

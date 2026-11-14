@@ -6,7 +6,7 @@ using System.Management;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class UsbDisk
     {
@@ -162,7 +162,7 @@ namespace OptiWin
 
         public static void RunDiskPart(string script, Job job)
         {
-            var path = Path.Combine(Path.GetTempPath(), "optiwin-dp-" + Guid.NewGuid().ToString("N") + ".txt");
+            var path = Path.Combine(Path.GetTempPath(), "optitech-dp-" + Guid.NewGuid().ToString("N") + ".txt");
             File.WriteAllText(path, script, System.Text.Encoding.ASCII);
             try
             {

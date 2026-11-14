@@ -1,6 +1,29 @@
 # Journal des versions
 
-Le numéro de version suit la date : `26.11.1` est la première version publiée en novembre 2026.
+Le numéro de version suit la date : `26.11.2` est la deuxième version publiée en novembre 2026. Jusqu'à la 26.11.1, l'application s'appelait OptiWin.
+
+## 26.11.2
+
+**OptiWin devient OptiTech** : l'application ne s'occupe plus seulement de Windows. Réglages, sauvegardes et historique de l'ancienne version sont repris automatiquement au premier lancement.
+
+### Fonctionnalités
+
+- **Téléviseur** (nouvelle page) : allège un téléviseur ou un boîtier Android TV ou Google TV depuis le PC. Recherche des appareils sur le réseau local, connexion guidée, puis un plan classé par groupes (publicités, pistage, extras du fabricant, applications imposées, assistant vocal). Les applications sont désactivées, jamais désinstallées, et la liste est mémorisée avant chaque changement : tout se réactive un par un ou d'un coup.
+- **Téléviseur** : vidage des caches avec l'espace gagné, fermeture des applications en arrière-plan, animations accélérées (réversible), redémarrage, mémoire disponible avant et après. Le lanceur en service, la diffusion, les mises à jour, les entrées HDMI et les services Google ne sont jamais proposés.
+- **Mises à jour depuis GitHub** : une nouvelle version est annoncée dans la barre latérale, téléchargée en HTTPS, contrôlée par son empreinte SHA-256, puis installée avec redémarrage de l'application. Recherche automatique une fois par jour au plus, désactivable, et bouton de recherche dans la page Outils.
+- L'ancienne tâche d'entretien hebdomadaire créée par OptiWin est reconnue et remplacée proprement.
+
+### Visuel
+
+- **Verre dépoli partout** : cartes et panneaux translucides à liseré lumineux, halos de couleur en arrière-plan, fond acrylique de Windows 11 quand il est disponible.
+- Le contenu se floute derrière les dialogues.
+- Nouveau logo : pastille de verre en dégradé turquoise, bleu et violet. Boutons, interrupteurs, jauge et barres de progression reprennent ce dégradé.
+- Coins plus ronds, page active soulignée d'un liseré de verre.
+
+### Technique
+
+- 13 auto-tests de plus (126 au total) : lecture des releases GitHub, empreintes, échange des exécutables, migration des données, catalogue et plan du téléviseur, validation de tout ce qui entre dans une commande adb.
+- L'icône est produite par `tools/make-icon.py`.
 
 ## 26.11.1
 

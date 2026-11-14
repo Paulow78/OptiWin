@@ -1,6 +1,6 @@
 <ScrollViewer xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-              xmlns:o="clr-namespace:OptiWin;assembly=OptiWin"
+              xmlns:o="clr-namespace:OptiTech;assembly=OptiTech"
               VerticalScrollBarVisibility="Auto" Focusable="False">
   <StackPanel Margin="32,22,32,32" MaxWidth="1240">
 
@@ -8,7 +8,7 @@
     <Border Style="{StaticResource Card}" Padding="0" Margin="0,0,0,14">
       <Grid>
         <!-- Halo de couleur discret derrière la jauge, construit par le thème -->
-        <Border CornerRadius="11" Background="{DynamicResource HeroGlow}"/>
+        <Border CornerRadius="15" Background="{DynamicResource HeroGlow}"/>
         <Grid Margin="28,24">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>

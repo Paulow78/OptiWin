@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class SysSnapshot
     {

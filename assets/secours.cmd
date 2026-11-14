@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-title OptiWin - Kit de secours
+title OptiTech - Kit de secours
 
 rem Texte sans accent : l'environnement de reparation n'utilise pas la meme page de codes que Windows.
 rem Ce script ne formate rien et ne supprime rien. Chaque reparation demande une confirmation.
@@ -12,7 +12,7 @@ call :detect
 cls
 echo.
 echo   ================================================
-echo     OptiWin - Kit de secours
+echo     OptiTech - Kit de secours
 echo   ================================================
 echo.
 if "%WIN%"=="" (
@@ -97,7 +97,7 @@ goto menu
 
 :volumes
 echo.
-set "DP=%TEMP%\optiwin-vol.txt"
+set "DP=%TEMP%\optitech-vol.txt"
 echo list volume> "%DP%"
 diskpart /s "%DP%"
 goto pause
@@ -120,7 +120,7 @@ if not exist "%T%:\" (
   echo   Le disque %T%: est introuvable.
   goto pause
 )
-set "DEST=%T%:\Sauvegarde-OptiWin\Users"
+set "DEST=%T%:\Sauvegarde-OptiTech\Users"
 echo.
 echo   De   : %WIN%:\Users
 echo   Vers : %DEST%

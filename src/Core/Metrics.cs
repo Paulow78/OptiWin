@@ -7,7 +7,7 @@ using System.Threading;
 using System.Web.Script.Serialization;
 using System.Xml;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class MetricSnapshot
     {

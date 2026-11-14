@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class StartupItem : Bindable
     {

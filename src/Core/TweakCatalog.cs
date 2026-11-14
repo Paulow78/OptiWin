@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     /// <summary>
     /// Catalogue des réglages. Volontairement absents, car inefficaces ou dangereux :

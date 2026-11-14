@@ -1,4 +1,4 @@
-OptiWin : kit de secours
+OptiTech : kit de secours
 ========================
 
 Pour un PC qui ne démarre plus, à condition de démarrer sur une clé d'installation de Windows.
@@ -8,11 +8,11 @@ Pour un PC qui ne démarre plus, à condition de démarrer sur une clé d'instal
    Une fenêtre de commande s'ouvre.
 3. Cherchez la lettre de la clé avec cette commande :
 
-   for %i in (C D E F G H I J K L) do @if exist %i:\OptiWin\Secours\secours.cmd echo %i
+   for %i in (C D E F G H I J K L) do @if exist %i:\OptiTech\Secours\secours.cmd echo %i
 
 4. Si la lettre affichée est D, lancez le kit ainsi :
 
-   D:\OptiWin\Secours\secours.cmd
+   D:\OptiTech\Secours\secours.cmd
 
 Conseil : commencez toujours par le choix 1, pour mettre vos fichiers à l'abri.
 

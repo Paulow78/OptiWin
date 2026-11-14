@@ -78,7 +78,7 @@
                 <StackPanel><TextBlock Text="Ne pas chiffrer automatiquement le disque" Style="{StaticResource TxtBody}"/><TextBlock Text="Plus rapide sur un vieux PC, mais les données ne sont plus protégées si le PC est volé." Style="{StaticResource TxtSmall}"/></StackPanel>
               </CheckBox>
               <CheckBox x:Name="ChkPrivacy" Content="Refuser d'emblée les options de collecte de données" Margin="0,0,0,10"/>
-              <CheckBox x:Name="ChkCopyOpti" Content="Copier OptiWin et le kit de secours sur la clé" IsChecked="True"/>
+              <CheckBox x:Name="ChkCopyOpti" Content="Copier OptiTech et le kit de secours sur la clé" IsChecked="True"/>
             </StackPanel>
           </Border>
           <Border Style="{StaticResource Card}">
@@ -111,7 +111,7 @@
             <TextBox x:Name="IsoOut" Tag="Emplacement du fichier"/>
           </DockPanel>
           <TextBlock Text="Nom du volume" Style="{StaticResource TxtLabel}"/>
-          <TextBox x:Name="IsoLabel" Text="OPTIWIN" Width="260" HorizontalAlignment="Left" Margin="0,0,0,14"/>
+          <TextBox x:Name="IsoLabel" Text="OPTITECH" Width="260" HorizontalAlignment="Left" Margin="0,0,0,14"/>
           <CheckBox x:Name="ChkNoPrompt" Content="Démarrage direct, sans « Appuyez sur une touche » (si la source le permet)" Margin="0,0,0,18"/>
           <Button x:Name="BtnMakeIso" Style="{StaticResource BtnPrimary}" HorizontalAlignment="Left" Padding="20,10">
             <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoDisc}"/><TextBlock Text="Créer l'ISO" Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel>
@@ -167,7 +167,7 @@
             <CheckBox x:Name="CustAcct" Content="Sans compte Microsoft ni Internet obligatoires" Margin="0,0,0,10"/>
             <CheckBox x:Name="CustNoBitlocker" Content="Ne pas chiffrer automatiquement le disque" Margin="0,0,0,10"/>
             <CheckBox x:Name="CustPrivacy" Content="Refuser d'emblée les options de collecte de données" Margin="0,0,0,10"/>
-            <CheckBox x:Name="CustOpti" Content="Inclure OptiWin dans l'image" IsChecked="True" Margin="0,0,0,18"/>
+            <CheckBox x:Name="CustOpti" Content="Inclure OptiTech dans l'image" IsChecked="True" Margin="0,0,0,18"/>
             <Button x:Name="BtnCustGo" Style="{StaticResource BtnPrimary}" Padding="20,11">
               <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoPlay}"/><TextBlock Text="Générer l'ISO" Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel>
             </Button>

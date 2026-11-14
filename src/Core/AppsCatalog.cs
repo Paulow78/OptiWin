@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class BloatApp : Bindable
     {

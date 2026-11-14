@@ -13,7 +13,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 
-namespace OptiWin
+namespace OptiTech
 {
     // ─────────────────────────── Accueil ───────────────────────────
     public sealed class HomePage : Page
@@ -100,7 +100,7 @@ namespace OptiWin
                 recommended = r.prof;
                 scoreText.Text = r.health.Score.ToString();
                 ring.AnimateTo(r.health.Score);
-                ring.SetResourceReference(RingGauge.StrokeProperty, r.health.Score >= 65 ? "Accent" : r.health.Score >= 45 ? "Warn" : "Danger");
+                ring.SetResourceReference(RingGauge.StrokeProperty, r.health.Score >= 65 ? "AccentGradient" : r.health.Score >= 45 ? "Warn" : "Danger");
                 verdict.Text = r.health.Verdict;
                 var n = r.health.Insights.Count(i => i.Level != "ok");
                 verdictSub.Text = n == 0 ? "Aucune action nécessaire pour le moment." : n + " point" + (n > 1 ? "s" : "") + " à améliorer, détaillé" + (n > 1 ? "s" : "") + " ci-dessous.";
@@ -572,7 +572,7 @@ namespace OptiWin
                 if (!wingetOk)
                 {
                     installInfo.Text = "winget n'est pas disponible sur ce PC";
-                    installNote.Text = "Installez ou mettez à jour « Programme d'installation d'application » depuis le Microsoft Store, puis relancez OptiWin.";
+                    installNote.Text = "Installez ou mettez à jour « Programme d'installation d'application » depuis le Microsoft Store, puis relancez OptiTech.";
                 }
                 UpdateInstall();
             }, TaskScheduler.FromCurrentSynchronizationContext());
@@ -674,7 +674,7 @@ namespace OptiWin
             custWork.Text = Path.GetTempPath();
             F<Button>("BtnCustSrc").Click += delegate { var p = Dialogs.PickOpen("ISO officielle de Windows", "Image ISO (*.iso)|*.iso"); if (p != null) { custSrc.Text = p; custEdition.ItemsSource = null; ReadEditions(); } };
             F<Button>("BtnCustRead").Click += delegate { ReadEditions(); };
-            F<Button>("BtnCustOut").Click += delegate { var p = Dialogs.PickSave("Enregistrer l'ISO personnalisée", "Image ISO (*.iso)|*.iso", "Windows-OptiWin.iso"); if (p != null) custOut.Text = p; };
+            F<Button>("BtnCustOut").Click += delegate { var p = Dialogs.PickSave("Enregistrer l'ISO personnalisée", "Image ISO (*.iso)|*.iso", "Windows-OptiTech.iso"); if (p != null) custOut.Text = p; };
             F<Button>("BtnCustWork").Click += delegate { var p = Dialogs.PickFolder("Dossier de travail temporaire"); if (p != null) custWork.Text = p; };
             F<Button>("BtnCustGo").Click += delegate { Customize(); };
 
@@ -776,7 +776,7 @@ namespace OptiWin
             {
                 Image = image.Path, Disk = d, Verify = chkVerify.IsChecked == true,
                 Mode = raw ? FlashMode.Raw : modeGpt.IsChecked == true ? FlashMode.WindowsGpt : FlashMode.WindowsMbr,
-                CopyOptiWin = chkCopyOpti.IsChecked == true && !raw,
+                CopyOptiTech = chkCopyOpti.IsChecked == true && !raw,
                 Unattend = raw ? new UnattendOptions() : ReadUnattend(chkBypassHw, chkBypassAcct, chkNoBitlocker, chkPrivacy, account)
             };
             var letters = d.Letters.Count > 0 ? " (lecteur " + string.Join(", ", d.Letters) + ")" : "";
@@ -831,7 +831,7 @@ namespace OptiWin
             var o = new CustomIsoOptions
             {
                 SourceIso = custSrc.Text, OutIso = custOut.Text.Trim(), WorkDir = custWork.Text, EditionIndex = ed.Index,
-                RemoveBloat = F<CheckBox>("CustBloat").IsChecked == true, InjectDrivers = F<CheckBox>("CustDrivers").IsChecked == true, CopyOptiWin = F<CheckBox>("CustOpti").IsChecked == true,
+                RemoveBloat = F<CheckBox>("CustBloat").IsChecked == true, InjectDrivers = F<CheckBox>("CustDrivers").IsChecked == true, CopyOptiTech = F<CheckBox>("CustOpti").IsChecked == true,
                 Unattend = ReadUnattend(F<CheckBox>("CustBypass"), F<CheckBox>("CustAcct"), F<CheckBox>("CustNoBitlocker"), F<CheckBox>("CustPrivacy"), "")
             };
             await Shell.I.RunJob("ISO personnalisée : " + ed.Name, true, job => ImageCustomizer.Run(o, job));
@@ -879,6 +879,12 @@ namespace OptiWin
             }
             dnsList.ItemsSource = dns;
             F<Button>("BtnDnsTest").Click += delegate { TestDns(); };
+            F<TextBlock>("AboutVersion").Text = "OptiTech " + Updater.Text(Updater.Current);
+            F<Button>("BtnCheckUpdate").Click += delegate { Shell.I.CheckUpdates(true); };
+            F<Button>("BtnReleases").Click += delegate { try { Process.Start(Updater.ReleasesPage); } catch (Exception e) { Shell.I.Toast(e.Message, "bad"); } };
+            var auto = F<CheckBox>("ChkAutoUpdate");
+            auto.IsChecked = Updater.Auto;
+            auto.Click += delegate { Updater.Auto = auto.IsChecked == true; };
             F<Button>("BtnDnsRestore").Click += async delegate
             {
                 if (!Os.IsAdmin) { Shell.I.Toast("Modifier le DNS demande le mode administrateur.", "warn"); return; }
@@ -986,7 +992,7 @@ namespace OptiWin
                 await Shell.I.RunJob("Point de restauration", false, job =>
                 {
                     job.Status("Création en cours");
-                    var ok = TweakEngine.CreateRestorePoint("Point manuel OptiWin", job.Log);
+                    var ok = TweakEngine.CreateRestorePoint("Point manuel OptiTech", job.Log);
                     if (!ok) throw new InvalidOperationException("Windows a refusé de créer le point. La protection du système est peut-être désactivée.");
                     job.Summary = "Point de restauration créé.";
                 });
@@ -1021,18 +1027,18 @@ namespace OptiWin
             var shown = allRows.Where(r => q.Length == 0 || (r.Title ?? "").IndexOf(q, cmp) >= 0 || (r.Action ?? "").IndexOf(q, cmp) >= 0 || (r.When ?? "").IndexOf(q, cmp) >= 0).ToList();
             logList.ItemsSource = shown;
             logEmpty.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            logEmpty.Text = allRows.Count == 0 ? "Le journal est vide : OptiWin n'a encore rien changé sur ce PC." : "Aucune entrée ne correspond à « " + q + " ».";
+            logEmpty.Text = allRows.Count == 0 ? "Le journal est vide : OptiTech n'a encore rien changé sur ce PC." : "Aucune entrée ne correspond à « " + q + " ».";
         }
 
         /// <summary>Le journal complet dans un fichier texte, à joindre à une demande d'aide.</summary>
         void Export()
         {
-            var path = Dialogs.PickSave("Exporter le journal", "Fichier texte (*.txt)|*.txt", "OptiWin-journal-" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt");
+            var path = Dialogs.PickSave("Exporter le journal", "Fichier texte (*.txt)|*.txt", "OptiTech-journal-" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt");
             if (path == null) return;
             try
             {
                 var b = new System.Text.StringBuilder();
-                b.AppendLine("Journal OptiWin — " + Environment.MachineName + " — exporté le " + Fmt.DateTimeText(DateTime.Now));
+                b.AppendLine("Journal OptiTech — " + Environment.MachineName + " — exporté le " + Fmt.DateTimeText(DateTime.Now));
                 b.AppendLine();
                 foreach (var h in Store.History()) b.AppendLine(Fmt.When(h.When).PadRight(22) + h.Title + "  —  " + h.Action);
                 File.WriteAllText(path, b.ToString(), System.Text.Encoding.UTF8);
@@ -1054,7 +1060,7 @@ namespace OptiWin
 
         async void UndoAll()
         {
-            var ok = await Shell.I.Confirm("Tout annuler ?", "Tous les réglages appliqués par OptiWin reviendront à leur valeur d'origine.", "Tout annuler", true);
+            var ok = await Shell.I.Confirm("Tout annuler ?", "Tous les réglages appliqués par OptiTech reviendront à leur valeur d'origine.", "Tout annuler", true);
             if (!ok) return;
             await Shell.I.RunJob("Annulation des réglages", true, job =>
             {

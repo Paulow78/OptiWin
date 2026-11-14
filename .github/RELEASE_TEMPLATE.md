@@ -1,4 +1,4 @@
-**Téléchargez `OptiWin.exe` ci-dessous** : un seul fichier, sans installation, pour Windows 10 et 11.
+**Téléchargez `OptiTech.exe` ci-dessous** : un seul fichier, sans installation, pour Windows 10 et 11.
 
 ## Au premier lancement
 Windows SmartScreen affichera sans doute « Windows a protégé votre ordinateur », car le programme n'est pas signé numériquement. Cliquez sur **Informations complémentaires**, puis sur **Exécuter quand même**, et acceptez la demande d'administrateur.
@@ -6,7 +6,7 @@ Windows SmartScreen affichera sans doute « Windows a protégé votre ordinateur
 Pour vérifier le fichier, comparez son empreinte avec `SHA256SUMS.txt` :
 
 ```
-certutil -hashfile OptiWin.exe SHA256
+certutil -hashfile OptiTech.exe SHA256
 ```
 
 Empreinte attendue : `{{SHA256}}`
