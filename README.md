@@ -108,6 +108,7 @@ Faites vos premiers essais avec une clé vide, et testez une ISO allégée dans 
 |---|---|
 | ![Optimiser](docs/img/optimiser-clair.png) | ![Clé bootable](docs/img/usb.png) |
 | ![Réinstaller](docs/img/reinstaller.png) | ![Diagnostic](docs/img/diagnostic.png) |
+| ![Téléviseur](docs/img/televiseur.png) | ![Accueil, thème clair](docs/img/accueil-clair.png) |
 
 ## Compiler
 
