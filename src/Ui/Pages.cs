@@ -60,7 +60,7 @@ namespace OptiTech
             cpu.Push(c); ram.Push(r);
             cpuVal.Text = Fmt.Num(c, "0") + " %";
             ramVal.Text = Fmt.Size(SysInfo.RamUsed());
-            ramLabel.Text = "Mémoire utilisée · " + r + " %";
+            ramLabel.Text = "Mémoire · " + r + " %";
             if (tick++ % 5 == 0)
             {
                 uptimeVal.Text = Fmt.Span(SysInfo.Uptime);
