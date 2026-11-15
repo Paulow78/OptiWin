@@ -19,7 +19,7 @@ namespace OptiTech
     public sealed class HomePage : Page
     {
         readonly RingGauge ring; readonly Sparkline cpu, ram;
-        readonly TextBlock scoreText, verdict, verdictSub, cpuVal, ramVal, diskVal, diskSub, diskLabel, uptimeVal, procSub, startupSub, profName, profReason;
+        readonly TextBlock ramLabel, scoreText, verdict, verdictSub, cpuVal, ramVal, diskVal, diskSub, diskLabel, uptimeVal, procSub, startupSub, profName, profReason;
         readonly ProgressBar diskBar;
         readonly ItemsControl insights, facts;
         readonly DispatcherTimer timer;
@@ -31,7 +31,7 @@ namespace OptiTech
             View = (FrameworkElement)Ui.Load("PageHome.xaml");
             ring = F<RingGauge>("Ring"); cpu = F<Sparkline>("CpuSpark"); ram = F<Sparkline>("RamSpark");
             scoreText = F<TextBlock>("ScoreText"); verdict = F<TextBlock>("Verdict"); verdictSub = F<TextBlock>("VerdictSub");
-            cpuVal = F<TextBlock>("CpuVal"); ramVal = F<TextBlock>("RamVal"); diskVal = F<TextBlock>("DiskVal"); diskSub = F<TextBlock>("DiskSub"); diskLabel = F<TextBlock>("DiskLabel");
+            ramLabel = F<TextBlock>("RamLabel"); cpuVal = F<TextBlock>("CpuVal"); ramVal = F<TextBlock>("RamVal"); diskVal = F<TextBlock>("DiskVal"); diskSub = F<TextBlock>("DiskSub"); diskLabel = F<TextBlock>("DiskLabel");
             uptimeVal = F<TextBlock>("UptimeVal"); procSub = F<TextBlock>("ProcSub"); startupSub = F<TextBlock>("StartupSub");
             profName = F<TextBlock>("ProfileName"); profReason = F<TextBlock>("ProfileReason");
             diskBar = F<ProgressBar>("DiskBar"); insights = F<ItemsControl>("Insights"); facts = F<ItemsControl>("Facts");
@@ -59,7 +59,8 @@ namespace OptiTech
             var r = SysInfo.RamLoad();
             cpu.Push(c); ram.Push(r);
             cpuVal.Text = Fmt.Num(c, "0") + " %";
-            ramVal.Text = Fmt.Size(SysInfo.RamUsed()) + " · " + r + " %";
+            ramVal.Text = Fmt.Size(SysInfo.RamUsed());
+            ramLabel.Text = "Mémoire utilisée · " + r + " %";
             if (tick++ % 5 == 0)
             {
                 uptimeVal.Text = Fmt.Span(SysInfo.Uptime);
@@ -68,9 +69,9 @@ namespace OptiTech
                 {
                     var d = SysInfo.SystemDrive;
                     diskLabel.Text = "Disque système (" + d.Name.TrimEnd('\\') + ")";
-                    diskVal.Text = Fmt.Size(d.AvailableFreeSpace) + " libres";
+                    diskVal.Text = Fmt.Size(d.AvailableFreeSpace);
                     diskBar.Value = 100.0 * (d.TotalSize - d.AvailableFreeSpace) / d.TotalSize;
-                    diskSub.Text = "sur " + Fmt.Size(d.TotalSize);
+                    diskSub.Text = "libres sur " + Fmt.Size(d.TotalSize);
                 }
                 catch { }
             }

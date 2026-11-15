@@ -56,7 +56,7 @@
         <StackPanel>
           <DockPanel>
             <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoRam}" TextElement.Foreground="{DynamicResource TextFaint}" Margin="0,0,7,0"/>
-            <TextBlock Text="Mémoire utilisée" Style="{StaticResource TxtSmall}" VerticalAlignment="Center"/>
+            <TextBlock x:Name="RamLabel" Text="Mémoire utilisée" Style="{StaticResource TxtSmall}" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
           </DockPanel>
           <TextBlock x:Name="RamVal" Text="—" Style="{StaticResource TxtMetric}"/>
           <o:Sparkline x:Name="RamSpark" Height="34" Margin="0,8,0,0" Stroke="{DynamicResource Info}"/>
