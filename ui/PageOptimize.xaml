@@ -2,7 +2,7 @@
            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <StackPanel DockPanel.Dock="Top" Margin="32,22,32,0">
     <TextBlock Text="Optimiser" Style="{StaticResource TxtTitle}"/>
-    <TextBlock Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,4,0,16" Text="Chaque réglage est réversible : OptiWin mémorise la valeur d'origine avant d'y toucher."/>
+    <TextBlock Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,4,0,16" Text="Chaque réglage est réversible : OptiTech mémorise la valeur d'origine avant d'y toucher."/>
 
     <TextBlock Text="Appliquer un profil" Style="{StaticResource TxtLabel}"/>
     <UniformGrid Columns="5" Margin="-4,0,-4,16">

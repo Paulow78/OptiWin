@@ -2,15 +2,15 @@
   <img src="docs/img/logo.svg" width="72" alt="">
 </p>
 
-<h1 align="center">OptiWin</h1>
+<h1 align="center">OptiTech</h1>
 
 <p align="center">
-  Optimisation de Windows, nettoyage et clés USB bootables.<br>
+  Optimisation de Windows et des téléviseurs Android, nettoyage et clés USB bootables.<br>
   Un seul fichier de moins d'un Mo, sans installation. Tout est réversible.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Paulow78/OptiWin/releases/latest/download/OptiWin.exe"><b>Télécharger OptiWin.exe</b></a>
+  <a href="https://github.com/Paulow78/OptiWin/releases/latest/download/OptiTech.exe"><b>Télécharger OptiTech.exe</b></a>
   ·
   <a href="https://paulow78.github.io/OptiWin/">Site</a>
   ·
@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/accueil.png" alt="Page d'accueil d'OptiWin : score de santé, mesures en direct et profil conseillé" width="860">
+  <img src="docs/img/accueil.png" alt="Page d'accueil d'OptiTech : score de santé, mesures en direct et profil conseillé" width="860">
 </p>
 
 ## Ce qu'il fait
@@ -30,6 +30,7 @@
 | **Nettoyer** | Caches et fichiers temporaires, et analyse de ce qui occupe le disque |
 | **Démarrage** | Activer ou couper les programmes, avec le mécanisme du Gestionnaire des tâches. Les superflus se coupent d'un coup |
 | **Applications** | Retirer les applications préinstallées, installer 46 logiciels courants via winget |
+| **Téléviseur** | Android TV et Google TV : couper publicités, pistage et applications imposées depuis le PC, vider les caches, accélérer les animations. Rien n'est désinstallé |
 | **Réinstaller** | Exporter réglages et logiciels dans un fichier, puis tout retrouver sur un Windows neuf |
 | **USB et ISO** | Clé bootable Windows ou Linux, clé multiboot, création d'ISO, ISO allégée, téléchargement de Windows, vérification SHA-256 |
 | **Diagnostic** | Mesures avant/après, programmes qui occupent la mémoire, santé réelle des disques (usure, température, erreurs) |
@@ -38,6 +39,22 @@
 
 Raccourcis clavier : Ctrl+1 à Ctrl+0 pour changer de page, F5 pour actualiser, Ctrl+F pour chercher, Ctrl+T pour le thème, Échap pour fermer un dialogue. Les nouveautés de chaque version sont dans [CHANGELOG.md](CHANGELOG.md).
 
+> **OptiTech s'appelait OptiWin** jusqu'à la version 26.11.1. Vos réglages, sauvegardes et historique sont repris automatiquement au premier lancement.
+
+## Mises à jour
+
+OptiTech cherche une nouvelle version sur GitHub au lancement, une fois par jour au plus, et l'annonce dans la barre latérale. Rien ne s'installe sans votre accord. La mise à jour est téléchargée en HTTPS depuis GitHub, et l'exécutable n'est remplacé que si son empreinte SHA-256 correspond à celle publiée avec la version. La recherche automatique se coupe dans la page Outils, où un bouton permet aussi de chercher à la demande.
+
+## Téléviseur
+
+Pour un téléviseur ou un boîtier Android TV ou Google TV, sur le même réseau que le PC (ou branché en USB) :
+
+1. Sur le téléviseur, activez les options pour les développeurs (7 validations sur « Build » dans À propos), puis le débogage USB ou réseau.
+2. Dans OptiTech, page Téléviseur : « Chercher » trouve les appareils du réseau local, « Connecter » établit la liaison. Le téléviseur demande une fois s'il fait confiance au PC.
+3. OptiTech lit le téléviseur et propose un plan, classé par groupes : publicités, pistage, extras du fabricant, applications imposées, assistant vocal. Rien ne change avant votre accord.
+
+Les applications sont désactivées, jamais désinstallées, et la liste est mémorisée avant chaque changement : tout se réactive un par un ou d'un coup. Le lanceur en service, la diffusion (Chromecast), les mises à jour, les entrées HDMI et les services Google ne sont jamais proposés. La liaison passe par adb, l'outil officiel de Google, récupéré via winget à la première utilisation. La démarche s'inspire de [Clean Your TV](https://github.com/udhaykumarbala/cleanyourtv-app).
+
 ## Ses règles
 
 - **Tout est réversible.** La valeur d'origine est mémorisée avant chaque changement, et un réglage qui échoue en cours de route est défait entièrement.
@@ -45,21 +62,21 @@ Raccourcis clavier : Ctrl+1 à Ctrl+0 pour changer de page, F5 pour actualiser, 
 - **La sécurité reste en place.** Defender, Windows Update et les protections Spectre ne sont jamais touchés. Le seul réglage qui réduit la sécurité est hors de tout profil et demande une confirmation.
 - **Vos fichiers ne sont pas concernés.** Le nettoyage ne touche ni aux documents ni aux téléchargements, et ne suit jamais un lien symbolique.
 - **Le disque système est intouchable.** Seuls les périphériques prouvés USB ou SD sont proposés, le disque est revérifié juste avant l'effacement, et il faut taper `EFFACER`.
-- **Windows a le dernier mot.** Quand Windows protège un réglage contre les programmes, OptiWin le signale et ouvre la bonne page des Paramètres, sans contourner la protection.
+- **Windows a le dernier mot.** Quand Windows protège un réglage contre les programmes, OptiTech le signale et ouvre la bonne page des Paramètres, sans contourner la protection.
 
 ## Premier lancement
 
-1. Téléchargez [`OptiWin.exe`](https://github.com/Paulow78/OptiWin/releases/latest/download/OptiWin.exe). Il fonctionne sur Windows 10 et 11, sans installation.
+1. Téléchargez [`OptiTech.exe`](https://github.com/Paulow78/OptiWin/releases/latest/download/OptiTech.exe). Il fonctionne sur Windows 10 et 11, sans installation.
 2. Windows SmartScreen affichera sans doute « Windows a protégé votre ordinateur », car le programme n'est pas signé numériquement. Cliquez sur **Informations complémentaires**, puis sur **Exécuter quand même**.
-3. Acceptez la demande d'administrateur. Si vous la refusez, OptiWin s'ouvre en mode limité, surtout en lecture seule.
+3. Acceptez la demande d'administrateur. Si vous la refusez, OptiTech s'ouvre en mode limité, surtout en lecture seule.
 
 Pour vérifier que le fichier est bien celui publié ici, comparez son empreinte avec `SHA256SUMS.txt`, joint à chaque version :
 
 ```bash
-certutil -hashfile OptiWin.exe SHA256
+certutil -hashfile OptiTech.exe SHA256
 ```
 
-**Désinstaller :** supprimez `OptiWin.exe`. Ses sauvegardes et son journal se trouvent dans `%LOCALAPPDATA%\OptiWin`. Annulez d'abord vos réglages depuis la page Historique si vous voulez revenir à l'état d'origine.
+**Désinstaller :** supprimez `OptiTech.exe`. Ses sauvegardes et son journal se trouvent dans `%LOCALAPPDATA%\OptiTech`. Annulez d'abord vos réglages depuis la page Historique si vous voulez revenir à l'état d'origine.
 
 ## Clés USB
 
@@ -76,12 +93,12 @@ Un `install.wim` de plus de 4 Go est découpé automatiquement. Chaque clé Wind
 
 **Vérifié en conditions réelles, sur Windows 11 :**
 
-- 113 auto-tests (`OptiWin.exe --selftest`) qui ne touchent pas au système : retour arrière des réglages, protection contre les liens symboliques, ISO BIOS + UEFI, téléchargement face à un serveur qui coupe la connexion, fichiers de profil piégés…
+- 126 auto-tests (`OptiTech.exe --selftest`) qui ne touchent pas au système : retour arrière des réglages, protection contre les liens symboliques, ISO BIOS + UEFI, téléchargement face à un serveur qui coupe la connexion, fichiers de profil piégés…
 - l'application de réglages, le nettoyage et le retrait d'applications, lors d'un usage normal ;
 - une vraie clé USB créée en mode « UEFI et BIOS » : un PC a démarré dessus en UEFI, avec Secure Boot actif, et le kit de secours a fonctionné dans l'installateur ;
 - la lecture du vrai catalogue de téléchargement de Microsoft.
 
-**Pas encore vérifié :** le démarrage en BIOS, les modes GPT, image brute et multiboot, l'ISO allégée, le téléchargement complet d'une image Windows, une installation avec les réponses automatiques, l'annulation sur le vrai système, et Windows 10, 8.1 et 7.
+**Pas encore vérifié :** le démarrage en BIOS, les modes GPT, image brute et multiboot, l'ISO allégée, le téléchargement complet d'une image Windows, une installation avec les réponses automatiques, l'annulation sur le vrai système, l'optimiseur de téléviseur sur un vrai téléviseur (seule la lecture des réponses d'adb est testée), le remplacement de l'exécutable par une vraie mise à jour, et Windows 10, 8.1 et 7.
 
 Faites vos premiers essais avec une clé vide, et testez une ISO allégée dans une machine virtuelle avant de vous y fier.
 
@@ -91,6 +108,7 @@ Faites vos premiers essais avec une clé vide, et testez une ISO allégée dans 
 |---|---|
 | ![Optimiser](docs/img/optimiser-clair.png) | ![Clé bootable](docs/img/usb.png) |
 | ![Réinstaller](docs/img/reinstaller.png) | ![Diagnostic](docs/img/diagnostic.png) |
+| ![Téléviseur](docs/img/televiseur.png) | ![Accueil, thème clair](docs/img/accueil-clair.png) |
 
 ## Compiler
 

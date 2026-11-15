@@ -9,13 +9,13 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 
-namespace OptiWin
+namespace OptiTech
 {
     public static class Ui
     {
         public static object Load(string name)
         {
-            using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("OptiWin.ui." + name))
+            using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("OptiTech.ui." + name))
             {
                 if (s == null) throw new FileNotFoundException("Ressource absente : " + name);
                 return XamlReader.Load(s);
@@ -171,24 +171,27 @@ namespace OptiWin
 
     public static class Themes
     {
+        // Verre dépoli : les surfaces sont translucides et laissent voir les halos de couleur du fond,
+        // ou le fond acrylique de Windows 11 quand il est disponible.
         static readonly Dictionary<string, string> Dark = new Dictionary<string, string>
         {
-            {"WinBg","#0E1014"},{"SidebarBg","#0E1014"},{"ContentBg","#14171D"},{"Surface","#1A1E26"},{"SurfaceHover","#262C37"},{"SurfaceAlt","#12151B"},
-            {"Control","#232833"},{"DialogBg","#1C2029"},{"Stroke","#2A303B"},{"StrokeStrong","#3D4554"},{"Text","#EEF0F4"},{"TextMuted","#A3ACBB"},{"TextFaint","#747D8D"},
-            {"Accent","#3DDBB4"},{"AccentSoft","#223DDBB4"},{"OnAccent","#04241B"},{"HoverLayer","#14FFFFFF"},{"SelectedLayer","#1CFFFFFF"},
+            {"WinBg","#0A0C13"},{"SidebarBg","#00000000"},{"ContentBg","#0DFFFFFF"},{"SurfaceHover","#26FFFFFF"},{"SurfaceAlt","#38000000"},
+            {"Control","#1AFFFFFF"},{"DialogBg","#F2171B26"},{"Stroke","#1FFFFFFF"},{"StrokeStrong","#42FFFFFF"},{"Text","#F1F3F8"},{"TextMuted","#AEB6C6"},{"TextFaint","#7F889A"},
+            {"Accent","#4FE3C1"},{"AccentSoft","#264FE3C1"},{"OnAccent","#04201A"},{"HoverLayer","#14FFFFFF"},{"SelectedLayer","#1FFFFFFF"},
             {"Warn","#FFB84D"},{"WarnSoft","#26FFB84D"},{"Danger","#FF6B6B"},{"DangerSoft","#26FF6B6B"},{"OnDanger","#2B0505"},
-            {"Info","#6CB6FF"},{"InfoSoft","#226CB6FF"},{"Ok","#3DDBB4"},{"OkSoft","#223DDBB4"},{"ThumbBg","#3D4554"},{"ScrimBg","#99000000"},
+            {"Info","#6CB6FF"},{"InfoSoft","#226CB6FF"},{"Ok","#4FE3C1"},{"OkSoft","#224FE3C1"},{"ThumbBg","#3DFFFFFF"},{"ScrimBg","#70000000"},
         };
         static readonly Dictionary<string, string> Light = new Dictionary<string, string>
         {
-            {"WinBg","#E9ECF1"},{"SidebarBg","#E9ECF1"},{"ContentBg","#F5F6F9"},{"Surface","#FFFFFF"},{"SurfaceHover","#E6E9EF"},{"SurfaceAlt","#F1F3F6"},
-            {"Control","#FFFFFF"},{"DialogBg","#FFFFFF"},{"Stroke","#DCE0E7"},{"StrokeStrong","#BEC5D1"},{"Text","#12161F"},{"TextMuted","#525C6E"},{"TextFaint","#818A9A"},
-            {"Accent","#00806A"},{"AccentSoft","#1A00806A"},{"OnAccent","#FFFFFF"},{"HoverLayer","#0E000000"},{"SelectedLayer","#FFFFFFFF"},
+            {"WinBg","#E6EBF5"},{"SidebarBg","#00FFFFFF"},{"ContentBg","#59FFFFFF"},{"SurfaceHover","#1F1B2A4A"},{"SurfaceAlt","#8CFFFFFF"},
+            {"Control","#CCFFFFFF"},{"DialogBg","#F7FFFFFF"},{"Stroke","#241B2A4A"},{"StrokeStrong","#4D1B2A4A"},{"Text","#111522"},{"TextMuted","#4C5568"},{"TextFaint","#7A8496"},
+            {"Accent","#00846E"},{"AccentSoft","#1F00846E"},{"OnAccent","#FFFFFF"},{"HoverLayer","#0E000000"},{"SelectedLayer","#C2FFFFFF"},
             {"Warn","#A85F00"},{"WarnSoft","#1FE08A00"},{"Danger","#C42B2B"},{"DangerSoft","#1AC42B2B"},{"OnDanger","#FFFFFF"},
-            {"Info","#1565C0"},{"InfoSoft","#1A1565C0"},{"Ok","#00806A"},{"OkSoft","#1A00806A"},{"ThumbBg","#BEC5D1"},{"ScrimBg","#66101418"},
+            {"Info","#1565C0"},{"InfoSoft","#1A1565C0"},{"Ok","#00846E"},{"OkSoft","#1A00846E"},{"ThumbBg","#4D1B2A4A"},{"ScrimBg","#4D101828"},
         };
 
         public static bool IsDark { get; private set; }
+        /// <summary>Le fond de la fenêtre est fourni par Windows (acrylique ou Mica) : le nôtre devient transparent.</summary>
         public static bool Mica;
 
         public static void Apply(bool dark)
@@ -199,26 +202,60 @@ namespace OptiWin
             foreach (var kv in map) res[kv.Key] = Make(kv.Value);
             if (Mica)
             {
-                // Le fond Mica de Windows 11 traverse la fenêtre : on laisse transparaître une partie.
                 res["WinBg"] = Brushes.Transparent;
-                res["SidebarBg"] = Brushes.Transparent;
-                res["ContentBg"] = Make(dark ? "#B0101319" : "#B8F6F7FA");
+                res["ContentBg"] = Make(dark ? "#730C0F17" : "#80F4F6FB");
             }
-            // Halos construits ici : un dégradé ne peut pas pointer vers une couleur dynamique du thème.
             var accent = Hex(map["Accent"]);
+            var blue = Hex(dark ? "#5B9DFF" : "#2F6FE0");
+            var violet = Hex(dark ? "#9B7BFF" : "#7A55E0");
             res["AccentColor"] = accent;
-            res["HeroGlow"] = Glow(accent, (byte)(dark ? 0x3A : 0x26));
-            res["ScoreGlow"] = Glow(accent, (byte)(dark ? 0x22 : 0x14));
-            res["CardSheen"] = Sheen((byte)(dark ? 0x0A : 0x40));
+
+            // Surfaces de verre : un dégradé de blanc translucide, plus dense en haut à gauche, d'où vient la lumière.
+            res["Surface"] = Linear(new Point(0, 0), new Point(1, 1),
+                White((byte)(dark ? 0x1F : 0xD1)), White((byte)(dark ? 0x0D : 0x94)));
+            // Liseré : clair sur l'arête éclairée, presque éteint à l'opposé.
+            res["GlassBorder"] = Linear(new Point(0, 0), new Point(1, 1),
+                White((byte)(dark ? 0x57 : 0xFF)), White((byte)(dark ? 0x14 : 0x8C)), Color.FromArgb((byte)(dark ? 0x30 : 0x40), accent.R, accent.G, accent.B));
+            res["AccentGradient"] = Linear(new Point(0, 0), new Point(1, 1), accent, blue);
+            res["LogoGradient"] = Linear(new Point(0, 0), new Point(1, 1), Hex("#4FE3C1"), Hex("#4F8CFF"), Hex("#9B6BFF"));
+            res["GlassSheen"] = Linear(new Point(0, 0), new Point(0, 1), White(0x66), White(0x00));
+
+            // Halos de couleur derrière le verre. Plus discrets quand Windows fournit déjà un fond acrylique.
+            var k = Mica ? 0.55 : 1.0;
+            res["AmbientA"] = Halo(accent, (byte)((dark ? 0x52 : 0x66) * k));
+            res["AmbientB"] = Halo(violet, (byte)((dark ? 0x4A : 0x52) * k));
+            res["AmbientC"] = Halo(blue, (byte)((dark ? 0x40 : 0x4D) * k));
+            res["HeroGlow"] = Glow(accent, (byte)(dark ? 0x40 : 0x2E));
         }
 
         static Color Hex(string hex) { return (Color)ColorConverter.ConvertFromString(hex); }
+        static Color White(byte a) { return Color.FromArgb(a, 255, 255, 255); }
 
         static SolidColorBrush Make(string hex)
         {
             var b = new SolidColorBrush(Hex(hex));
             b.Freeze();
             return b;
+        }
+
+        static LinearGradientBrush Linear(Point from, Point to, params Color[] colors)
+        {
+            var g = new LinearGradientBrush { StartPoint = from, EndPoint = to };
+            for (int i = 0; i < colors.Length; i++)
+                g.GradientStops.Add(new GradientStop(colors[i], colors.Length == 1 ? 0 : (double)i / (colors.Length - 1)));
+            g.Freeze();
+            return g;
+        }
+
+        /// <summary>Tache de couleur ronde, qui s'éteint vers ses bords.</summary>
+        static RadialGradientBrush Halo(Color c, byte alpha)
+        {
+            var g = new RadialGradientBrush();
+            g.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, c.R, c.G, c.B), 0));
+            g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(alpha / 3), c.R, c.G, c.B), 0.55));
+            g.GradientStops.Add(new GradientStop(Color.FromArgb(0, c.R, c.G, c.B), 1));
+            g.Freeze();
+            return g;
         }
 
         /// <summary>Halo radial discret, ancré dans le coin gauche d'une carte.</summary>
@@ -231,14 +268,6 @@ namespace OptiWin
             };
             g.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, c.R, c.G, c.B), 0));
             g.GradientStops.Add(new GradientStop(Color.FromArgb(0, c.R, c.G, c.B), 1));
-            g.Freeze();
-            return g;
-        }
-
-        /// <summary>Léger reflet blanc en haut des cartes, qui donne du relief sans ombre portée.</summary>
-        static LinearGradientBrush Sheen(byte alpha)
-        {
-            var g = new LinearGradientBrush(Color.FromArgb(alpha, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90);
             g.Freeze();
             return g;
         }
@@ -271,7 +300,7 @@ namespace OptiWin
                 source.CompositionTarget.BackgroundColor = Colors.Transparent;
                 var m = new Margins { L = -1, R = -1, T = -1, B = -1 };
                 DwmExtendFrameIntoClientArea(hwnd, ref m);
-                int type = 2; // DWMSBT_MAINWINDOW
+                int type = 3; // DWMSBT_TRANSIENTWINDOW : acrylique, le vrai verre dépoli de Windows 11
                 return DwmSetWindowAttribute(hwnd, 38, ref type, 4) == 0;
             }
             catch { return false; }

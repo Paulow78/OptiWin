@@ -13,7 +13,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     public static partial class SelfTest
     {
@@ -58,7 +58,7 @@ namespace OptiWin
                 var req = (HttpWebRequest)WebRequest.Create(url);
                 req.Method = "HEAD";
                 req.Timeout = 30000;
-                req.UserAgent = "OptiWin";
+                req.UserAgent = "OptiTech";
                 using (var r = (HttpWebResponse)req.GetResponse())
                 {
                     Line("        " + new Uri(url).Scheme + " : statut " + (int)r.StatusCode + ", " + r.ContentLength + " octets, hôte final " + r.ResponseUri.Host + ", reprise : " + r.Headers["Accept-Ranges"]);
@@ -570,7 +570,7 @@ namespace OptiWin
                 Is(Shell.VersionText(new Version(26, 11, 1, 0)) == "26.11.1", "26.11.1");
                 Is(Shell.VersionText(new Version(26, 3, 0, 0)) == "26.3", "26.3");
                 var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                Is(v.Major == 26 && v.Minor == 11 && v.Build == 1, "version compilée : " + v);
+                Is(v.Major == 26 && v.Minor == 11 && v.Build == 2, "version compilée : " + v);
             });
             T("accord du pluriel", () =>
             {
@@ -633,6 +633,146 @@ namespace OptiWin
             });
         }
 
+        /// <summary>Version 26.11.2 : mise à jour depuis GitHub et optimiseur de téléviseur. Aucun accès réseau, aucun téléviseur requis.</summary>
+        static void TvAndUpdate(string tmp)
+        {
+            Line("Mise à jour depuis GitHub");
+            T("numéros de version : lecture et comparaison", () =>
+            {
+                Is(Updater.ParseTag("v26.11.2").Equals(new Version(26, 11, 2, 0)) && Updater.ParseTag("26.3").Equals(new Version(26, 3, 0, 0)), "lecture");
+                foreach (var bad in new[] { null, "", "latest", "v1", "v1.2.3.4", "v1.2-beta", "1.2.x", "v-1.2" }) Is(Updater.ParseTag(bad) == null, "accepté : " + bad);
+                Is(Updater.IsNewer(new Version(26, 11, 3, 0), new Version(26, 11, 2, 0)) && Updater.IsNewer(new Version(26, 12, 0, 0), new Version(26, 11, 9, 0)), "plus récent");
+                Is(!Updater.IsNewer(new Version(26, 11, 2, 0), new Version(26, 11, 2, 0)) && !Updater.IsNewer(new Version(26, 3, 0, 0), new Version(26, 11, 2, 0)) && !Updater.IsNewer(null, Updater.Current), "pas plus récent");
+            });
+            T("seul GitHub en HTTPS est accepté", () =>
+            {
+                Is(Updater.IsTrusted(new Uri("https://github.com/Paulow78/OptiWin/releases/download/v1.0.0/OptiTech.exe")), "github");
+                Is(Updater.IsTrusted(new Uri("https://api.github.com/repos/x/y")) && Updater.IsTrusted(new Uri("https://release-assets.githubusercontent.com/x")), "api et fichiers");
+                Is(!Updater.IsTrusted(new Uri("http://github.com/x")), "sans HTTPS");
+                Is(!Updater.IsTrusted(new Uri("https://github.com.exemple.org/x")) && !Updater.IsTrusted(new Uri("https://fauxgithub.com/x")) && !Updater.IsTrusted(new Uri("https://githubusercontent.com.exemple.org/x")), "nom piégé");
+            });
+            const string Rel = "{\"tag_name\":\"v99.1.2\",\"name\":\"OptiTech 99.1.2\",\"draft\":false,\"prerelease\":false,\"html_url\":\"https://github.com/Paulow78/OptiWin/releases/tag/v99.1.2\","
+                + "\"body\":\"## Dans cette version\\n- **Optimiser** : `mieux`\\n- Deux\\nTexte\\n- Trois\","
+                + "\"assets\":[{\"name\":\"OptiTech.exe\",\"size\":700000,\"digest\":\"sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"browser_download_url\":\"https://github.com/Paulow78/OptiWin/releases/download/v99.1.2/OptiTech.exe\"},"
+                + "{\"name\":\"SHA256SUMS.txt\",\"size\":78,\"browser_download_url\":\"https://github.com/Paulow78/OptiWin/releases/download/v99.1.2/SHA256SUMS.txt\"}]}";
+            T("release GitHub : lecture, fichiers, nouveautés", () =>
+            {
+                var u = Updater.ParseRelease(Rel);
+                Is(u != null && u.VersionText == "99.1.2" && u.Size == 700000, "champs");
+                Is(u.ExeUrl.EndsWith("/OptiTech.exe") && u.SumsUrl.EndsWith("/SHA256SUMS.txt") && u.Sha256 == new string('a', 64), "fichiers");
+                Is(Updater.IsNewer(u.Version, Updater.Current), "plus récente");
+                var h = Updater.Highlights(u.Notes, 2);
+                Is(h == "•  Optimiser : mieux\n•  Deux", h);
+            });
+            T("release refusée : brouillon, préversion, fichier hébergé ailleurs, réponse illisible", () =>
+            {
+                Is(Updater.ParseRelease(Rel.Replace("\"draft\":false", "\"draft\":true")) == null, "brouillon");
+                Is(Updater.ParseRelease(Rel.Replace("\"prerelease\":false", "\"prerelease\":true")) == null, "préversion");
+                Is(Updater.ParseRelease(Rel.Replace("https://github.com/Paulow78/OptiWin/releases/download/v99.1.2/OptiTech.exe", "https://exemple.org/OptiTech.exe")) == null, "hôte étranger");
+                Is(Updater.ParseRelease(Rel.Replace("v99.1.2\",\"name", "dernier\",\"name")) == null, "tag sans version");
+                Is(Updater.ParseRelease("pas du json") == null && Updater.ParseRelease("[]") == null && Updater.ParseRelease("{}") == null, "illisible");
+            });
+            T("empreinte : lue dans SHA256SUMS.txt, exigée avant tout remplacement", () =>
+            {
+                var hash = new string('b', 64);
+                Is(Updater.ParseSums(hash + "  OptiTech.exe\n", "OptiTech.exe") == hash, "format sha256sum");
+                Is(Updater.ParseSums("x  autre.exe\r\n" + hash.ToUpperInvariant() + " *optitech.exe\r\n", "OptiTech.exe") == hash, "mode binaire, casse");
+                Is(Updater.ParseSums("court  OptiTech.exe", "OptiTech.exe") == null && Updater.ParseSums("", "OptiTech.exe") == null && Updater.ParseSums(null, "x") == null, "invalide");
+                var exe = Path.Combine(tmp, "maj.exe");
+                var data = new byte[4096]; data[0] = (byte)'M'; data[1] = (byte)'Z';
+                File.WriteAllBytes(exe, data);
+                var good = Hashing.Sha256(exe, null);
+                Updater.Verify(exe, good);
+                Throws<InvalidDataException>(() => Updater.Verify(exe, new string('0', 64)), "empreinte fausse");
+                var txt = Path.Combine(tmp, "pasexe.exe"); File.WriteAllBytes(txt, new byte[4096]);
+                Throws<InvalidDataException>(() => Updater.Verify(txt, Hashing.Sha256(txt, null)), "pas un exécutable");
+            });
+            T("échange des exécutables : l'ancien est gardé, puis nettoyable", () =>
+            {
+                var cur = Path.Combine(tmp, "App.exe"); var fresh = Path.Combine(tmp, "App-new.exe");
+                File.WriteAllText(cur, "ancien"); File.WriteAllText(fresh, "nouveau"); File.WriteAllText(cur + ".old", "reste d'avant");
+                Updater.Swap(cur, fresh);
+                Is(File.ReadAllText(cur) == "nouveau" && File.ReadAllText(cur + ".old") == "ancien" && !File.Exists(fresh), "échange");
+                File.Delete(cur + ".old");
+                Throws<FileNotFoundException>(() => Updater.Swap(cur, Path.Combine(tmp, "absent.exe")), "nouveau fichier absent");
+                Is(File.ReadAllText(cur) == "nouveau" && !File.Exists(cur + ".old"), "retour arrière après échec");
+            });
+            T("les données de l'ancien nom (OptiWin) suivent, une seule fois", () =>
+            {
+                var a = Path.Combine(tmp, "mig", "OptiWin"); var b = Path.Combine(tmp, "mig", "OptiTech");
+                Directory.CreateDirectory(a); File.WriteAllText(Path.Combine(a, "state.json"), "{}");
+                Is(Paths.MigrateLegacy(a, b) && File.Exists(Path.Combine(b, "state.json")) && !Directory.Exists(a), "déplacement");
+                Directory.CreateDirectory(a);
+                Is(!Paths.MigrateLegacy(a, b) && Directory.Exists(a), "n'écrase jamais un dossier existant");
+                Is(!Paths.MigrateLegacy(Path.Combine(tmp, "mig", "absent"), Path.Combine(tmp, "mig", "x")), "rien à déplacer");
+            });
+
+            Line("Téléviseur (sans téléviseur : lecture des réponses d'adb)");
+            T("adresses et noms de paquets : rien ne peut se glisser dans une commande", () =>
+            {
+                foreach (var ok in new[] { "192.168.1.42", "192.168.1.42:5555", "tv-salon.local" }) Is(Adb.IsValidHost(ok), ok);
+                foreach (var bad in new[] { "", null, "-s x", "192.168.1.1 & calc", "a;b", "a b", "192.168.1.1:abc", "$(x)", "a|b", "..\\x" }) Is(!Adb.IsValidHost(bad), "accepté : " + bad);
+                Is(Adb.WithPort("192.168.1.42") == "192.168.1.42:5555" && Adb.WithPort("h:1234") == "h:1234", "port par défaut");
+                Is(Adb.IsValidPackage("com.google.android.tvrecommendations") && Adb.IsValidPackage("tv.samba.ssm"), "paquets");
+                foreach (var bad in new[] { "", null, "com", "com.x;reboot", "com.x y", "-f", "com..x", "com.x`id`", "com.x&&ls" }) Is(!Adb.IsValidPackage(bad), "accepté : " + bad);
+            });
+            T("lecture des réponses du téléviseur", () =>
+            {
+                var d = Adb.ParseDevices("* daemon started successfully\nList of devices attached\n192.168.1.42:5555\tdevice\nABC123\tunauthorized\n\n");
+                Is(d.Count == 2 && d[0].Serial == "192.168.1.42:5555" && d[0].Ready && !d[1].Ready, "appareils");
+                var p = TvOptimizer.ParsePackages("package:com.a.b\r\npackage:com.c.d\nWARNING: x\npackage:pas valide\npackage:com.a.b\n");
+                Is(p.SequenceEqual(new[] { "com.a.b", "com.c.d" }), string.Join(",", p));
+                var g = TvOptimizer.ParseGetprop("[ro.product.brand]: [xiaomi]\r\n[ro.product.model]: [MiTV-AXSO0]\n[ro.build.version.release]: [11]\n[vide]: []\n");
+                Is(g["ro.product.brand"] == "xiaomi" && g["ro.product.model"] == "MiTV-AXSO0" && g["vide"] == "", "propriétés");
+                long total, free;
+                TvOptimizer.ParseDf("Filesystem     1K-blocks    Used Available Use% Mounted on\n/dev/block/dm-0  5935604 2101340   3702260  37% /data\n", out total, out free);
+                Is(total == 5935604L * 1024 && free == 3702260L * 1024, "stockage");
+                TvOptimizer.ParseDf("df: /data: No such file", out total, out free);
+                Is(total == -1 && free == -1, "stockage illisible");
+                Is(TvOptimizer.ParseMeminfo("MemTotal:        2012345 kB\nMemAvailable:     512000 kB\n", "MemAvailable") == 512000L * 1024 && TvOptimizer.ParseMeminfo("", "MemTotal") == -1, "mémoire");
+                Is(TvOptimizer.ParseHome("priority=0 preferredOrder=0\ncom.google.android.tvlauncher/.MainActivity\n") == "com.google.android.tvlauncher" && TvOptimizer.ParseHome("No activity found") == null, "lanceur");
+                Is(new TvInfo { Brand = "xiaomi", Model = "MiTV 4", Serial = "AB:12/34" }.Id == "ab1234" && new TvInfo { Brand = "sony", Model = "X90" }.Id == "sony-x90", "identifiant");
+            });
+            T("catalogue TV : noms valides, sans doublon, jamais un composant protégé", () =>
+            {
+                var c = TvOptimizer.Catalog();
+                Is(c.Count >= 35 && c.Select(x => x.Package).Distinct().Count() == c.Count, "doublons");
+                foreach (var i in c)
+                {
+                    Is(Adb.IsValidPackage(i.Package.TrimEnd('.')), "nom : " + i.Package);
+                    Is(!TvOptimizer.IsProtected(i.Package.TrimEnd('.')) && !TvOptimizer.IsProtected(i.Package + "x"), "protégé au catalogue : " + i.Package);
+                    Is(!string.IsNullOrWhiteSpace(i.Label) && !string.IsNullOrWhiteSpace(i.Group), "texte : " + i.Package);
+                }
+                foreach (var keep in new[] { "com.google.android.gms", "com.android.vending", "com.google.android.apps.mediashell", "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx",
+                    "com.android.tv.settings", "com.android.providers.tv", "com.droidlogic.tv.settings", "com.mediatek.tv.oneworld.tvcenter", "com.xiaomi.mitv.updateservice", "com.android.systemui", "" })
+                    Is(TvOptimizer.IsProtected(keep), "non protégé : " + keep);
+                Is(c.Where(x => x.Group == TvOptimizer.GVoice).All(x => !x.Recommended), "assistant vocal coché d'office");
+            });
+            T("plan TV : seulement ce qui est présent, jamais le lanceur en service", () =>
+            {
+                var installed = new[] { "com.google.android.tvrecommendations", "com.netflix.ninja", "com.google.android.gms", "com.inconnu.app", "com.nielsen.audience", "com.xm.webcontent", "pas valide" };
+                var plan = TvOptimizer.BuildPlan(installed, "com.xm.webcontent");
+                Is(plan.Select(i => i.Package).OrderBy(x => x).SequenceEqual(new[] { "com.google.android.tvrecommendations", "com.netflix.ninja", "com.nielsen.audience" }), string.Join(",", plan.Select(i => i.Package)));
+                Is(plan.First(i => i.Package == "com.netflix.ninja").Selected == false && plan.First(i => i.Package == "com.google.android.tvrecommendations").Selected, "présélection");
+                Is(plan[0].Group == TvOptimizer.GAds, "ordre des groupes");
+                Is(TvOptimizer.BuildPlan(new string[0], null).Count == 0, "téléviseur vide");
+            });
+            T("ce qui a été coupé est mémorisé par téléviseur", () =>
+            {
+                Is(TvOptimizer.DisabledByUs("tv-test").Count == 0, "vide au départ");
+                Store.SetSetting("tv.off.tv-test", "com.a.b,com.c.d,pas valide,com.a.b");
+                Is(TvOptimizer.DisabledByUs("tv-test").SequenceEqual(new[] { "com.a.b", "com.c.d" }) && TvOptimizer.DisabledByUs("autre").Count == 0, "lecture");
+                Store.SetSetting("tv.off.tv-test", null);
+                Is(TvOptimizer.LabelOf("com.netflix.ninja") == "Netflix" && TvOptimizer.LabelOf("com.inconnu") == "com.inconnu", "libellés");
+            });
+            T("recherche sur le réseau : seulement des adresses du réseau local", () =>
+            {
+                var t = Adb.ScanTargets();
+                Is(t.Count <= 254 * 16, "nombre " + t.Count);
+                Is(t.All(ip => { var b = ip.GetAddressBytes(); return b.Length == 4 && b[3] != 0 && b[3] != 255; }), "adresses");
+            });
+        }
+
         static void Rescue(string tmp)
         {
             Line("Kit de secours");
@@ -665,7 +805,7 @@ namespace OptiWin
             });
             T("écriture du kit, et détection réelle de Windows sans rien modifier", () =>
             {
-                var d = Path.Combine(tmp, @"key\OptiWin\Secours");
+                var d = Path.Combine(tmp, @"key\OptiTech\Secours");
                 RescueKit.WriteTo(d);
                 Is(File.Exists(Path.Combine(d, "secours.cmd")) && File.ReadAllText(Path.Combine(d, "LISEZMOI.txt")).Contains("Maj + F10"), "fichiers");
                 var o = new List<string>();

@@ -14,7 +14,7 @@ using System.Web.Script.Serialization;
 using System.Windows.Input;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     public abstract class Bindable : INotifyPropertyChanged
     {
@@ -88,14 +88,32 @@ namespace OptiWin
         public static readonly string Data;
         public static readonly string Logs;
         // Constructeur explicite indispensable : sans lui, le CLR peut initialiser ces champs par anticipation,
-        // avant que Main ait isolé les auto-tests avec OPTIWIN_DATA.
+        // avant que Main ait isolé les auto-tests avec OPTITECH_DATA.
         static Paths()
         {
-            Data = Ensure(Environment.GetEnvironmentVariable("OPTIWIN_DATA") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OptiWin"));
+            var forced = Environment.GetEnvironmentVariable("OPTITECH_DATA");
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (forced == null) MigrateLegacy(Path.Combine(local, "OptiWin"), Path.Combine(local, "OptiTech"));
+            Data = Ensure(forced ?? Path.Combine(local, "OptiTech"));
             Logs = Ensure(Path.Combine(Data, "logs"));
         }
         public static string Exe { get { return Process.GetCurrentProcess().MainModule.FileName; } }
         static string Ensure(string p) { try { Directory.CreateDirectory(p); } catch { } return p; }
+
+        /// <summary>
+        /// L'application s'appelait OptiWin : ses sauvegardes de réglages d'origine suivent le nouveau nom,
+        /// sinon « Tout annuler » ne saurait plus rien défaire. L'ancien dossier est déplacé une seule fois.
+        /// </summary>
+        public static bool MigrateLegacy(string oldDir, string newDir)
+        {
+            try
+            {
+                if (!Directory.Exists(oldDir) || Directory.Exists(newDir)) return false;
+                Directory.Move(oldDir, newDir);
+                return true;
+            }
+            catch { return false; }
+        }
     }
 
     public static class Logger
@@ -108,7 +126,7 @@ namespace OptiWin
         {
             try
             {
-                lock (gate) File.AppendAllText(Path.Combine(Paths.Logs, "optiwin-" + DateTime.Now.ToString("yyyyMMdd") + ".log"),
+                lock (gate) File.AppendAllText(Path.Combine(Paths.Logs, "optitech-" + DateTime.Now.ToString("yyyyMMdd") + ".log"),
                     DateTime.Now.ToString("HH:mm:ss") + " " + lvl + " " + m + Environment.NewLine, Encoding.UTF8);
             }
             catch { }
@@ -208,7 +226,7 @@ namespace OptiWin
         }
 
         /// <summary>
-        /// Chemin absolu des outils système. Sinon Windows chercherait d'abord à côté d'OptiWin.exe :
+        /// Chemin absolu des outils système. Sinon Windows chercherait d'abord à côté d'OptiTech.exe :
         /// un faux sc.exe posé dans le même dossier serait alors exécuté avec les droits administrateur.
         /// </summary>
         static string Resolve(string exe)

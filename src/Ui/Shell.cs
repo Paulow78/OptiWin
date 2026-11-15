@@ -14,7 +14,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class PlanItem : Bindable
     {
@@ -55,7 +55,7 @@ namespace OptiWin
             host = F<ContentControl>("PageHost");
             btnMax = F<Button>("BtnMax");
 
-            foreach (var kv in new Dictionary<string, string> { {"home","NavHome"},{"optimize","NavOptimize"},{"clean","NavClean"},{"startup","NavStartup"},{"apps","NavApps"},{"reinstall","NavReinstall"},{"usb","NavUsb"},{"diagnostic","NavDiagnostic"},{"tools","NavTools"},{"history","NavHistory"} })
+            foreach (var kv in new Dictionary<string, string> { {"home","NavHome"},{"optimize","NavOptimize"},{"clean","NavClean"},{"startup","NavStartup"},{"apps","NavApps"},{"tv","NavTv"},{"reinstall","NavReinstall"},{"usb","NavUsb"},{"diagnostic","NavDiagnostic"},{"tools","NavTools"},{"history","NavHistory"} })
             {
                 var id = kv.Key;
                 var r = F<RadioButton>(kv.Value);
@@ -76,6 +76,7 @@ namespace OptiWin
             {
                 if (jobRunning) { e.Cancel = true; Toast("Une opération est en cours : attendez la fin ou annulez-la.", "warn"); return; }
                 if (!solid) WindowMemory.Save(Win);
+                Adb.StopServer();
             };
             if (!solid) WindowMemory.Restore(Win);
 
@@ -93,7 +94,79 @@ namespace OptiWin
             WireConfirm();
             WirePlan();
             WireJob();
+            WireBlur();
+            WireUpdate();
             UpdateThemeButton();
+        }
+
+        // ──────── Verre dépoli derrière les dialogues ────────
+        void WireBlur()
+        {
+            var stage = F<Grid>("Stage");
+            var layers = new[] { F<Grid>("ConfirmLayer"), F<Grid>("PlanLayer"), F<Grid>("JobLayer") };
+            // Sans accélération matérielle (bureau à distance, machine virtuelle), le flou coûterait trop cher.
+            var capable = (RenderCapability.Tier >> 16) > 0;
+            DependencyPropertyChangedEventHandler update = delegate
+            {
+                if (!capable) return;
+                var open = layers.Any(l => l.IsVisible);
+                if (open && stage.Effect == null)
+                    stage.Effect = new System.Windows.Media.Effects.BlurEffect { Radius = 16, RenderingBias = System.Windows.Media.Effects.RenderingBias.Performance };
+                else if (!open) stage.Effect = null;
+            };
+            foreach (var l in layers) l.IsVisibleChanged += update;
+        }
+
+        // ──────── Mise à jour depuis GitHub ────────
+        UpdateInfo pendingUpdate;
+
+        void WireUpdate()
+        {
+            F<Button>("BtnUpdate").Click += delegate { if (pendingUpdate != null) OfferUpdate(pendingUpdate); };
+            // Une recherche discrète par jour au plus, désactivable dans la page Outils.
+            if (solid || !Updater.Auto || !Updater.Due()) return;
+            Win.Loaded += delegate { CheckUpdates(false); };
+        }
+
+        /// <param name="manual">Demandée par l'utilisateur : le résultat est alors toujours annoncé.</param>
+        public async void CheckUpdates(bool manual)
+        {
+            UpdateInfo info = null;
+            Exception error = null;
+            try { info = await Task.Factory.StartNew(() => Updater.Check(CancellationToken.None), CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default); }
+            catch (Exception e) { error = e; Logger.Info("Recherche de mise à jour : " + e.Message); }
+            if (error != null) { if (manual) Toast("Recherche de mise à jour impossible : " + error.Message, "warn"); return; }
+            if (info == null) { if (manual) Toast("OptiTech " + Updater.Text(Updater.Current) + " est à jour."); return; }
+            pendingUpdate = info;
+            F<TextBlock>("UpdateLabel").Text = "Version " + info.VersionText;
+            F<Button>("BtnUpdate").Visibility = Visibility.Visible;
+            if (manual) OfferUpdate(info);
+        }
+
+        async void OfferUpdate(UpdateInfo u)
+        {
+            if (jobRunning) return;
+            var notes = Updater.Highlights(u.Notes, 6);
+            var ok = await Confirm("OptiTech " + u.VersionText + " est disponible",
+                "Vous utilisez la version " + Updater.Text(Updater.Current) + "." + (notes.Length > 0 ? "\n\n" + notes : "")
+                + "\n\nLe fichier est téléchargé depuis GitHub et son empreinte SHA-256 est contrôlée avant tout remplacement. OptiTech redémarre ensuite : réglages et historique sont conservés.",
+                "Mettre à jour", false);
+            if (!ok) return;
+            string fresh = null;
+            var done = await RunJob("Mise à jour vers " + u.VersionText, true, job =>
+            {
+                fresh = Updater.Download(u, job);
+                job.Summary = "Nouvelle version vérifiée. Fermez ce dialogue : OptiTech redémarre.";
+            });
+            if (!done || fresh == null) return;
+            try { Updater.InstallAndRestart(fresh); }
+            catch (Exception e)
+            {
+                Logger.Error("Mise à jour", e);
+                Toast("Remplacement impossible : " + e.Message + " Téléchargez la nouvelle version depuis GitHub.", "bad");
+                return;
+            }
+            Application.Current.Shutdown();
         }
 
         /// <summary>« 26.11.1 » : année, mois, puis numéro de publication dans le mois (omis s'il vaut 0).</summary>
@@ -200,7 +273,7 @@ namespace OptiWin
                 Process.Start(new ProcessStartInfo(Paths.Exe) { UseShellExecute = true, Verb = "runas", Arguments = "--elevated" });
                 Application.Current.Shutdown();
             }
-            catch (System.ComponentModel.Win32Exception) { Toast("Élévation refusée : OptiWin reste en mode limité.", "warn"); }
+            catch (System.ComponentModel.Win32Exception) { Toast("Élévation refusée : OptiTech reste en mode limité.", "warn"); }
         }
 
         // ──────── Navigation ────────
@@ -213,6 +286,7 @@ namespace OptiWin
                 case "clean": return new CleanPage();
                 case "startup": return new StartupPage();
                 case "apps": return new AppsPage();
+                case "tv": return new TvPage();
                 case "reinstall": return new ReinstallPage();
                 case "usb": return new UsbPage();
                 case "diagnostic": return new DiagnosticPage();
@@ -406,7 +480,7 @@ namespace OptiWin
                 if (restore && chosen.Count > 0)
                 {
                     job.Status("Création d'un point de restauration");
-                    TweakEngine.CreateRestorePoint("Avant OptiWin : " + name, job.Log);
+                    TweakEngine.CreateRestorePoint("Avant OptiTech : " + name, job.Log);
                 }
                 int ok = 0, ko = 0;
                 for (int i = 0; i < chosen.Count; i++)
@@ -511,7 +585,7 @@ namespace OptiWin
             F<TextBlock>("JobResult").Text = "";
             F<TextBox>("JobLog").Clear();
             var bar = F<ProgressBar>("JobBar");
-            bar.Foreground = (Brush)Application.Current.Resources["Accent"];
+            bar.Foreground = (Brush)Application.Current.Resources["AccentGradient"];
             bar.IsIndeterminate = true;
             var cancel = F<Button>("JobCancel");
             cancel.Visibility = cancellable ? Visibility.Visible : Visibility.Collapsed;

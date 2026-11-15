@@ -13,14 +13,14 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 [assembly: TargetFramework(".NETFramework,Version=v4.8", FrameworkDisplayName = ".NET Framework 4.8")]
-[assembly: AssemblyTitle("OptiWin")]
-[assembly: AssemblyProduct("OptiWin")]
+[assembly: AssemblyTitle("OptiTech")]
+[assembly: AssemblyProduct("OptiTech")]
 [assembly: AssemblyDescription("Optimisation de Windows et création de clés bootables")]
-[assembly: AssemblyVersion("26.11.1.0")]
-[assembly: AssemblyFileVersion("26.11.1.0")]
-[assembly: AssemblyInformationalVersion("26.11.1")]
+[assembly: AssemblyVersion("26.11.2.0")]
+[assembly: AssemblyFileVersion("26.11.2.0")]
+[assembly: AssemblyInformationalVersion("26.11.2")]
 
-namespace OptiWin
+namespace OptiTech
 {
     public static class Program
     {
@@ -34,7 +34,7 @@ namespace OptiWin
             // Avant tout accès à Paths, et avant que Start soit compilé à la volée.
             // Les rendus de contrôle sont isolés aussi : ils ne doivent ni lire ni écrire les données de l'utilisateur.
             if (Array.Exists(args, a => string.Equals(a, "--selftest", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "--screenshot", StringComparison.OrdinalIgnoreCase)))
-                Environment.SetEnvironmentVariable("OPTIWIN_DATA", Path.Combine(Path.GetTempPath(), "OptiWin-selftest-" + Process.GetCurrentProcess().Id));
+                Environment.SetEnvironmentVariable("OPTITECH_DATA", Path.Combine(Path.GetTempPath(), "OptiTech-selftest-" + Process.GetCurrentProcess().Id));
 
             try { return Start(args); }
             catch (Exception e)
@@ -43,7 +43,7 @@ namespace OptiWin
                 Logger.Error("Démarrage impossible", e);
                 Console.Error.WriteLine(e);
                 if (!args.Contains("--screenshot"))
-                    MessageBox.Show("OptiWin n'a pas pu démarrer :\n\n" + e.GetBaseException().Message + "\n\nDétails dans " + Paths.Logs, "OptiWin", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("OptiTech n'a pas pu démarrer :\n\n" + e.GetBaseException().Message + "\n\nDétails dans " + Paths.Logs, "OptiTech", MessageBoxButton.OK, MessageBoxImage.Error);
                 return 2;
             }
         }
@@ -88,19 +88,26 @@ namespace OptiWin
             // Une seule fenêtre à la fois : deux instances écriraient le même state.json chacune de son côté.
             // Le nom distingue le mode limité du mode administrateur : l'élévation lance la seconde pendant que la première vit encore.
             bool first;
-            instanceMutex = new System.Threading.Mutex(true, @"Local\OptiWin-" + (has("--elevated") || Os.IsAdmin ? "admin" : "user"), out first);
+            instanceMutex = new System.Threading.Mutex(true, @"Local\OptiTech-" + (has("--elevated") || Os.IsAdmin ? "admin" : "user"), out first);
+            if (!first && has("--after-update"))
+            {
+                // La version précédente se ferme : on attend qu'elle libère sa place.
+                try { first = instanceMutex.WaitOne(15000); }
+                catch (System.Threading.AbandonedMutexException) { first = true; }
+            }
             if (!first && screenshot == null)
             {
                 SingleInstance.Activate();
                 return 0;
             }
+            if (screenshot == null) Updater.CleanupOld();
 
             var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
             app.DispatcherUnhandledException += (s, e) =>
             {
                 Logger.Error("Erreur non gérée", e.Exception);
                 if (screenshot != null) { Console.Error.WriteLine(e.Exception); File.WriteAllText(Path.Combine(screenshot, "ERREUR.txt"), e.Exception.ToString()); Environment.Exit(3); }
-                MessageBox.Show("Une erreur inattendue est survenue :\n\n" + e.Exception.Message + "\n\nDétails dans " + Paths.Logs, "OptiWin", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Une erreur inattendue est survenue :\n\n" + e.Exception.Message + "\n\nDétails dans " + Paths.Logs, "OptiTech", MessageBoxButton.OK, MessageBoxImage.Error);
                 e.Handled = true;
             };
 
@@ -120,7 +127,11 @@ namespace OptiWin
                 w.ContentRendered += delegate { Screens(shell, screenshot, has("--mobile")); };
             }
             // Le contexte de synchronisation de WPF n'existe qu'une fois la boucle de messages lancée.
-            shell.Win.Loaded += delegate { shell.Go("home"); };
+            shell.Win.Loaded += delegate
+            {
+                shell.Go("home");
+                if (has("--after-update")) shell.Toast("OptiTech est à jour : version " + Updater.Text(Updater.Current) + ".");
+            };
             app.MainWindow = shell.Win;
             shell.Win.Show();
             var code = app.Run();
@@ -141,6 +152,7 @@ namespace OptiWin
                 sh.Go("clean"); await Task.Delay(9000); Save(sh, dir, "3-nettoyer");
                 sh.Go("startup"); await Task.Delay(2000); Save(sh, dir, "4-demarrage");
                 sh.Go("apps"); await Task.Delay(5000); Save(sh, dir, "5-applications");
+                sh.Go("tv"); await Task.Delay(600); Save(sh, dir, "5c-televiseur");
                 var usb = sh.PageOf<UsbPage>("usb"); await Task.Delay(3000); Save(sh, dir, "6-usb");
                 usb.DemoSetTab(1); await Task.Delay(300); Save(sh, dir, "6b-iso");
                 usb.DemoSetTab(2); await Task.Delay(300); Save(sh, dir, "6c-iso-perso");
@@ -177,7 +189,7 @@ namespace OptiWin
         }
     }
 
-    /// <summary>Ramène au premier plan la fenêtre d'OptiWin déjà ouverte, plutôt que d'en ouvrir une seconde.</summary>
+    /// <summary>Ramène au premier plan la fenêtre d'OptiTech déjà ouverte, plutôt que d'en ouvrir une seconde.</summary>
     static class SingleInstance
     {
         [DllImport("user32")] static extern bool SetForegroundWindow(IntPtr h);

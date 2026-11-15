@@ -47,6 +47,9 @@
   <Geometry x:Key="IcoTrash">M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6</Geometry>
   <Geometry x:Key="IcoRam">M6 19v-3 M10 19v-3 M14 19v-3 M18 19v-3 M8 11V9 M16 11V9 M12 11V9 M2 15h20 M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.1a2 2 0 0 0 0 3.837V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.1a2 2 0 0 0 0-3.837z</Geometry>
   <Geometry x:Key="IcoLayers">M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5</Geometry>
+  <Geometry x:Key="IcoTv">M4 7h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z M17 2l-5 5-5-5</Geometry>
+  <Geometry x:Key="IcoWifi">M5 12.55a11 11 0 0 1 14.08 0 M1.42 9a16 16 0 0 1 21.16 0 M8.53 16.11a6 6 0 0 1 6.95 0 M12 20h.01</Geometry>
+  <Geometry x:Key="IcoArrowUp">M12 19V5 M5 12l7-7 7 7</Geometry>
   <Geometry x:Key="IcoExternal">M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3</Geometry>
 
   <ScaleTransform x:Key="Scale18" ScaleX="0.75" ScaleY="0.75"/>
@@ -131,18 +134,19 @@
   </Style>
 
   <!-- Surfaces -->
+  <!-- Verre dépoli : surface translucide, liseré éclairé en haut à gauche -->
   <Style x:Key="Card" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource Surface}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource GlassBorder}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="CornerRadius" Value="16"/>
     <Setter Property="Padding" Value="20"/>
   </Style>
   <Style x:Key="Row" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource Surface}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="CornerRadius" Value="12"/>
     <Setter Property="Padding" Value="16,12"/>
     <Setter Property="Margin" Value="0,0,0,6"/>
     <Style.Triggers>
@@ -162,16 +166,16 @@
   </Style>
   <Style x:Key="Dialog" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource DialogBg}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource StrokeStrong}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource GlassBorder}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="14"/>
+    <Setter Property="CornerRadius" Value="18"/>
     <Setter Property="Padding" Value="24"/>
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <!-- Chaque dialogue déclare son propre ScaleTransform : un transform partagé par le style serait figé, donc inanimable -->
     <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
     <Setter Property="Effect">
-      <Setter.Value><DropShadowEffect BlurRadius="40" ShadowDepth="10" Opacity="0.45" Color="Black"/></Setter.Value>
+      <Setter.Value><DropShadowEffect BlurRadius="60" ShadowDepth="14" Opacity="0.5" Color="Black"/></Setter.Value>
     </Setter>
     <Style.Triggers>
       <!-- Entrée en douceur à chaque ouverture : léger zoom et fondu -->
@@ -241,9 +245,9 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="B" CornerRadius="8" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+          <Border x:Name="B" CornerRadius="10" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
             <Grid>
-              <Border x:Name="Hover" CornerRadius="7" Background="{DynamicResource HoverLayer}" Opacity="0"/>
+              <Border x:Name="Hover" CornerRadius="9" Background="{DynamicResource HoverLayer}" Opacity="0"/>
               <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
             </Grid>
           </Border>
@@ -259,8 +263,8 @@
   </Style>
   <Style TargetType="Button" BasedOn="{StaticResource BtnBase}"/>
   <Style x:Key="BtnPrimary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
-    <Setter Property="Background" Value="{DynamicResource Accent}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+    <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource GlassBorder}"/>
     <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
@@ -341,9 +345,9 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
-          <Border x:Name="B" CornerRadius="8" Background="Transparent" Height="36">
+          <Border x:Name="B" CornerRadius="10" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Height="36">
             <Grid>
-              <Border x:Name="Marker" Width="3" Height="16" CornerRadius="2" Background="{DynamicResource Accent}" HorizontalAlignment="Left" Visibility="Hidden"/>
+              <Border x:Name="Marker" Width="3" Height="16" CornerRadius="2" Background="{DynamicResource AccentGradient}" HorizontalAlignment="Left" Visibility="Hidden"/>
               <StackPanel Orientation="Horizontal" Margin="13,0,8,0">
                 <Path x:Name="NavIco" Style="{StaticResource Ico}" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
                 <ContentPresenter Margin="12,0,0,0" VerticalAlignment="Center"/>
@@ -355,6 +359,7 @@
             <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource HoverLayer}"/></Trigger>
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="B" Property="Background" Value="{DynamicResource SelectedLayer}"/>
+              <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource GlassBorder}"/>
               <Setter TargetName="Marker" Property="Visibility" Value="Visible"/>
               <Setter TargetName="NavIco" Property="TextElement.Foreground" Value="{DynamicResource Accent}"/>
               <Setter Property="Foreground" Value="{DynamicResource Text}"/>
@@ -443,8 +448,8 @@
               <Trigger.ExitActions>
                 <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Tx" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.14"><DoubleAnimation.EasingFunction><QuadraticEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard>
               </Trigger.ExitActions>
-              <Setter TargetName="Track" Property="Background" Value="{DynamicResource Accent}"/>
-              <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+              <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentGradient}"/>
+              <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource GlassBorder}"/>
               <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource OnAccent}"/>
             </Trigger>
             <!-- Au survol, le curseur grossit légèrement : on voit que l'interrupteur répond -->
@@ -490,7 +495,7 @@
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="Box" Property="Background" Value="{DynamicResource Accent}"/>
+              <Setter TargetName="Box" Property="Background" Value="{DynamicResource AccentGradient}"/>
               <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}"/>
               <Setter TargetName="Mark" Property="Visibility" Value="Visible"/>
             </Trigger>
@@ -630,7 +635,7 @@
   <!-- Progression -->
   <Style TargetType="ProgressBar">
     <Setter Property="Height" Value="6"/>
-    <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentGradient}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ProgressBar">

@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace OptiWin
+namespace OptiTech
 {
     /// <summary>
     /// Clé multiboot avec Ventoy (logiciel libre tiers, GPL), récupéré via winget au premier usage :
@@ -169,7 +169,7 @@ namespace OptiWin
     {
         static string Resource(string name)
         {
-            using (var s = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("OptiWin.assets." + name))
+            using (var s = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("OptiTech.assets." + name))
             {
                 if (s == null) throw new FileNotFoundException("Ressource absente : " + name);
                 using (var r = new StreamReader(s, Encoding.UTF8)) return r.ReadToEnd();

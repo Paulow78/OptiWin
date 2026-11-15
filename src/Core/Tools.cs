@@ -13,7 +13,7 @@ using System.Threading;
 using System.Windows.Input;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class ToolAction
     {
@@ -112,14 +112,14 @@ namespace OptiWin
                 new ToolAction { Id = "rescue", Icon = "IcoUsb", Title = "Ajouter le kit de secours à une clé", Desc = "Copier ses fichiers et réparer le démarrage d'un PC en panne. Choisissez la racine d'une clé d'installation de Windows.", Duration = "Immédiat", PickFolder = true,
                     Run = (j, folder) =>
                     {
-                        var dest = Path.Combine(folder, @"OptiWin\Secours");
+                        var dest = Path.Combine(folder, @"OptiTech\Secours");
                         RescueKit.WriteTo(dest);
                         j.Summary = "Kit de secours copié dans " + dest + ". Le mode d'emploi est dans LISEZMOI.txt.";
                     } },
                 new ToolAction { Id = "battery", Icon = "IcoActivity", Title = "Rapport de batterie", Desc = "Usure réelle comparée à la capacité d'origine, historique d'autonomie.", Duration = "Immédiat",
                     Run = (j, _) =>
                     {
-                        var path = Path.Combine(Path.GetTempPath(), "OptiWin-batterie.html");
+                        var path = Path.Combine(Path.GetTempPath(), "OptiTech-batterie.html");
                         Proc.RunChecked("powercfg.exe", "/batteryreport /output \"" + path + "\"", j.Log, j.Token);
                         Process.Start(path);
                         j.Summary = "Rapport ouvert dans le navigateur.";
@@ -127,7 +127,7 @@ namespace OptiWin
                 new ToolAction { Id = "report", Icon = "IcoCpu", Title = "Exporter un rapport système", Desc = "Fiche texte de la machine, à joindre à une demande d'aide.", Duration = "Immédiat",
                     Run = (j, _) =>
                     {
-                        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "OptiWin-Rapport-" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm") + ".txt");
+                        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "OptiTech-Rapport-" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm") + ".txt");
                         File.WriteAllText(path, BuildReport(), Encoding.UTF8);
                         Process.Start(path);
                         j.Summary = "Rapport enregistré : " + path;
@@ -143,7 +143,7 @@ namespace OptiWin
                 new ToolAction { Id = "energy", Icon = "IcoActivity", Title = "Rapport d'énergie", Desc = "Observe le PC pendant 60 secondes et liste ce qui l'empêche de dormir ou gaspille de l'énergie.", Duration = "1 min", NeedsAdmin = true,
                     Run = (j, _) =>
                     {
-                        var path = Path.Combine(Path.GetTempPath(), "OptiWin-energie.html");
+                        var path = Path.Combine(Path.GetTempPath(), "OptiTech-energie.html");
                         j.Status("Observation du système pendant 60 secondes");
                         j.Progress(-1);
                         // Le code de retour est le nombre de problèmes relevés : ce n'est pas une erreur.
@@ -171,25 +171,30 @@ namespace OptiWin
             };
         }
 
-        const string TaskName = @"OptiWin\Entretien";
+        const string TaskName = @"OptiTech\Entretien";
 
-        public static bool WeeklyInstalled()
+        // Tâche créée par les versions qui s'appelaient OptiWin : elle lance l'ancien exécutable.
+        const string LegacyTaskName = @"OptiWin\Entretien";
+
+        static bool TaskExists(string folder)
         {
             try
             {
                 dynamic svc = Activator.CreateInstance(Type.GetTypeFromProgID("Schedule.Service"));
                 svc.Connect();
-                dynamic t = svc.GetFolder(@"\OptiWin").GetTask("Entretien");
+                dynamic t = svc.GetFolder(@"\" + folder).GetTask("Entretien");
                 return t != null;
             }
             catch { return false; }
         }
 
+        public static bool WeeklyInstalled() { return TaskExists("OptiTech") || TaskExists("OptiWin"); }
+
         public static string WeeklyXml(string exe)
         {
             return "<?xml version=\"1.0\" encoding=\"UTF-16\"?>\r\n" +
                 "<Task version=\"1.2\" xmlns=\"http://schemas.microsoft.com/windows/2004/02/mit/task\">\r\n" +
-                "<RegistrationInfo><Description>Entretien hebdomadaire OptiWin : fichiers temporaires uniquement.</Description></RegistrationInfo>\r\n" +
+                "<RegistrationInfo><Description>Entretien hebdomadaire OptiTech : fichiers temporaires uniquement.</Description></RegistrationInfo>\r\n" +
                 "<Triggers><CalendarTrigger><StartBoundary>2026-01-04T12:00:00</StartBoundary><ScheduleByWeek><DaysOfWeek><Sunday/></DaysOfWeek><WeeksInterval>1</WeeksInterval></ScheduleByWeek></CalendarTrigger></Triggers>\r\n" +
                 "<Principals><Principal id=\"Author\"><RunLevel>HighestAvailable</RunLevel><LogonType>InteractiveToken</LogonType></Principal></Principals>\r\n" +
                 "<Settings><StartWhenAvailable>true</StartWhenAvailable><DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>true</StopIfGoingOnBatteries><ExecutionTimeLimit>PT1H</ExecutionTimeLimit><Priority>7</Priority></Settings>\r\n" +
@@ -201,21 +206,24 @@ namespace OptiWin
         {
             if (WeeklyInstalled())
             {
-                Proc.RunChecked("schtasks.exe", "/Delete /TN \"" + TaskName + "\" /F", j.Log, j.Token);
+                if (TaskExists("OptiWin")) Proc.Run("schtasks.exe", "/Delete /TN \"" + LegacyTaskName + "\" /F", j.Log, j.Token);
+                if (TaskExists("OptiTech")) Proc.RunChecked("schtasks.exe", "/Delete /TN \"" + TaskName + "\" /F", j.Log, j.Token);
                 Store.AddHistory("weekly", "Entretien automatique", "Retiré");
                 j.Summary = "Entretien automatique retiré.";
                 return;
             }
             EnableWeekly(j);
-            j.Summary = "Entretien programmé chaque dimanche à 12 h, ou dès que le PC est allumé. Ne déplacez pas OptiWin.exe.";
+            j.Summary = "Entretien programmé chaque dimanche à 12 h, ou dès que le PC est allumé. Ne déplacez pas OptiTech.exe.";
         }
 
         public static void EnableWeekly(Job j)
         {
-            var xml = Path.Combine(Path.GetTempPath(), "optiwin-task-" + Guid.NewGuid().ToString("N") + ".xml");
+            var xml = Path.Combine(Path.GetTempPath(), "optitech-task-" + Guid.NewGuid().ToString("N") + ".xml");
             File.WriteAllText(xml, WeeklyXml(Paths.Exe), Encoding.Unicode);
             try { Proc.RunChecked("schtasks.exe", "/Create /TN \"" + TaskName + "\" /XML \"" + xml + "\" /F", j.Log, j.Token); }
             finally { try { File.Delete(xml); } catch { } }
+            // L'ancienne tâche ferait double emploi, et viserait un exécutable qui n'existe peut-être plus.
+            if (TaskExists("OptiWin")) Proc.Run("schtasks.exe", "/Delete /TN \"" + LegacyTaskName + "\" /F", j.Log, j.Token);
             Store.AddHistory("weekly", "Entretien automatique", "Activé");
         }
 
@@ -223,7 +231,7 @@ namespace OptiWin
         {
             var s = SysInfo.Current;
             var b = new StringBuilder();
-            b.AppendLine("Rapport OptiWin — " + DateTime.Now);
+            b.AppendLine("Rapport OptiTech — " + DateTime.Now);
             b.AppendLine("Machine      : " + s.Machine);
             b.AppendLine("Système      : " + s.OsName + " " + s.OsVersion + " (build " + s.Build + "." + s.Ubr + ")");
             b.AppendLine("Installé le  : " + (s.InstalledOn.HasValue ? s.InstalledOn.Value.ToString("d") : "?"));
@@ -246,7 +254,7 @@ namespace OptiWin
             foreach (var p in Process.GetProcesses().OrderByDescending(x => { try { return x.WorkingSet64; } catch { return 0; } }).Take(15))
                 try { b.AppendLine("  " + Fmt.Size(p.WorkingSet64).PadLeft(8) + "  " + p.ProcessName); } catch { }
             b.AppendLine();
-            b.AppendLine("Réglages OptiWin appliqués :");
+            b.AppendLine("Réglages OptiTech appliqués :");
             foreach (var t in TweakCatalog.All.Where(x => { x.RefreshState(); return x.IsApplied; }))
                 b.AppendLine("  " + t.Title);
             return b.ToString();

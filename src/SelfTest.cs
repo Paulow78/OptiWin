@@ -8,18 +8,18 @@ using System.Threading;
 using System.Xml;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     /// <summary>
     /// Tests sans effet sur le système : n'écrit que dans un dossier temporaire et dans la clé
-    /// HKCU\Software\OptiWinSelfTest, supprimée à la fin. N'applique aucun réglage réel et
+    /// HKCU\Software\OptiTechSelfTest, supprimée à la fin. N'applique aucun réglage réel et
     /// n'écrit sur aucun disque physique.
     /// </summary>
     public static partial class SelfTest
     {
         static int pass, fail;
         static StringBuilder log = new StringBuilder();
-        const string SandboxKey = @"Software\OptiWinSelfTest";
+        const string SandboxKey = @"Software\OptiTechSelfTest";
 
         static void Line(string s) { Console.WriteLine(s); log.AppendLine(s); }
 
@@ -35,15 +35,15 @@ namespace OptiWin
         {
             // Garde-fou : ces tests suppriment leur dossier de données à la fin. Hors bac à sable,
             // ils effaceraient les sauvegardes de l'utilisateur : on refuse donc de démarrer.
-            if (!Path.GetFileName(Paths.Data).StartsWith("OptiWin-selftest-", StringComparison.Ordinal))
+            if (!Path.GetFileName(Paths.Data).StartsWith("OptiTech-selftest-", StringComparison.Ordinal))
             {
                 Line("REFUS : le dossier de données n'est pas isolé (" + Paths.Data + "). Aucun test lancé.");
                 if (logPath != null) File.WriteAllText(logPath, log.ToString(), Encoding.UTF8);
                 return 3;
             }
-            var tmp = Path.Combine(Path.GetTempPath(), "OptiWinTest-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            var tmp = Path.Combine(Path.GetTempPath(), "OptiTechTest-" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(tmp);
-            Line("OptiWin — auto-tests (build Windows " + Os.Build + ", admin : " + Os.IsAdmin + ")");
+            Line("OptiTech — auto-tests (build Windows " + Os.Build + ", admin : " + Os.IsAdmin + ")");
             try
             {
                 if (online) { OnlineCatalog(); return Finish(logPath); }
@@ -65,6 +65,7 @@ namespace OptiWin
                 MultibootTests(tmp);
                 Rescue(tmp);
                 Ergonomics();
+                TvAndUpdate(tmp);
             }
             finally
             {
@@ -386,7 +387,7 @@ namespace OptiWin
             });
             T("script de partitionnement", () =>
             {
-                var a = Disks.DiskPartScript(3, false, 16L << 30, "Z", "OPTIWINUSB");
+                var a = Disks.DiskPartScript(3, false, 16L << 30, "Z", "OPTITECHUSB");
                 Is(a.Contains("select disk 3") && a.Contains("convert mbr") && a.Contains("active") && a.Contains("format fs=fat32 quick") && a.Contains("assign letter=Z") && !a.Contains("size="), "MBR 16 Go");
                 var b = Disks.DiskPartScript(4, true, 128L * 1000 * 1000 * 1000, "Y", "X");
                 Is(b.Contains("convert gpt") && b.Contains("size=32000") && !b.Contains("active"), "GPT 128 Go");
@@ -411,14 +412,14 @@ namespace OptiWin
             T("ISO de données : identifiée et contenu présent", () =>
             {
                 var src = Path.Combine(tmp, "data"); Directory.CreateDirectory(Path.Combine(src, "sous"));
-                File.WriteAllText(Path.Combine(src, "lisezmoi.txt"), "MARQUEUR-OPTIWIN-RACINE");
-                File.WriteAllText(Path.Combine(src, "sous", "fichier é.txt"), "MARQUEUR-OPTIWIN-SOUS");
+                File.WriteAllText(Path.Combine(src, "lisezmoi.txt"), "MARQUEUR-OPTITECH-RACINE");
+                File.WriteAllText(Path.Combine(src, "sous", "fichier é.txt"), "MARQUEUR-OPTITECH-SOUS");
                 var iso = Path.Combine(tmp, "data.iso");
                 IsoBuilder.Create(src, iso, "TEST", false, job);
                 var i = IsoProbe.Inspect(iso);
                 Is(i.HasUdf, "UDF absent");
                 var bytes = Encoding.ASCII.GetString(File.ReadAllBytes(iso));
-                Is(bytes.Contains("MARQUEUR-OPTIWIN-RACINE") && bytes.Contains("MARQUEUR-OPTIWIN-SOUS"), "contenu absent");
+                Is(bytes.Contains("MARQUEUR-OPTITECH-RACINE") && bytes.Contains("MARQUEUR-OPTITECH-SOUS"), "contenu absent");
                 Line("        " + i.Describe());
             });
             T("ISO amorçable : catalogue El Torito BIOS + UEFI", () =>
@@ -578,7 +579,7 @@ namespace OptiWin
                 dynamic svc = Activator.CreateInstance(Type.GetTypeFromProgID("Schedule.Service"));
                 svc.Connect();
                 dynamic def = svc.NewTask(0);
-                def.XmlText = Tools.WeeklyXml(@"C:\Program Files\OptiWin & co\OptiWin.exe");
+                def.XmlText = Tools.WeeklyXml(@"C:\Program Files\OptiTech & co\OptiTech.exe");
                 Is(def.Settings.StartWhenAvailable == true, "StartWhenAvailable");
             });
             T("requête DNS bien formée", () =>

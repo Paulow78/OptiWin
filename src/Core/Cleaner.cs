@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class FsSpec
     {

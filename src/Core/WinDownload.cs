@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
 
-namespace OptiWin
+namespace OptiTech
 {
     public sealed class WinProduct
     {
@@ -67,7 +67,7 @@ namespace OptiWin
 
         public static List<EsdFile> FetchCatalog(WinProduct p, Job job)
         {
-            var dir = Path.Combine(Path.GetTempPath(), "OptiWin-cat-" + Guid.NewGuid().ToString("N"));
+            var dir = Path.Combine(Path.GetTempPath(), "OptiTech-cat-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
             try
             {
@@ -94,7 +94,7 @@ namespace OptiWin
             var req = (HttpWebRequest)WebRequest.Create(u);
             req.Timeout = 30000;
             req.ReadWriteTimeout = 30000;
-            req.UserAgent = "OptiWin";
+            req.UserAgent = "OptiTech";
             using (job.Token.Register(() => { try { req.Abort(); } catch { } }))
             using (var r = (HttpWebResponse)req.GetResponse())
             {
@@ -234,7 +234,7 @@ namespace OptiWin
             req.Timeout = 30000;
             req.ReadWriteTimeout = 60000;
             req.AllowAutoRedirect = true;
-            req.UserAgent = "OptiWin";
+            req.UserAgent = "OptiTech";
             if (have > 0) req.AddRange(have);
             using (job.Token.Register(() => { try { req.Abort(); } catch { } }))
             {
@@ -314,7 +314,7 @@ namespace OptiWin
         public static void BuildIso(string esd, string isoOut, string label, bool homeProOnly, Job job)
         {
             if (!Os.IsAdmin) throw new InvalidOperationException("Droits administrateur requis.");
-            var work = Path.Combine(Path.GetDirectoryName(isoOut), "OptiWin-Media-" + DateTime.Now.ToString("yyyyMMddHHmmss"));
+            var work = Path.Combine(Path.GetDirectoryName(isoOut), "OptiTech-Media-" + DateTime.Now.ToString("yyyyMMddHHmmss"));
             var media = Path.Combine(work, "media");
             Directory.CreateDirectory(media);
             try

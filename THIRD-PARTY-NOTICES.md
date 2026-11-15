@@ -53,7 +53,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ## Logiciels récupérés à la demande
 
-OptiWin n'embarque aucun de ces logiciels. Il les télécharge seulement quand vous le lui demandez, depuis leurs sources officielles, via winget :
+OptiTech n'embarque aucun de ces logiciels. Il les télécharge seulement quand vous le lui demandez, depuis leurs sources officielles, via winget :
 
 - **Ventoy** (licence GPL-3.0), pour les clés multiboot ;
+- **Android SDK Platform-Tools** de Google (adb), pour dialoguer avec un téléviseur Android TV ;
 - les logiciels proposés dans la page Applications, chacun sous sa propre licence.
+
+## Inspiration
+
+L'optimiseur de téléviseur reprend la démarche de **Clean Your TV** (licence MIT) et de son application communautaire : désactiver sans désinstaller, garder une liste pour tout rétablir, et ne jamais toucher à la diffusion, aux mises à jour ni aux entrées HDMI. Aucun code n'en est repris. Certains noms de paquets Xiaomi du catalogue proviennent de ses listes publiques.

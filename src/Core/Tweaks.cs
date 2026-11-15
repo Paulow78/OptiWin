@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32;
 
-namespace OptiWin
+namespace OptiTech
 {
     public enum Risk { Safe, Moderate, Advanced }
     public enum Effect { Immediate, Explorer, Logoff, Reboot }

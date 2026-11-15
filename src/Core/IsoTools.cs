@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
 
-namespace OptiWin
+namespace OptiTech
 {
     public enum IsoKind { Unknown, Windows, Hybrid }
 
@@ -262,7 +262,7 @@ namespace OptiWin
             b.AssignBootImage(new UnknownWrapper(OpenStream(path)));
             b.PlatformId = platform;
             b.Emulation = 0; // sans émulation
-            b.Manufacturer = "OptiWin";
+            b.Manufacturer = "OptiTech";
             return b;
         }
 
@@ -331,7 +331,7 @@ namespace OptiWin
         static string SafeLabel(string s)
         {
             s = new string((s ?? "").Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
-            if (s.Length == 0) s = "OPTIWIN";
+            if (s.Length == 0) s = "OPTITECH";
             return s.Length > 32 ? s.Substring(0, 32) : s;
         }
 

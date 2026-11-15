@@ -2,7 +2,7 @@
            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <StackPanel DockPanel.Dock="Top" Margin="32,22,32,0">
     <TextBlock Text="Historique" Style="{StaticResource TxtTitle}"/>
-    <TextBlock Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,4,0,16" Text="Tout ce qu'OptiWin a changé sur ce PC, et comment revenir en arrière."/>
+    <TextBlock Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,4,0,16" Text="Tout ce qu'OptiTech a changé sur ce PC, et comment revenir en arrière."/>
     <Border Style="{StaticResource Card}" Margin="0,0,0,14" Padding="20,14">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -38,7 +38,7 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <TextBlock x:Name="NoneText" Style="{StaticResource TxtMuted}" Text="Aucun réglage OptiWin n'est appliqué pour le moment." Margin="2,0,0,12"/>
+      <TextBlock x:Name="NoneText" Style="{StaticResource TxtMuted}" Text="Aucun réglage OptiTech n'est appliqué pour le moment." Margin="2,0,0,12"/>
 
       <DockPanel Margin="0,14,0,8">
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -46,7 +46,7 @@
           <Button x:Name="BtnExport" Style="{StaticResource BtnGhost}" ToolTip="Enregistre tout le journal dans un fichier texte, à joindre à une demande d'aide">
             <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFile}"/><TextBlock Text="Exporter" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
           </Button>
-          <Button x:Name="BtnOpenLogs" Style="{StaticResource BtnGhost}" ToolTip="Ouvre le dossier des journaux détaillés d'OptiWin">
+          <Button x:Name="BtnOpenLogs" Style="{StaticResource BtnGhost}" ToolTip="Ouvre le dossier des journaux détaillés d'OptiTech">
             <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFolder}"/><TextBlock Text="Journaux détaillés" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
           </Button>
         </StackPanel>

@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="OptiWin" Width="1200" Height="800" MinWidth="1000" MinHeight="680"
+        Title="OptiTech" Width="1200" Height="800" MinWidth="1000" MinHeight="680"
         WindowStartupLocation="CenterScreen" Background="{DynamicResource WinBg}" Foreground="{DynamicResource Text}"
         FontFamily="{StaticResource FontText}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
   <WindowChrome.WindowChrome>
@@ -8,10 +8,20 @@
   </WindowChrome.WindowChrome>
 
   <Grid x:Name="Root">
+   <!-- Scène : tout ce qui se floute quand un dialogue s'ouvre par-dessus -->
+   <Grid x:Name="Stage">
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="228"/>
+      <ColumnDefinition Width="232"/>
       <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
+
+    <!-- Halos de couleur : c'est eux que l'on devine à travers les surfaces de verre -->
+    <Grid Grid.ColumnSpan="2" ClipToBounds="True" IsHitTestVisible="False">
+      <Ellipse Width="620" Height="620" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-220,-240,0,0" Fill="{DynamicResource AmbientA}"/>
+      <Ellipse Width="760" Height="760" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-260,-320" Fill="{DynamicResource AmbientB}"/>
+      <Ellipse Width="560" Height="560" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-200,120,0" Fill="{DynamicResource AmbientC}"/>
+      <Ellipse Width="420" Height="420" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-140,0,0,-180" Fill="{DynamicResource AmbientC}"/>
+    </Grid>
 
     <!-- Barre latérale -->
     <Border Background="{DynamicResource SidebarBg}">
@@ -27,14 +37,20 @@
               <Run Text="Échap : fermer un dialogue"/>
             </TextBlock>
           </StackPanel.ToolTip>
-          <Border Width="32" Height="32" CornerRadius="9" Background="{DynamicResource Accent}">
-            <Path Data="{StaticResource IcoZap}" Width="24" Height="24" Stretch="None" Fill="{DynamicResource OnAccent}" Stroke="{DynamicResource OnAccent}" StrokeThickness="1.5" StrokeLineJoin="Round" HorizontalAlignment="Center" VerticalAlignment="Center">
-              <Path.LayoutTransform><ScaleTransform ScaleX="0.72" ScaleY="0.72"/></Path.LayoutTransform>
+          <!-- Logo : pastille de verre teintée, reflet en haut, éclair blanc -->
+          <Grid Width="36" Height="36">
+            <Border CornerRadius="11" Background="{DynamicResource LogoGradient}">
+              <Border.Effect><DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.45" Color="#4F8CFF"/></Border.Effect>
+            </Border>
+            <Border CornerRadius="11" BorderBrush="#73FFFFFF" BorderThickness="1"/>
+            <Border CornerRadius="10,10,16,16" Margin="2,2,2,17" Background="{DynamicResource GlassSheen}"/>
+            <Path Data="{StaticResource IcoZap}" Width="24" Height="24" Stretch="None" Fill="White" Stroke="White" StrokeThickness="1.2" StrokeLineJoin="Round" HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Path.LayoutTransform><ScaleTransform ScaleX="0.74" ScaleY="0.74"/></Path.LayoutTransform>
             </Path>
-          </Border>
+          </Grid>
           <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
-            <TextBlock Text="OptiWin" FontFamily="{StaticResource FontDisplay}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
-            <TextBlock x:Name="VersionText" Text="26.11.1" FontSize="11" Foreground="{DynamicResource TextFaint}" Margin="0,-2,0,0"/>
+            <TextBlock Text="OptiTech" FontFamily="{StaticResource FontDisplay}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
+            <TextBlock x:Name="VersionText" Text="26.11.2" FontSize="11" Foreground="{DynamicResource TextFaint}" Margin="0,-2,0,0"/>
           </StackPanel>
         </StackPanel>
 
@@ -46,6 +62,16 @@
               <Button x:Name="BtnElevate" Content="Passer administrateur" Padding="8,4" FontSize="12"/>
             </StackPanel>
           </Border>
+          <!-- Nouvelle version publiée sur GitHub -->
+          <Button x:Name="BtnUpdate" Visibility="Collapsed" Margin="0,0,0,6" Padding="11,8" HorizontalContentAlignment="Left" Background="{DynamicResource AccentSoft}" BorderBrush="{DynamicResource GlassBorder}">
+            <StackPanel Orientation="Horizontal">
+              <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoArrowUp}" TextElement.Foreground="{DynamicResource Accent}"/>
+              <StackPanel Margin="9,0,0,0">
+                <TextBlock Text="Mise à jour disponible" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Accent}"/>
+                <TextBlock x:Name="UpdateLabel" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+              </StackPanel>
+            </StackPanel>
+          </Button>
           <Button x:Name="BtnTheme" Style="{StaticResource BtnGhost}" HorizontalContentAlignment="Left" Padding="13,8" ToolTip="Ctrl+T">
             <StackPanel Orientation="Horizontal">
               <Path x:Name="ThemeIcon" Style="{StaticResource Ico}" Data="{StaticResource IcoSun}"/>
@@ -63,6 +89,7 @@
             <RadioButton x:Name="NavClean" Style="{StaticResource NavItem}" GroupName="Nav" Content="Nettoyer" Tag="{StaticResource IcoSpark}" ToolTip="Ctrl+3"/>
             <RadioButton x:Name="NavStartup" Style="{StaticResource NavItem}" GroupName="Nav" Content="Démarrage" Tag="{StaticResource IcoPower}" ToolTip="Ctrl+4"/>
             <RadioButton x:Name="NavApps" Style="{StaticResource NavItem}" GroupName="Nav" Content="Applications" Tag="{StaticResource IcoGrid}" ToolTip="Ctrl+5"/>
+            <RadioButton x:Name="NavTv" Style="{StaticResource NavItem}" GroupName="Nav" Content="Téléviseur" Tag="{StaticResource IcoTv}" ToolTip="Android TV et Google TV"/>
             <TextBlock Text="INSTALLER" Style="{StaticResource NavSection}"/>
             <RadioButton x:Name="NavReinstall" Style="{StaticResource NavItem}" GroupName="Nav" Content="Réinstaller" Tag="{StaticResource IcoPackage}" ToolTip="Ctrl+6"/>
             <RadioButton x:Name="NavUsb" Style="{StaticResource NavItem}" GroupName="Nav" Content="USB et ISO" Tag="{StaticResource IcoUsb}" ToolTip="Ctrl+7"/>
@@ -76,19 +103,20 @@
     </Border>
 
     <!-- Contenu -->
-    <Border Grid.Column="1" x:Name="ContentPanel" Margin="0,36,0,0" CornerRadius="10,0,0,0" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1,1,0,0">
+    <Border Grid.Column="1" x:Name="ContentPanel" Margin="0,38,0,0" CornerRadius="18,0,0,0" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource GlassBorder}" BorderThickness="1,1,0,0">
       <ContentControl x:Name="PageHost" Focusable="False"/>
     </Border>
+   </Grid>
 
     <!-- Boutons de fenêtre (remplacés par ceux de Windows quand Mica est actif) -->
-    <StackPanel x:Name="CaptionButtons" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True" Panel.ZIndex="50">
+    <StackPanel x:Name="CaptionButtons" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True" Panel.ZIndex="50">
       <Button x:Name="BtnMin" Style="{StaticResource CaptionBtn}" ToolTip="Réduire"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoMinus}"/></Button>
       <Button x:Name="BtnMax" Style="{StaticResource CaptionBtn}" ToolTip="Agrandir"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSquare}"/></Button>
       <Button x:Name="BtnClose" Style="{StaticResource CaptionClose}" ToolTip="Fermer"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoX}"/></Button>
     </StackPanel>
 
     <!-- Confirmation -->
-    <Grid x:Name="ConfirmLayer" Grid.ColumnSpan="2" Style="{StaticResource Scrim}" Panel.ZIndex="20">
+    <Grid x:Name="ConfirmLayer" Style="{StaticResource Scrim}" Panel.ZIndex="20">
       <Border Style="{StaticResource Dialog}" Width="500">
         <Border.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1"/></Border.RenderTransform>
         <StackPanel>
@@ -107,7 +135,7 @@
     </Grid>
 
     <!-- Plan d'optimisation -->
-    <Grid x:Name="PlanLayer" Grid.ColumnSpan="2" Style="{StaticResource Scrim}" Panel.ZIndex="20">
+    <Grid x:Name="PlanLayer" Style="{StaticResource Scrim}" Panel.ZIndex="20">
       <Border Style="{StaticResource Dialog}" Width="660" MaxHeight="660">
         <Border.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1"/></Border.RenderTransform>
         <DockPanel>
@@ -126,7 +154,7 @@
               </StackPanel>
             </DockPanel>
           </StackPanel>
-          <Border BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="10" Background="{DynamicResource SurfaceAlt}">
+          <Border BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="12" Background="{DynamicResource SurfaceAlt}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
               <ItemsControl x:Name="PlanList">
                 <ItemsControl.ItemTemplate>
@@ -152,7 +180,7 @@
     </Grid>
 
     <!-- Tâche en cours -->
-    <Grid x:Name="JobLayer" Grid.ColumnSpan="2" Style="{StaticResource Scrim}" Panel.ZIndex="30">
+    <Grid x:Name="JobLayer" Style="{StaticResource Scrim}" Panel.ZIndex="30">
       <Border Style="{StaticResource Dialog}" Width="760" Height="540">
         <Border.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1"/></Border.RenderTransform>
         <DockPanel>
@@ -178,8 +206,8 @@
     </Grid>
 
     <!-- Message éphémère -->
-    <Border x:Name="Toast" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,26" CornerRadius="10" Padding="16,10"
-            Background="{DynamicResource DialogBg}" BorderBrush="{DynamicResource StrokeStrong}" BorderThickness="1" Visibility="Collapsed" Panel.ZIndex="40" IsHitTestVisible="False" MaxWidth="700">
+    <Border x:Name="Toast" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,26" CornerRadius="14" Padding="16,10"
+            Background="{DynamicResource DialogBg}" BorderBrush="{DynamicResource GlassBorder}" BorderThickness="1" Visibility="Collapsed" Panel.ZIndex="40" IsHitTestVisible="False" MaxWidth="700">
       <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.35" Color="Black"/></Border.Effect>
       <StackPanel Orientation="Horizontal">
         <Ellipse x:Name="ToastDot" Width="8" Height="8" Fill="{DynamicResource Ok}" VerticalAlignment="Center" Margin="0,0,10,0"/>

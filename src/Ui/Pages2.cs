@@ -11,7 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 
-namespace OptiWin
+namespace OptiTech
 {
     // ─────────────────────────── Réinstaller ───────────────────────────
     public sealed class ReinstallPage : Page
@@ -38,8 +38,8 @@ namespace OptiWin
 
         async void Export()
         {
-            var name = "OptiWin-profil-" + Environment.MachineName + "-" + DateTime.Now.ToString("yyyy-MM-dd") + ".json";
-            var path = Dialogs.PickSave("Enregistrer le profil", "Profil OptiWin (*.json)|*.json", name);
+            var name = "OptiTech-profil-" + Environment.MachineName + "-" + DateTime.Now.ToString("yyyy-MM-dd") + ".json";
+            var path = Dialogs.PickSave("Enregistrer le profil", "Profil OptiTech (*.json)|*.json", name);
             if (path == null) return;
             PcProfile p = null;
             var ok = await Shell.I.RunJob("Création du profil", true, job =>
@@ -53,7 +53,7 @@ namespace OptiWin
 
         async void Import()
         {
-            var path = Dialogs.PickOpen("Ouvrir un profil OptiWin", "Profil OptiWin (*.json)|*.json|Tous les fichiers (*.*)|*.*");
+            var path = Dialogs.PickOpen("Ouvrir un profil OptiTech", "Profil OptiTech (*.json)|*.json|Tous les fichiers (*.*)|*.*");
             if (path == null) return;
             PcProfile p;
             try { p = PcProfiles.Load(path); }
