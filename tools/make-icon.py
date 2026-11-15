@@ -51,7 +51,10 @@ def draw():
     bolt = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(bolt)
     d.polygon(poly, fill=(255, 255, 255, 255))
-    d.line(poly + [poly[0]], fill=(255, 255, 255, 255), width=int(k * 1.3), joint="curve")
+    w = k * 1.3
+    for i, (x, y) in enumerate(poly):  # contour arrondi : un trait par arête, un disque par sommet
+        d.line([(x, y), poly[(i + 1) % len(poly)]], fill=(255, 255, 255, 255), width=int(w))
+        d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=(255, 255, 255, 255))
     img = Image.alpha_composite(img, bolt)
     out = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     out.paste(img, (0, 0), mask)

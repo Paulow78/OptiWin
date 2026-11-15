@@ -73,6 +73,23 @@ jobs:
           }
           Get-ChildItem captures -Recurse -File | Select-Object -ExpandProperty FullName
 
+      # Sur demande (« [captures] » dans le message du commit) : les captures sont poussées sur la branche
+      # ci-captures, écrasée à chaque fois, pour pouvoir les relire et mettre à jour celles du site.
+      - name: Publier les captures sur la branche ci-captures
+        if: contains(github.event.head_commit.message, '[captures]')
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Set-Location captures
+          git init -q -b ci-captures
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -q -m "Captures de ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-captures
+          Set-Location ..
+          Remove-Item captures\.git -Recurse -Force
+
       - name: Empreinte SHA-256
         shell: pwsh
         run: |
