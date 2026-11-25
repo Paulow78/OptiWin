@@ -271,25 +271,25 @@ namespace OptiTech
 
     public static class Themes
     {
-        // Verre dépoli : les surfaces sont translucides et laissent voir les halos de couleur du fond,
-        // ou le fond acrylique de Windows 11 quand il est disponible.
+        // Verre liquide (Liquid Glass) : fond nuit profonde avec halos colorés et surfaces vitrées
+        // à reflets spéculaires, tout en restant léger (aucun flou par carte, uniquement des dégradés gelés).
         static readonly Dictionary<string, string> Dark = new Dictionary<string, string>
         {
-            {"WinBg","#090C13"},{"SidebarBg","#00000000"},{"ContentBg","#0EFFFFFF"},{"SurfaceHover","#26FFFFFF"},{"SurfaceAlt","#38000000"},
-            {"Control","#1CFFFFFF"},{"DialogBg","#F4151A25"},{"Stroke","#1FFFFFFF"},{"StrokeStrong","#42FFFFFF"},{"Text","#F3F5FA"},{"TextMuted","#B0B8C9"},{"TextFaint","#7E889C"},
-            {"Accent","#4FE3C1"},{"AccentSoft","#264FE3C1"},{"OnAccent","#04201A"},{"HoverLayer","#16FFFFFF"},{"SelectedLayer","#22FFFFFF"},
-            {"Warn","#FFB84D"},{"WarnSoft","#26FFB84D"},{"Danger","#FF6B6B"},{"DangerSoft","#26FF6B6B"},{"OnDanger","#2B0505"},
-            {"Info","#6CB6FF"},{"InfoSoft","#226CB6FF"},{"Ok","#4FE3C1"},{"OkSoft","#224FE3C1"},{"ThumbBg","#3DFFFFFF"},{"ScrimBg","#78000000"},
-            {"KbdBg","#18FFFFFF"},
+            {"WinBg","#04060C"},{"SidebarBg","#48070B16"},{"ContentBg","#54090E1B"},{"SurfaceHover","#2CFFFFFF"},{"SurfaceAlt","#4A050812"},
+            {"Control","#1FFFFFFF"},{"DialogBg","#EC0B101E"},{"Stroke","#24FFFFFF"},{"StrokeStrong","#4EFFFFFF"},{"Text","#F5F7FC"},{"TextMuted","#B4BDD0"},{"TextFaint","#7E89A0"},
+            {"Accent","#48E8C7"},{"AccentSoft","#2648E8C7"},{"OnAccent","#031D17"},{"HoverLayer","#1AFFFFFF"},{"SelectedLayer","#26FFFFFF"},
+            {"Warn","#FFBD59"},{"WarnSoft","#28FFBD59"},{"Danger","#FF6B72"},{"DangerSoft","#28FF6B72"},{"OnDanger","#2B0407"},
+            {"Info","#69B7FF"},{"InfoSoft","#2469B7FF"},{"Ok","#48E8C7"},{"OkSoft","#2448E8C7"},{"ThumbBg","#42FFFFFF"},{"ScrimBg","#8802040A"},
+            {"KbdBg","#1CFFFFFF"},
         };
         static readonly Dictionary<string, string> Light = new Dictionary<string, string>
         {
-            {"WinBg","#E6EBF5"},{"SidebarBg","#00FFFFFF"},{"ContentBg","#66FFFFFF"},{"SurfaceHover","#1F1B2A4A"},{"SurfaceAlt","#94FFFFFF"},
-            {"Control","#D6FFFFFF"},{"DialogBg","#FAFFFFFF"},{"Stroke","#221B2A4A"},{"StrokeStrong","#4A1B2A4A"},{"Text","#111522"},{"TextMuted","#4C5568"},{"TextFaint","#788296"},
-            {"Accent","#00846E"},{"AccentSoft","#1F00846E"},{"OnAccent","#FFFFFF"},{"HoverLayer","#0E000000"},{"SelectedLayer","#CCFFFFFF"},
-            {"Warn","#A85F00"},{"WarnSoft","#1FE08A00"},{"Danger","#C42B2B"},{"DangerSoft","#1AC42B2B"},{"OnDanger","#FFFFFF"},
-            {"Info","#1565C0"},{"InfoSoft","#1A1565C0"},{"Ok","#00846E"},{"OkSoft","#1A00846E"},{"ThumbBg","#4D1B2A4A"},{"ScrimBg","#4D101828"},
-            {"KbdBg","#121B2A4A"},
+            {"WinBg","#E5EBF7"},{"SidebarBg","#52FFFFFF"},{"ContentBg","#72FFFFFF"},{"SurfaceHover","#241B2A4A"},{"SurfaceAlt","#98F5F8FD"},
+            {"Control","#DCFFFFFF"},{"DialogBg","#F6FFFFFF"},{"Stroke","#241B2A4A"},{"StrokeStrong","#4E1B2A4A"},{"Text","#0F1422"},{"TextMuted","#4A5469"},{"TextFaint","#758096"},
+            {"Accent","#008770"},{"AccentSoft","#20008770"},{"OnAccent","#FFFFFF"},{"HoverLayer","#10000000"},{"SelectedLayer","#D8FFFFFF"},
+            {"Warn","#A85F00"},{"WarnSoft","#20E08A00"},{"Danger","#C72B35"},{"DangerSoft","#1EC72B35"},{"OnDanger","#FFFFFF"},
+            {"Info","#1565C0"},{"InfoSoft","#1C1565C0"},{"Ok","#008770"},{"OkSoft","#1C008770"},{"ThumbBg","#4D1B2A4A"},{"ScrimBg","#520E1626"},
+            {"KbdBg","#141B2A4A"},
         };
 
         public static bool IsDark { get; private set; }
@@ -306,41 +306,64 @@ namespace OptiTech
             if (Mica && !light)
             {
                 res["WinBg"] = Brushes.Transparent;
-                res["ContentBg"] = Make(dark ? "#730C0F17" : "#80F4F6FB");
+                res["SidebarBg"] = Make(dark ? "#42060912" : "#55FFFFFF");
+                res["ContentBg"] = Make(dark ? "#7A070B15" : "#86F4F7FC");
             }
             var accent = Hex(map["Accent"]);
-            var blue = Hex(dark ? "#5B9DFF" : "#2F6FE0");
-            var violet = Hex(dark ? "#9B7BFF" : "#7A55E0");
+            var blue = Hex(dark ? "#4B93FF" : "#256CE0");
+            var violet = Hex(dark ? "#8F64FF" : "#7A52E0");
+            var rose = Hex(dark ? "#E855B5" : "#D64BA3");
+            var cyan = Hex(dark ? "#22D3EE" : "#0891B2");
             res["AccentColor"] = accent;
 
             if (light)
             {
                 // En mode léger : surfaces opaques et nettes, sans calcul de transparence ni halos.
-                res["ContentBg"] = Make(dark ? "#111521" : "#F3F6FB");
-                res["Surface"] = Make(dark ? "#171C2B" : "#FFFFFF");
-                res["SurfaceAlt"] = Make(dark ? "#121623" : "#EDF1F8");
-                res["GlassBorder"] = Make(dark ? "#283047" : "#D4DCEB");
-                res["Control"] = Make(dark ? "#1E2538" : "#FFFFFF");
+                res["SidebarBg"] = Make(dark ? "#0A0D16" : "#EAEFF8");
+                res["ContentBg"] = Make(dark ? "#0F1320" : "#F4F7FC");
+                res["Surface"] = Make(dark ? "#161B2B" : "#FFFFFF");
+                res["SurfaceAlt"] = Make(dark ? "#111522" : "#EDF2F9");
+                res["GlassBorder"] = Make(dark ? "#2A334C" : "#D0D9EA");
+                res["GlassBorderSoft"] = Make(dark ? "#232B42" : "#DCE3F0");
+                res["CardSheen"] = Brushes.Transparent;
+                res["Control"] = Make(dark ? "#1D2438" : "#FFFFFF");
             }
             else
             {
-                // Surfaces de verre : un dégradé de blanc translucide, plus dense en haut à gauche, d'où vient la lumière.
-                res["Surface"] = Linear(new Point(0, 0), new Point(1, 1),
-                    White((byte)(dark ? 0x1F : 0xD6)), White((byte)(dark ? 0x0C : 0x9A)));
-                // Liseré : clair sur l'arête éclairée, presque éteint à l'opposé.
-                res["GlassBorder"] = Linear(new Point(0, 0), new Point(1, 1),
-                    White((byte)(dark ? 0x5A : 0xFF)), White((byte)(dark ? 0x14 : 0x8C)), Color.FromArgb((byte)(dark ? 0x32 : 0x42), accent.R, accent.G, accent.B));
+                // Verre liquide façon Apple : reflet lumineux en haut à gauche, corps givré translucide, légère teinte froide en bas.
+                res["Surface"] = LinearStops(new Point(0, 0), new Point(1, 1),
+                    new GradientStop(Color.FromArgb((byte)(dark ? 0x26 : 0xE6), 255, 255, 255), 0.0),
+                    new GradientStop(Color.FromArgb((byte)(dark ? 0x13 : 0xBD), 236, 244, 255), 0.45),
+                    new GradientStop(Color.FromArgb((byte)(dark ? 0x0C : 0xA2), 215, 228, 255), 1.0));
+                // Arête spéculaire : éclat blanc net en haut à gauche, qui s'efface puis reflète subtilement l'accent en bas à droite.
+                res["GlassBorder"] = LinearStops(new Point(0, 0), new Point(1, 1),
+                    new GradientStop(White((byte)(dark ? 0x82 : 0xFF)), 0.0),
+                    new GradientStop(White((byte)(dark ? 0x2C : 0xB8)), 0.28),
+                    new GradientStop(White((byte)(dark ? 0x14 : 0x7A)), 0.72),
+                    new GradientStop(Color.FromArgb((byte)(dark ? 0x4C : 0x55), accent.R, accent.G, accent.B), 1.0));
+                res["GlassBorderSoft"] = LinearStops(new Point(0, 0), new Point(1, 1),
+                    new GradientStop(White((byte)(dark ? 0x4A : 0xEA)), 0.0),
+                    new GradientStop(White((byte)(dark ? 0x16 : 0x76)), 0.55),
+                    new GradientStop(Color.FromArgb((byte)(dark ? 0x2E : 0x38), blue.R, blue.G, blue.B), 1.0));
+                // Reflet supérieur discret qui donne l'épaisseur du verre sans aucun flou coûteux.
+                res["CardSheen"] = LinearStops(new Point(0, 0), new Point(1, 0),
+                    new GradientStop(White(0x00), 0.0),
+                    new GradientStop(White((byte)(dark ? 0x52 : 0xCC)), 0.22),
+                    new GradientStop(White((byte)(dark ? 0x24 : 0x88)), 0.65),
+                    new GradientStop(White(0x00), 1.0));
             }
             res["AccentGradient"] = Linear(new Point(0, 0), new Point(1, 1), accent, blue);
-            res["LogoGradient"] = Linear(new Point(0, 0), new Point(1, 1), Hex("#4FE3C1"), Hex("#4F8CFF"), Hex("#9B6BFF"));
-            res["GlassSheen"] = Linear(new Point(0, 0), new Point(0, 1), White(0x66), White(0x00));
+            res["LogoGradient"] = Linear(new Point(0, 0), new Point(1, 1), Hex("#48E8C7"), Hex("#4B93FF"), Hex("#9A6BFF"));
+            res["GlassSheen"] = Linear(new Point(0, 0), new Point(0, 1), White(0x78), White(0x00));
 
-            // Halos de couleur derrière le verre. Plus discrets quand Windows fournit déjà un fond acrylique.
-            var k = light ? 0.0 : Mica ? 0.55 : 1.0;
-            res["AmbientA"] = Halo(accent, (byte)((dark ? 0x52 : 0x66) * k));
-            res["AmbientB"] = Halo(violet, (byte)((dark ? 0x4A : 0x52) * k));
-            res["AmbientC"] = Halo(blue, (byte)((dark ? 0x40 : 0x4D) * k));
-            res["HeroGlow"] = Glow(accent, (byte)((dark ? 0x40 : 0x2E) * (light ? 0.4 : 1.0)));
+            // Halos colorés profonds derrière le verre (nébuleuse sombre : menthe, saphir, violet, touche magenta).
+            var k = light ? 0.0 : Mica ? 0.62 : 1.0;
+            res["AmbientA"] = Halo(accent, (byte)((dark ? 0x56 : 0x62) * k));
+            res["AmbientB"] = Halo(violet, (byte)((dark ? 0x5E : 0x54) * k));
+            res["AmbientC"] = Halo(blue, (byte)((dark ? 0x54 : 0x50) * k));
+            res["AmbientD"] = Halo(rose, (byte)((dark ? 0x3C : 0x38) * k));
+            res["AmbientE"] = Halo(cyan, (byte)((dark ? 0x32 : 0x3A) * k));
+            res["HeroGlow"] = Glow(accent, (byte)((dark ? 0x48 : 0x32) * (light ? 0.4 : 1.0)));
         }
 
         static Color Hex(string hex) { return (Color)ColorConverter.ConvertFromString(hex); }
@@ -362,12 +385,20 @@ namespace OptiTech
             return g;
         }
 
+        static LinearGradientBrush LinearStops(Point from, Point to, params GradientStop[] stops)
+        {
+            var g = new LinearGradientBrush { StartPoint = from, EndPoint = to };
+            foreach (var st in stops) g.GradientStops.Add(st);
+            g.Freeze();
+            return g;
+        }
+
         /// <summary>Tache de couleur ronde, qui s'éteint vers ses bords.</summary>
         static RadialGradientBrush Halo(Color c, byte alpha)
         {
             var g = new RadialGradientBrush();
             g.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, c.R, c.G, c.B), 0));
-            g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(alpha / 3), c.R, c.G, c.B), 0.55));
+            g.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(alpha * 0.38), c.R, c.G, c.B), 0.50));
             g.GradientStops.Add(new GradientStop(Color.FromArgb(0, c.R, c.G, c.B), 1));
             g.Freeze();
             return g;
@@ -378,7 +409,7 @@ namespace OptiTech
         {
             var g = new RadialGradientBrush
             {
-                Center = new Point(0.1, 0.5), GradientOrigin = new Point(0.1, 0.5), RadiusX = 0.55, RadiusY = 1.8,
+                Center = new Point(0.1, 0.5), GradientOrigin = new Point(0.1, 0.5), RadiusX = 0.58, RadiusY = 1.85,
                 MappingMode = BrushMappingMode.RelativeToBoundingBox
             };
             g.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, c.R, c.G, c.B), 0));

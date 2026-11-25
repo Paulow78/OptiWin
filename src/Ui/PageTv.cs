@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 
@@ -16,48 +19,102 @@ namespace OptiTech
         public ICommand Enable { get; set; }
     }
 
+    public sealed class AndroidThirdAppRow
+    {
+        public string Package { get; set; }
+        public ICommand Stop { get; set; }
+    }
+
     // ─────────────────────────── Téléviseur ───────────────────────────
-    /// <summary>Connecter un téléviseur Android TV ou Google TV, voir ce qui peut être coupé, nettoyer, rétablir.</summary>
+    /// <summary>Connecter un téléviseur Android TV ou Google TV, alléger, accélérer, régler le DNS, installer un APK, piloter.</summary>
     public sealed class TvPage : Page
     {
-        readonly TextBox host;
+        readonly TextBox host, pairHost, pairCode, planSearch, appsSearch;
         readonly ComboBox found;
-        readonly TextBlock status, tvName, planTitle, planSub, disabledEmpty;
-        readonly ItemsControl facts, planList, disabledList;
-        readonly Button btnClean, btnRestore;
-        readonly ToggleButton anim;
-        readonly FrameworkElement deviceCard, planCard, disabledCard;
-        string adb, serial;
+        readonly TextBlock status, tvName, planTitle, planSub, disabledEmpty, animInfo, dnsInfo, appsSub, appsEmpty;
+        readonly ItemsControl facts, planList, disabledList, thirdAppsList;
+        readonly Button btnClean, btnRestore, btnAnim1, btnAnim05, btnAnim025, btnAnim0;
+        readonly FrameworkElement deviceCard, workspace, pairBox, panelDebloat, panelTune, panelRemote;
+        string adb, serial, currentAnim = "1", currentDns = "opportunistic";
         TvInfo tv;
         List<TvItem> plan = new List<TvItem>();
+        List<string> thirdApps = new List<string>();
 
         public TvPage()
         {
             View = (FrameworkElement)Ui.Load("PageTv.xaml");
-            host = F<TextBox>("TvHost"); found = F<ComboBox>("TvFound");
+            host = F<TextBox>("TvHost"); pairHost = F<TextBox>("TvPairHost"); pairCode = F<TextBox>("TvPairCode");
+            planSearch = F<TextBox>("TvPlanSearch"); appsSearch = F<TextBox>("TvAppsSearch");
+            found = F<ComboBox>("TvFound");
             status = F<TextBlock>("TvStatus"); tvName = F<TextBlock>("TvName"); planTitle = F<TextBlock>("TvPlanTitle"); planSub = F<TextBlock>("TvPlanSub");
-            disabledEmpty = F<TextBlock>("TvDisabledEmpty");
-            facts = F<ItemsControl>("TvFacts"); planList = F<ItemsControl>("TvPlan"); disabledList = F<ItemsControl>("TvDisabled");
+            disabledEmpty = F<TextBlock>("TvDisabledEmpty"); animInfo = F<TextBlock>("TvAnimInfo"); dnsInfo = F<TextBlock>("TvDnsInfo");
+            appsSub = F<TextBlock>("TvAppsSub"); appsEmpty = F<TextBlock>("TvAppsEmpty");
+            facts = F<ItemsControl>("TvFacts"); planList = F<ItemsControl>("TvPlan"); disabledList = F<ItemsControl>("TvDisabled"); thirdAppsList = F<ItemsControl>("TvThirdApps");
             btnClean = F<Button>("BtnTvClean"); btnRestore = F<Button>("BtnTvRestore");
-            anim = F<ToggleButton>("TvAnim");
-            deviceCard = F<FrameworkElement>("TvDeviceCard"); planCard = F<FrameworkElement>("TvPlanCard"); disabledCard = F<FrameworkElement>("TvDisabledCard");
+            btnAnim1 = F<Button>("BtnTvAnim1"); btnAnim05 = F<Button>("BtnTvAnim05"); btnAnim025 = F<Button>("BtnTvAnim025"); btnAnim0 = F<Button>("BtnTvAnim0");
+            deviceCard = F<FrameworkElement>("TvDeviceCard"); workspace = F<FrameworkElement>("TvWorkspace"); pairBox = F<FrameworkElement>("TvPairBox");
+            panelDebloat = F<FrameworkElement>("PanelTvDebloat"); panelTune = F<FrameworkElement>("PanelTvTune"); panelRemote = F<FrameworkElement>("PanelTvRemote");
 
             F<Button>("BtnTvConnect").Click += delegate { Connect(); };
             F<Button>("BtnTvScan").Click += delegate { Scan(); };
+            F<Button>("BtnTvPairToggle").Click += delegate { pairBox.Visibility = pairBox.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; };
+            F<Button>("BtnTvPair").Click += delegate { Pair(); };
+            F<Button>("BtnTvQuickOpt").Click += delegate { QuickOptimize(); };
             F<Button>("BtnTvAnalyze").Click += delegate { Reanalyze("Analyse du téléviseur", null); };
             F<Button>("BtnTvCaches").Click += delegate { Caches(); };
             F<Button>("BtnTvKill").Click += delegate { KillBackground(); };
+            F<Button>("BtnTvShot").Click += delegate { CaptureScreen(); };
             F<Button>("BtnTvReboot").Click += delegate { Reboot(); };
+            F<Button>("BtnTvRec").Click += delegate { foreach (var i in plan) i.Selected = i.Recommended; };
             F<Button>("BtnTvAll").Click += delegate { foreach (var i in plan) i.Selected = true; };
             F<Button>("BtnTvNone").Click += delegate { foreach (var i in plan) i.Selected = false; };
             btnClean.Click += delegate { Clean(); };
             btnRestore.Click += delegate { RestoreAll(); };
-            anim.Click += delegate { ToggleAnimations(); };
+
+            btnAnim1.Click += delegate { SetAnim("1"); };
+            btnAnim05.Click += delegate { SetAnim("0.5"); };
+            btnAnim025.Click += delegate { SetAnim("0.25"); };
+            btnAnim0.Click += delegate { SetAnim("0"); };
+
+            F<Button>("BtnTvDnsAdguard").Click += delegate { SetDns("hostname", "dns.adguard-dns.com", "AdGuard (anti-pub)"); };
+            F<Button>("BtnTvDnsCf").Click += delegate { SetDns("hostname", "one.one.one.one", "Cloudflare"); };
+            F<Button>("BtnTvDnsQuad9").Click += delegate { SetDns("hostname", "dns.quad9.net", "Quad9"); };
+            F<Button>("BtnTvDnsAuto").Click += delegate { SetDns("opportunistic", null, "Automatique"); };
+            F<Button>("BtnTvDexOpt").Click += delegate { OptimizeApps(); };
+            F<Button>("BtnTvApk").Click += delegate { InstallApk(); };
+
+            F<Button>("BtnRemHome").Click += delegate { SendKey(3, "Accueil"); };
+            F<Button>("BtnRemBack").Click += delegate { SendKey(4, "Retour"); };
+            F<Button>("BtnRemOk").Click += delegate { SendKey(23, "OK"); };
+            F<Button>("BtnRemPlay").Click += delegate { SendKey(85, "Lecture / Pause"); };
+            F<Button>("BtnRemVolDown").Click += delegate { SendKey(25, "Volume −"); };
+            F<Button>("BtnRemVolUp").Click += delegate { SendKey(24, "Volume +"); };
+            F<Button>("BtnRemMute").Click += delegate { SendKey(164, "Muet"); };
+            F<Button>("BtnRemSleep").Click += delegate { SendKey(26, "Veille"); };
+            F<Button>("BtnTvAppsRefresh").Click += delegate { LoadThirdPartyApps(); };
+
+            F<RadioButton>("TabTvDebloat").Checked += delegate { ShowTab(0); };
+            F<RadioButton>("TabTvTune").Checked += delegate { ShowTab(1); };
+            F<RadioButton>("TabTvRemote").Checked += delegate { ShowTab(2); if (Ready(false) && thirdApps.Count == 0) LoadThirdPartyApps(); };
+
+            Ui.Debounce(planSearch, 120, FilterPlan);
+            Ui.Debounce(appsSearch, 120, FilterThirdApps);
             found.SelectionChanged += delegate { var s = found.SelectedItem as string; if (s != null) host.Text = s; };
             host.KeyDown += delegate(object s, KeyEventArgs e) { if (e.Key == Key.Enter) { e.Handled = true; Connect(); } };
         }
 
-        public override bool OnFind() { host.Focus(); host.SelectAll(); return true; }
+        void ShowTab(int index)
+        {
+            panelDebloat.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
+            panelTune.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
+            panelRemote.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public override bool OnFind()
+        {
+            if (workspace.Visibility == Visibility.Visible && panelDebloat.Visibility == Visibility.Visible) { planSearch.Focus(); planSearch.SelectAll(); return true; }
+            host.Focus(); host.SelectAll(); return true;
+        }
         public override void OnRefresh() { if (Ready(false)) Reanalyze("Analyse du téléviseur", null); }
 
         bool Ready(bool tell = true)
@@ -65,6 +122,30 @@ namespace OptiTech
             if (adb != null && serial != null && tv != null) return true;
             if (tell) Shell.I.Toast("Connectez d'abord un téléviseur.", "warn");
             return false;
+        }
+
+        async Task<bool> ConfirmAdbIfMissing()
+        {
+            if (Adb.Find() != null) return true;
+            return await Shell.I.Confirm("Récupérer les outils Android ?",
+                "Pour dialoguer avec le téléviseur, OptiTech utilise adb, l'outil officiel de Google (Android SDK Platform-Tools). Il sera récupéré via winget, depuis sa source officielle. Le récupérer vaut acceptation de sa licence.",
+                "Récupérer", false);
+        }
+
+        async void Pair()
+        {
+            var h = (pairHost.Text ?? "").Trim();
+            var c = (pairCode.Text ?? "").Trim();
+            if (!Adb.IsValidHost(h) || !h.Contains(":")) { Shell.I.Toast("Indiquez l'IP et le port d'appairage (ex. 192.168.1.42:37421).", "warn"); return; }
+            if (!Adb.IsValidPairCode(c)) { Shell.I.Toast("Saisissez le code à 6 chiffres affiché sur le téléviseur.", "warn"); return; }
+            if (!await ConfirmAdbIfMissing()) return;
+            var ok = await Shell.I.RunJob("Appairage sans fil", true, job =>
+            {
+                var exe = Adb.Ensure(job);
+                Adb.Pair(exe, h, c, job);
+                job.Summary = "Appairage réussi. Saisissez maintenant l'adresse IP:port de connexion (affichée dans Débogage sans fil), puis cliquez sur Connecter.";
+            });
+            if (ok) { pairCode.Text = ""; status.Text = "Appairage réussi : cliquez maintenant sur Connecter avec l'IP:port de connexion."; }
         }
 
         async void Scan()
@@ -88,14 +169,8 @@ namespace OptiTech
         {
             var h = (host.Text ?? "").Trim();
             if (h.Length > 0 && !Adb.IsValidHost(h)) { Shell.I.Toast("Adresse invalide : attendu une adresse IP, par exemple 192.168.1.42.", "warn"); return; }
-            if (Adb.Find() == null)
-            {
-                var agreed = await Shell.I.Confirm("Récupérer les outils Android ?",
-                    "Pour dialoguer avec le téléviseur, OptiTech utilise adb, l'outil officiel de Google (Android SDK Platform-Tools). Il sera récupéré via winget, depuis sa source officielle. Le récupérer vaut acceptation de sa licence.",
-                    "Récupérer", false);
-                if (!agreed) return;
-            }
-            string exe = null, id = null; TvInfo info = null; List<TvItem> items = null; bool fast = false;
+            if (!await ConfirmAdbIfMissing()) return;
+            string exe = null, id = null, anim = "1", dns = "opportunistic"; TvInfo info = null; List<TvItem> items = null;
             var ok = await Shell.I.RunJob("Connexion au téléviseur", true, job =>
             {
                 exe = Adb.Ensure(job);
@@ -103,18 +178,20 @@ namespace OptiTech
                 job.Status("Lecture du téléviseur");
                 info = TvOptimizer.ReadInfo(exe, id, job.Token);
                 items = TvOptimizer.Analyze(exe, id, job.Token);
-                fast = TvOptimizer.AnimationsFast(exe, id, job.Token);
+                anim = Adb.GetAnimScale(exe, id, job.Token);
+                dns = Adb.GetPrivateDns(exe, id, job.Token);
                 job.Progress(100);
                 job.Summary = "Connecté à " + info.Name + ". " + (items.Count == 0 ? "Rien à couper d'après la liste d'OptiTech." : Fmt.N(items.Count, "élément") + " à examiner : rien n'a encore été modifié.");
             });
             if (!ok || info == null) { status.Text = "Connexion non établie. Le journal de l'opération en donne la raison."; return; }
-            adb = exe; serial = id; tv = info;
+            adb = exe; serial = id; tv = info; currentAnim = anim; currentDns = dns;
+            thirdApps = new List<string>();
             status.Text = "Connecté à " + tv.Name + ".";
-            ShowDevice(fast);
+            ShowDevice();
             ShowPlan(items);
         }
 
-        void ShowDevice(bool fast)
+        void ShowDevice()
         {
             tvName.Text = tv.Name.Length > 0 ? tv.Name : "Appareil Android";
             var f = new List<KeyValuePair<string, string>>();
@@ -123,20 +200,41 @@ namespace OptiTech
             if (tv.RamTotal > 0) f.Add(new KeyValuePair<string, string>("Mémoire", (tv.RamFree >= 0 ? Fmt.Size(tv.RamFree) + " disponibles sur " : "") + Fmt.Size(tv.RamTotal)));
             f.Add(new KeyValuePair<string, string>("Liaison", serial));
             facts.ItemsSource = f;
-            anim.IsChecked = fast;
+            UpdateTuningStatus();
             deviceCard.Visibility = Visibility.Visible;
+            workspace.Visibility = Visibility.Visible;
+        }
+
+        void UpdateTuningStatus()
+        {
+            var pri = (Style)Application.Current.Resources["BtnPrimary"];
+            var bas = (Style)Application.Current.Resources["BtnBase"];
+            btnAnim1.Style = currentAnim == "1" ? pri : bas;
+            btnAnim05.Style = currentAnim == "0.5" ? pri : bas;
+            btnAnim025.Style = currentAnim == "0.25" ? pri : bas;
+            btnAnim0.Style = currentAnim == "0" ? pri : bas;
+            animInfo.Text = "Actuel : " + (currentAnim == "1" ? "1× (origine)" : currentAnim == "0" ? "0× (instantané)" : currentAnim + "× (accéléré)") + ". Réversible.";
+            dnsInfo.Text = "Actuel : " + (currentDns == "opportunistic" ? "Automatique" : currentDns == "off" ? "Désactivé" : currentDns)
+                + (tv != null && tv.Sdk > 0 && tv.Sdk < 28 ? " (requiert Android 9+)" : "");
         }
 
         void ShowPlan(List<TvItem> items)
         {
             plan = items ?? new List<TvItem>();
-            var cv = new ListCollectionView(plan);
-            cv.GroupDescriptions.Add(new PropertyGroupDescription("Group"));
-            planList.ItemsSource = cv;
             foreach (var i in plan) i.PropertyChanged += delegate { UpdatePlan(); };
-            planCard.Visibility = Visibility.Visible;
+            FilterPlan();
             UpdatePlan();
             ShowDisabled();
+        }
+
+        void FilterPlan()
+        {
+            var q = (planSearch.Text ?? "").Trim();
+            var cmp = StringComparison.CurrentCultureIgnoreCase;
+            var filtered = q.Length == 0 ? plan : plan.Where(i => i.Label.IndexOf(q, cmp) >= 0 || i.Package.IndexOf(q, cmp) >= 0 || (i.Note ?? "").IndexOf(q, cmp) >= 0 || i.Group.IndexOf(q, cmp) >= 0).ToList();
+            var cv = new ListCollectionView(filtered);
+            cv.GroupDescriptions.Add(new PropertyGroupDescription("Group"));
+            planList.ItemsSource = cv;
         }
 
         void UpdatePlan()
@@ -156,16 +254,14 @@ namespace OptiTech
                 var pkg = p;
                 return new TvDisabledRow { Package = pkg, Label = TvOptimizer.LabelOf(pkg), Enable = new RelayCommand(() => EnableOne(pkg)) };
             }).ToList();
-            disabledCard.Visibility = tv == null ? Visibility.Collapsed : Visibility.Visible;
             disabledEmpty.Visibility = list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             btnRestore.IsEnabled = list.Count > 0;
         }
 
-        /// <summary>Relit le téléviseur après une action, dans la même tâche que cette action.</summary>
         async void Reanalyze(string title, Action<Job> before)
         {
             if (!Ready()) return;
-            TvInfo info = null; List<TvItem> items = null; bool fast = false;
+            TvInfo info = null; List<TvItem> items = null; string anim = currentAnim, dns = currentDns;
             var ok = await Shell.I.RunJob(title, true, job =>
             {
                 if (before != null) before(job);
@@ -173,16 +269,38 @@ namespace OptiTech
                 job.Status("Lecture du téléviseur");
                 info = TvOptimizer.ReadInfo(adb, serial, job.Token);
                 items = TvOptimizer.Analyze(adb, serial, job.Token);
-                fast = TvOptimizer.AnimationsFast(adb, serial, job.Token);
+                anim = Adb.GetAnimScale(adb, serial, job.Token);
+                dns = Adb.GetPrivateDns(adb, serial, job.Token);
                 job.Progress(100);
                 job.Summary = summary ?? (items.Count == 0 ? "Rien à couper d'après la liste d'OptiTech." : Fmt.N(items.Count, "élément") + " à examiner.");
             });
             if (!ok || info == null) return;
-            // Le numéro de série peut manquer d'une lecture à l'autre : on garde l'identité établie à la connexion.
             info.Serial = tv.Serial; info.Brand = tv.Brand; info.Model = tv.Model;
-            tv = info;
-            ShowDevice(fast);
+            tv = info; currentAnim = anim; currentDns = dns;
+            ShowDevice();
             ShowPlan(items);
+        }
+
+        async void QuickOptimize()
+        {
+            if (!Ready()) return;
+            var rec = plan.Where(i => i.Recommended).ToList();
+            var ok = await Shell.I.Confirm("Optimiser " + tv.Name + " en 1 clic ?",
+                "Cette opération va :\n• Désactiver " + Fmt.N(rec.Count, "élément recommandé", "éléments recommandés") + " (publicités, télémétrie, démos)\n• Accélérer les animations à 0,5×\n• Vider tous les caches des applications\n• Fermer les processus en arrière-plan\n\nTout reste 100 % réversible depuis cette page.",
+                "Optimiser maintenant", false);
+            if (!ok) return;
+            Reanalyze("Optimisation rapide du téléviseur", job =>
+            {
+                int disabled = 0;
+                if (rec.Count > 0) disabled = TvOptimizer.Disable(adb, serial, tv, rec, job);
+                job.Status("Accélération des animations (0,5×)");
+                TvOptimizer.SetAnimationPreset(adb, serial, tv, "0.5", job);
+                job.Status("Vidage des caches");
+                var freed = TvOptimizer.TrimCaches(adb, serial, job);
+                job.Status("Fermeture de l'arrière-plan");
+                Adb.Shell(adb, serial, "am kill-all", job.Token);
+                job.Summary = Fmt.N(disabled, "élément désactivé", "éléments désactivés") + ", animations à 0,5×" + (freed > 0 ? ", " + Fmt.Size(freed) + " libérés" : "") + ".";
+            });
         }
 
         async void Clean()
@@ -247,16 +365,113 @@ namespace OptiTech
             });
         }
 
-        async void ToggleAnimations()
+        async void SetAnim(string scale)
         {
-            var want = anim.IsChecked == true;
-            if (!Ready()) { anim.IsChecked = false; return; }
-            var ok = await Shell.I.RunJob(want ? "Animations accélérées" : "Animations d'origine", false, job =>
+            if (!Ready()) return;
+            var ok = await Shell.I.RunJob("Vitesse des animations", false, job =>
             {
-                TvOptimizer.SetAnimations(adb, serial, tv, want, job);
-                job.Summary = want ? "Animations deux fois plus courtes : l'interface répond plus vite." : "Durées d'animation d'origine rétablies.";
+                TvOptimizer.SetAnimationPreset(adb, serial, tv, scale, job);
+                job.Summary = scale == "1" ? "Animations d'origine rétablies." : "Animations réglées à " + scale + "×.";
             });
-            if (!ok) anim.IsChecked = !want;
+            if (ok) { currentAnim = scale; UpdateTuningStatus(); }
+        }
+
+        async void SetDns(string mode, string hostName, string label)
+        {
+            if (!Ready()) return;
+            if (tv.Sdk > 0 && tv.Sdk < 28) { Shell.I.Toast("Le DNS privé chiffré requiert Android 9 (API 28) ou supérieur.", "warn"); return; }
+            var ok = await Shell.I.RunJob("DNS privé : " + label, false, job =>
+            {
+                Adb.SetPrivateDns(adb, serial, "tv.dns." + tv.Id, "Téléviseur : " + tv.Name, mode, hostName, job);
+                job.Summary = "DNS privé configuré sur " + label + ".";
+            });
+            if (ok) { currentDns = mode == "hostname" ? hostName : mode; UpdateTuningStatus(); }
+        }
+
+        void OptimizeApps()
+        {
+            if (!Ready()) return;
+            Reanalyze("Optimisation ART / DEX du téléviseur", job =>
+            {
+                Adb.OptimizeApps(adb, serial, job);
+                job.Summary = "Optimisation ART / DEX terminée.";
+            });
+        }
+
+        async void InstallApk()
+        {
+            if (!Ready()) return;
+            var path = Dialogs.PickOpen("Choisir une application Android (.apk)", "Application Android (*.apk)|*.apk");
+            if (path == null) return;
+            await Shell.I.RunJob("Installation de " + Path.GetFileName(path), true, job =>
+            {
+                Adb.InstallApk(adb, serial, path, job);
+                Store.AddHistory("tv:" + tv.Id, "Téléviseur : " + tv.Name, "APK installé : " + Path.GetFileName(path));
+                job.Summary = Path.GetFileName(path) + " installé sur " + tv.Name + ".";
+            });
+            if (panelRemote.Visibility == Visibility.Visible) LoadThirdPartyApps();
+        }
+
+        async void CaptureScreen()
+        {
+            if (!Ready()) return;
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "OptiTech-TV-" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".png");
+            var ok = await Shell.I.RunJob("Capture d'écran du téléviseur", true, job =>
+            {
+                job.Status("Capture de l'écran en cours");
+                Adb.CaptureScreenshot(adb, serial, path, job.Token);
+                job.Summary = "Capture enregistrée : " + path;
+            });
+            if (ok && File.Exists(path)) try { Process.Start(path); } catch { }
+        }
+
+        void SendKey(int code, string label)
+        {
+            if (!Ready()) return;
+            var exe = adb; var id = serial;
+            Task.Factory.StartNew(() => Adb.SendKey(exe, id, code, CancellationToken.None))
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted) Shell.I.Toast("Échec de la commande « " + label + " ».", "warn");
+                    else Shell.I.Toast("Touche envoyée : " + label, "info");
+                }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void LoadThirdPartyApps()
+        {
+            if (!Ready(false)) return;
+            var exe = adb; var id = serial;
+            appsSub.Text = "Chargement de la liste des applications tierces…";
+            Task.Factory.StartNew(() => Adb.ListThirdPartyApps(exe, id, CancellationToken.None))
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted) { appsSub.Text = "Lecture impossible."; return; }
+                    thirdApps = t.Result;
+                    appsSub.Text = Fmt.N(thirdApps.Count, "application tierce active", "applications tierces actives") + ".";
+                    FilterThirdApps();
+                }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void FilterThirdApps()
+        {
+            var q = (appsSearch.Text ?? "").Trim();
+            var cmp = StringComparison.CurrentCultureIgnoreCase;
+            var shown = thirdApps.Where(p => q.Length == 0 || p.IndexOf(q, cmp) >= 0).Select(p =>
+            {
+                var pkg = p;
+                return new AndroidThirdAppRow { Package = pkg, Stop = new RelayCommand(() => ForceStopApp(pkg)) };
+            }).ToList();
+            thirdAppsList.ItemsSource = shown;
+            appsEmpty.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        void ForceStopApp(string pkg)
+        {
+            if (!Ready()) return;
+            var exe = adb; var id = serial;
+            Task.Factory.StartNew(() => Adb.ForceStop(exe, id, pkg, CancellationToken.None))
+                .ContinueWith(t => Shell.I.Toast(t.IsFaulted ? "Impossible d'arrêter " + pkg : "Arrêt forcé : " + pkg, t.IsFaulted ? "warn" : "ok"),
+                    TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         async void Reboot()
@@ -270,7 +485,7 @@ namespace OptiTech
                 job.Summary = "Redémarrage demandé. Reconnectez le téléviseur quand il est revenu.";
             });
             adb = null; serial = null; tv = null;
-            deviceCard.Visibility = planCard.Visibility = disabledCard.Visibility = Visibility.Collapsed;
+            deviceCard.Visibility = workspace.Visibility = Visibility.Collapsed;
             status.Text = "Le téléviseur redémarre. Reconnectez-le quand il est revenu.";
         }
     }

@@ -570,7 +570,7 @@ namespace OptiTech
                 Is(Shell.VersionText(new Version(26, 11, 1, 0)) == "26.11.1", "26.11.1");
                 Is(Shell.VersionText(new Version(26, 3, 0, 0)) == "26.3", "26.3");
                 var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                Is(v.Major == 26 && v.Minor == 11 && v.Build == 3, "version compilée : " + v);
+                Is(v.Major == 26 && v.Minor == 11 && v.Build == 4, "version compilée : " + v);
             });
             T("accord du pluriel", () =>
             {
@@ -931,6 +931,124 @@ namespace OptiTech
                 Is(Ui.Lightweight, "activé");
                 Ui.Lightweight = false;
                 Is(!Ui.Lightweight, "désactivé");
+            });
+        }
+
+        /// <summary>Version 26.11.4 : Android TV étendu, smartphone Android, automatisation nettoyage, doublons, alimentation.</summary>
+        static void Modern26114(string tmp)
+        {
+            Line("Version 26.11.4 : TV étendu, téléphone Android, automatisation et outils");
+            T("ADB : validation code d'appairage, DNS privé, animations, touches et IP Wi-Fi", () =>
+            {
+                Is(Adb.IsValidPairCode("123456") && !Adb.IsValidPairCode("12345") && !Adb.IsValidPairCode("12345a"), "code 6 chiffres");
+                Is(Adb.IsValidDnsHost("dns.adguard-dns.com") && Adb.IsValidDnsHost("one.one.one.one") && !Adb.IsValidDnsHost("bad;cmd") && !Adb.IsValidDnsHost("localhost"), "DNS privé");
+                Is(Adb.IsValidAnimScale("0.5") && Adb.IsValidAnimScale("0.25") && Adb.IsValidAnimScale("0") && !Adb.IsValidAnimScale("99"), "animations");
+                Is(Adb.IsValidRemoteKey(3) && Adb.IsValidRemoteKey(24) && !Adb.IsValidRemoteKey(999), "touches");
+                Is(Adb.ParseWifiIp("192.168.1.0/24 dev wlan0 proto kernel scope link src 192.168.1.48") == "192.168.1.48", "ip route");
+                Is(Adb.ParseWifiIp("inet 10.0.0.22/24 brd 10.0.0.255 scope global wlan0") == "10.0.0.22", "ip addr");
+                Is(Adb.ParseWifiIp("inet 127.0.0.1/8 scope host lo") == null, "loopback ignoré");
+            });
+            T("catalogue TV étendu (>= 60), sans paquet protégé ni doublon", () =>
+            {
+                var cat = TvOptimizer.Catalog();
+                Is(cat.Count >= 60, "nombre : " + cat.Count);
+                Is(cat.Select(c => c.Package).Distinct(StringComparer.OrdinalIgnoreCase).Count() == cat.Count, "doublon dans le catalogue TV");
+                foreach (var c in cat)
+                {
+                    var probe = c.Package.EndsWith(".") ? c.Package + "test" : c.Package;
+                    Is(Adb.IsValidPackage(probe), "paquet invalide : " + c.Package);
+                    Is(!TvOptimizer.IsProtected(probe), "paquet protégé dans le catalogue TV : " + c.Package);
+                }
+            });
+            T("catalogue smartphone Android (>= 80), aucun composant vital proposé", () =>
+            {
+                var cat = PhoneOptimizer.Catalog();
+                Is(cat.Count >= 80, "nombre : " + cat.Count);
+                Is(cat.Select(c => c.Package).Distinct(StringComparer.OrdinalIgnoreCase).Count() == cat.Count, "doublon dans le catalogue téléphone");
+                foreach (var c in cat)
+                {
+                    var probe = c.Package.EndsWith(".") ? c.Package + "test" : c.Package;
+                    Is(Adb.IsValidPackage(probe), "paquet invalide : " + c.Package);
+                    Is(!PhoneOptimizer.IsProtected(probe), "paquet protégé dans le catalogue téléphone : " + c.Package);
+                }
+                foreach (var vital in new[] { "com.android.phone", "com.android.systemui", "com.android.vending", "com.google.android.gms", "com.android.settings", "com.google.android.dialer" })
+                    Is(PhoneOptimizer.IsProtected(vital), "vital non protégé : " + vital);
+            });
+            T("téléphone : lecture batterie, résolution, plan filtré et mémoire réversible", () =>
+            {
+                int lvl = 0; double temp = 0; string health = "", st = "";
+                PhoneOptimizer.ParseBattery("Current Battery Service state:\n  level: 84\n  temperature: 315\n  health: 2\n  status: 3\n", out lvl, out temp, out health, out st);
+                Is(lvl == 84 && Math.Abs(temp - 31.5) < 0.01 && health == "Bonne" && st == "Sur batterie", lvl + " " + temp + " " + health + " " + st);
+                Is(PhoneOptimizer.ParseResolution("Physical size: 1080x2400") == "1080x2400", "résolution");
+
+                var installed = new[] { "com.miui.msa.global", "com.facebook.system", "com.facebook.katana", "com.android.vending", "com.custom.launcher", "com.samsung.android.app.spage" };
+                var plan = PhoneOptimizer.BuildPlan(installed, "com.samsung.android.app.spage");
+                Is(plan.Any(i => i.Package == "com.miui.msa.global" && i.Selected), "MSA recommandé");
+                Is(plan.Any(i => i.Package == "com.facebook.katana" && !i.Selected), "Facebook optionnel");
+                Is(!plan.Any(i => i.Package == "com.android.vending" || i.Package == "com.samsung.android.app.spage"), "protégé et lanceur exclus");
+
+                Store.SetSetting("phone.off.p-test", "com.miui.msa.global,u:com.facebook.system,invalide");
+                var mem = PhoneOptimizer.DisabledByUs("p-test");
+                Is(mem.Count == 2 && !mem[0].WasUninstalled && mem[1].WasUninstalled && mem[1].Package == "com.facebook.system", "mémoire u:");
+                Store.SetSetting("phone.off.p-test", null);
+            });
+            T("automatisation du nettoyage : persistance et XML accepté par Windows pour chaque rythme", () =>
+            {
+                var orig = MaintenanceSchedule.Load();
+                try
+                {
+                    var custom = new MaintenanceSchedule
+                    {
+                        Frequency = "biweekly",
+                        DayOfWeek = 3,
+                        Hour = 19,
+                        StartWhenAvailable = true,
+                        SkipOnBattery = false,
+                        Categories = new List<string> { "temp.user", "browsers", "recycle", "winold" }
+                    };
+                    custom.Save();
+                    var back = MaintenanceSchedule.Load();
+                    Is(back.Frequency == "biweekly" && back.DayOfWeek == 3 && back.Hour == 19 && !back.SkipOnBattery, "persistance");
+                    Is(back.SafeCategories().SequenceEqual(new[] { "temp.user", "browsers" }), "catégories définitives filtrées");
+
+                    dynamic svc = Activator.CreateInstance(Type.GetTypeFromProgID("Schedule.Service"));
+                    svc.Connect();
+                    foreach (var freq in new[] { "daily", "weekly", "biweekly", "monthly", "logon" })
+                    {
+                        var sc = new MaintenanceSchedule { Frequency = freq, DayOfWeek = 2, DayOfMonth = 15, Hour = 10 };
+                        dynamic def = svc.NewTask(0);
+                        def.XmlText = sc.BuildXml(Paths.Exe);
+                        Is(sc.SummaryText().Length > 0, "résumé " + freq);
+                    }
+                }
+                finally { orig.Save(); }
+            });
+            T("détecteur de doublons : repère les vrais doublons sans rien modifier", () =>
+            {
+                var dir = Path.Combine(tmp, "dups");
+                Directory.CreateDirectory(dir);
+                var sub = Path.Combine(dir, "sous");
+                Directory.CreateDirectory(sub);
+                var payload = Encoding.UTF8.GetBytes(new string('A', 4096));
+                var other = Encoding.UTF8.GetBytes(new string('B', 4096));
+                File.WriteAllBytes(Path.Combine(dir, "a.bin"), payload);
+                File.WriteAllBytes(Path.Combine(sub, "a-copie.bin"), payload);
+                File.WriteAllBytes(Path.Combine(dir, "different.bin"), other);
+                File.WriteAllBytes(Path.Combine(dir, "petit.bin"), new byte[10]);
+
+                var r = DuplicateFinder.Scan(dir, 1024, CancellationToken.None, null);
+                Is(r.GroupCount == 1 && r.Rows.Count == 2 && r.WastedBytes == 4096, "résultat : " + r.GroupCount + " / " + r.Rows.Count + " / " + r.WastedBytes);
+                Is(File.Exists(Path.Combine(dir, "a.bin")) && File.Exists(Path.Combine(sub, "a-copie.bin")), "lecture seule respectée");
+            });
+            T("modes d'alimentation Windows : lecture powercfg /list", () =>
+            {
+                const string sample =
+                    "Modes de gestion de l'alimentation existants (* actif)\r\n" +
+                    "-----------------------------------\r\n" +
+                    "GUID du mode de gestion de l'alimentation : 381b4222-f694-41f0-9685-ff5bb260df2e  (Usage normal) *\r\n" +
+                    "GUID du mode de gestion de l'alimentation : 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Performances élevées)\r\n";
+                var list = PowerPlans.ParseList(sample);
+                Is(list.Count == 2 && list[0].IsActive && !list[1].IsActive && list[1].Name == "Performances élevées", "parse");
             });
         }
 

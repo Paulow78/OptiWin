@@ -5,7 +5,7 @@
 <h1 align="center">OptiTech</h1>
 
 <p align="center">
-  Optimisation de Windows et des téléviseurs Android, nettoyage et clés USB bootables.<br>
+  Optimisation de Windows, des téléviseurs Android TV et des smartphones Android, nettoyage automatisé et clés USB bootables.<br>
   Un seul fichier de moins d'un Mo, sans installation. Tout est réversible.
 </p>
 
@@ -27,17 +27,18 @@
 |---|---|
 | **Accueil** | Score de santé calculé sur des faits mesurés, processeur et mémoire en direct, actions rapides et profil conseillé pour le PC |
 | **Optimiser** | 66 réglages réversibles, 5 profils : Vieux PC, Fraîchement installé, Jeux, Portable, Confidentialité. Recherche et filtre par état |
-| **Nettoyer** | Caches système, navigateurs et applications, analyse de l'espace disque et vue directe des plus gros fichiers |
+| **Nettoyer** | Caches système, navigateurs et applications, analyse de l'espace disque, **automatisation personnalisable** (rythme et catégories au choix) et **détecteur de doublons SHA-256** |
 | **Démarrage** | Activer ou couper les programmes, avec le mécanisme du Gestionnaire des tâches. Les superflus se coupent d'un coup |
 | **Applications** | Retirer les applications préinstallées, installer 52 logiciels courants et mettre à jour vos logiciels installés via winget |
-| **Téléviseur** | Android TV et Google TV : couper publicités, pistage et applications imposées depuis le PC, vider les caches, accélérer les animations. Rien n'est désinstallé |
+| **Téléviseur** | Android TV et Google TV : débloatage (60+ paquets), optimisation 1 clic, animations, DNS privé anti-pub, ART/DEX, installation APK, capture d'écran et télécommande |
+| **Téléphone** | Smartphone Android (USB, Wi-Fi ou appairage sans fil Android 11+) : débloatage sûr et réversible (85+ paquets Samsung, Xiaomi, Oppo, OnePlus…), caches, animations, DNS privé, ART/DEX, APK et capture |
 | **Réinstaller** | Exporter réglages et logiciels dans un fichier, puis tout retrouver sur un Windows neuf |
 | **USB et ISO** | Clé bootable Windows ou Linux, clé multiboot, création d'ISO, ISO allégée, téléchargement de Windows, vérification SHA-256 |
 | **Diagnostic** | Mesures avant/après, programmes qui occupent la mémoire, réseau actif, arrêts imprévus (30 jours), santé réelle des disques |
-| **Outils** | Réparation DISM/SFC, réseau, Windows Update, Store, file d'impression, test de la mémoire, rapport d'énergie, sauvegarde des pilotes, kit de secours, test DNS, compatibilité Windows 11 |
+| **Outils** | Réparation DISM/SFC, réseau, Windows Update, Store, file d'impression, test de la mémoire, rapport d'énergie, **modes d'alimentation Windows**, sauvegarde des pilotes, kit de secours, test DNS, compatibilité Windows 11 |
 | **Historique** | Tout ce qui a été changé, annulable un par un ou d'un coup, journal filtrable et exportable |
 
-Raccourcis clavier : `Ctrl+K` pour la palette de commandes, `Ctrl+1` à `Ctrl+0` pour changer de page, `F5` pour actualiser, `Ctrl+F` pour chercher, `Ctrl+T` pour le thème, `Échap` pour fermer un dialogue. Un **mode léger** (sans verre dépoli ni animations) s'active automatiquement sans accélération matérielle ou à la main dans Outils. Les nouveautés de chaque version sont dans [CHANGELOG.md](CHANGELOG.md).
+Raccourcis clavier : `Ctrl+K` pour la palette de commandes, `Ctrl+1` à `Ctrl+0` pour changer de page, `F5` pour actualiser, `Ctrl+F` pour chercher, `Ctrl+T` pour le thème, `Échap` pour fermer un dialogue. Interface **Liquid Glass** sur fond sombre profond, avec **mode léger** automatique ou manuel dans Outils. Les nouveautés de chaque version sont dans [CHANGELOG.md](CHANGELOG.md).
 
 > **OptiTech s'appelait OptiWin** jusqu'à la version 26.11.1. Vos réglages, sauvegardes et historique sont repris automatiquement au premier lancement.
 

@@ -55,12 +55,21 @@ namespace OptiTech
     {
         const string PackageId = "Google.PlatformTools";
         static readonly Regex Host = new Regex(@"^[A-Za-z0-9][A-Za-z0-9.\-]{0,252}(:\d{1,5})?$", RegexOptions.Compiled);
+        static readonly Regex DnsHost = new Regex(@"^[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$", RegexOptions.Compiled);
         static readonly Regex Pkg = new Regex(@"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$", RegexOptions.Compiled);
+        static readonly Regex PairCode = new Regex(@"^\d{6}$", RegexOptions.Compiled);
+        static readonly string[] AnimKeys = { "window_animation_scale", "transition_animation_scale", "animator_duration_scale" };
+        static readonly string[] AllowedScales = { "0", "0.25", "0.5", "1" };
+        static readonly int[] AllowedKeys = { 3, 4, 19, 20, 21, 22, 23, 24, 25, 26, 85, 164 };
         static bool serverStarted;
 
         /// <summary>Une adresse ne contient que lettres, chiffres, points et tirets : rien ne peut se glisser dans la commande.</summary>
         public static bool IsValidHost(string h) { return h != null && Host.IsMatch(h); }
         public static bool IsValidPackage(string p) { return p != null && p.Length <= 200 && Pkg.IsMatch(p); }
+        public static bool IsValidPairCode(string c) { return c != null && PairCode.IsMatch(c); }
+        public static bool IsValidDnsHost(string h) { return h != null && h.Length <= 253 && DnsHost.IsMatch(h); }
+        public static bool IsValidAnimScale(string s) { return s != null && AllowedScales.Contains(s); }
+        public static bool IsValidRemoteKey(int key) { return AllowedKeys.Contains(key); }
         public static string WithPort(string h) { return h.Contains(":") ? h : h + ":5555"; }
 
         public static string Find()
@@ -137,6 +146,205 @@ namespace OptiTech
         public static string Shell(string exe, string serial, string command, CancellationToken ct)
         {
             return Out(exe, "-s " + serial + " shell " + command, ct);
+        }
+
+        /// <summary>Appairage sans fil Android 11+ (Options développeurs › Débogage sans fil › Associer avec un code).</summary>
+        public static string Pair(string exe, string hostPort, string code, Job job)
+        {
+            var h = (hostPort ?? "").Trim();
+            var c = (code ?? "").Trim();
+            if (!IsValidHost(h) || !h.Contains(":")) throw new ArgumentException("Adresse d'appairage invalide : indiquez IP:port (ex. 192.168.1.25:37421).");
+            if (!IsValidPairCode(c)) throw new ArgumentException("Code d'appairage invalide : 6 chiffres attendus.");
+            job.Status("Appairage avec " + h);
+            var o = Out(exe, "pair " + h + " " + c, job.Token).Trim();
+            job.Log(o);
+            if (o.IndexOf("Successfully paired", StringComparison.OrdinalIgnoreCase) < 0)
+                throw new InvalidOperationException("Appairage refusé : " + (o.Length > 0 ? o : "vérifiez l'adresse IP, le port et le code à 6 chiffres."));
+            return o;
+        }
+
+        /// <summary>Extrait l'adresse IPv4 Wi-Fi depuis la sortie de « ip route » ou « ip -f inet addr show wlan0 ».</summary>
+        public static string ParseWifiIp(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return null;
+            var m = Regex.Match(text, @"\bsrc\s+(\d{1,3}(?:\.\d{1,3}){3})\b");
+            if (!m.Success) m = Regex.Match(text, @"\binet\s+(\d{1,3}(?:\.\d{1,3}){3})/");
+            if (!m.Success) return null;
+            IPAddress ip;
+            if (!IPAddress.TryParse(m.Groups[1].Value, out ip) || IPAddress.IsLoopback(ip)) return null;
+            return ip.ToString();
+        }
+
+        /// <summary>Bascule un appareil branché en USB vers le débogage Wi-Fi (port 5555) et renvoie IP:5555.</summary>
+        public static string EnableTcpIp(string exe, string serial, Job job)
+        {
+            job.Status("Lecture de l'adresse Wi-Fi de l'appareil");
+            var ip = ParseWifiIp(Shell(exe, serial, "ip route", job.Token))
+                  ?? ParseWifiIp(Shell(exe, serial, "ip -f inet addr show wlan0", job.Token));
+            if (string.IsNullOrEmpty(ip))
+                throw new InvalidOperationException("Impossible de lire l'adresse Wi-Fi de l'appareil. Vérifiez qu'il est connecté au même réseau Wi-Fi que ce PC.");
+            job.Status("Activation du débogage réseau (port 5555)");
+            var res = Out(exe, "-s " + serial + " tcpip 5555", job.Token).Trim();
+            job.Log(res);
+            job.Token.WaitHandle.WaitOne(1500);
+            var target = ip + ":5555";
+            job.Status("Connexion Wi-Fi à " + target);
+            var conn = Out(exe, "connect " + target, job.Token).Trim();
+            job.Log(conn);
+            if (conn.IndexOf("connected to", StringComparison.OrdinalIgnoreCase) < 0)
+                throw new InvalidOperationException("Mode Wi-Fi activé sur " + ip + ", mais la connexion directe a échoué : " + conn);
+            return target;
+        }
+
+        /// <summary>Installe un fichier .apk sur l'appareil (remplace une version existante sans perdre ses données).</summary>
+        public static void InstallApk(string exe, string serial, string apkPath, Job job)
+        {
+            if (string.IsNullOrWhiteSpace(apkPath) || !File.Exists(apkPath) || !apkPath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Sélectionnez un fichier .apk valide.");
+            job.Status("Installation de " + Path.GetFileName(apkPath));
+            var sb = new StringBuilder();
+            var code = Proc.Run(exe, "-s " + serial + " install -r \"" + apkPath + "\"", delegate(string l) { lock (sb) sb.AppendLine(l); job.Log(l); }, job.Token, Path.GetDirectoryName(exe));
+            var text = sb.ToString();
+            if (code != 0 || text.IndexOf("Success", StringComparison.OrdinalIgnoreCase) < 0)
+                throw new InvalidOperationException("L'appareil a refusé l'installation : " + text.Trim());
+        }
+
+        /// <summary>Capture l'écran de l'appareil en PNG directement vers le PC (aucun fichier laissé sur l'appareil).</summary>
+        public static void CaptureScreenshot(string exe, string serial, string outPng, CancellationToken ct)
+        {
+            var psi = new ProcessStartInfo(exe, "-s " + serial + " exec-out screencap -p")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(exe)
+            };
+            using (var p = Process.Start(psi))
+            using (ct.Register(() => { try { if (!p.HasExited) p.Kill(); } catch { } }))
+            using (var fs = File.Create(outPng))
+            {
+                p.StandardOutput.BaseStream.CopyTo(fs);
+                p.WaitForExit(15000);
+            }
+            var fi = new FileInfo(outPng);
+            if (!fi.Exists || fi.Length < 128)
+            {
+                try { File.Delete(outPng); } catch { }
+                throw new InvalidOperationException("Capture impossible : l'écran est peut-être protégé (contenu DRM) ou en veille.");
+            }
+        }
+
+        /// <summary>Envoie une touche de télécommande sûre (Accueil, Retour, Volume, Lecture/Pause, Veille).</summary>
+        public static void SendKey(string exe, string serial, int keyCode, CancellationToken ct)
+        {
+            if (!IsValidRemoteKey(keyCode)) throw new ArgumentException("Touche non autorisée.");
+            Shell(exe, serial, "input keyevent " + keyCode, ct);
+        }
+
+        public static string GetGlobalSetting(string exe, string serial, string key, CancellationToken ct)
+        {
+            return Shell(exe, serial, "settings get global " + key, ct).Trim();
+        }
+
+        /// <summary>Lit l'échelle d'animation courante (« 1 », « 0.5 », « 0.25 », « 0 » ou valeur brute).</summary>
+        public static string GetAnimScale(string exe, string serial, CancellationToken ct)
+        {
+            var v = GetGlobalSetting(exe, serial, "window_animation_scale", ct);
+            if (string.IsNullOrEmpty(v) || v == "null") return "1";
+            double d;
+            if (!double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out d)) return "1";
+            if (d <= 0.01) return "0";
+            if (d <= 0.35) return "0.25";
+            if (d <= 0.75) return "0.5";
+            return "1";
+        }
+
+        /// <summary>Règle la vitesse des animations (« 1 », « 0.5 », « 0.25 », « 0 ») ou restaure les valeurs d'origine (« restore »).</summary>
+        public static void SetAnimScale(string exe, string serial, string storeKey, string deviceLabel, string scale, Job job)
+        {
+            if (scale == "restore" || scale == "1")
+            {
+                var saved = (Store.Setting(storeKey) ?? "").Split(',');
+                for (int i = 0; i < AnimKeys.Length; i++)
+                {
+                    var v = i < saved.Length ? saved[i] : "1";
+                    if (Regex.IsMatch(v, @"^\d+(\.\d+)?$")) Shell(exe, serial, "settings put global " + AnimKeys[i] + " " + v, job.Token);
+                    else Shell(exe, serial, "settings delete global " + AnimKeys[i], job.Token);
+                }
+                Store.SetSetting(storeKey, null);
+                Store.AddHistory(storeKey, deviceLabel, "Animations d'origine rétablies");
+                return;
+            }
+            if (!IsValidAnimScale(scale)) throw new ArgumentException("Échelle d'animation invalide.");
+            if (Store.Setting(storeKey) == null)
+                Store.SetSetting(storeKey, string.Join(",", AnimKeys.Select(k => { var v = GetGlobalSetting(exe, serial, k, job.Token); return Regex.IsMatch(v, @"^\d+(\.\d+)?$") ? v : "null"; })));
+            foreach (var k in AnimKeys) Shell(exe, serial, "settings put global " + k + " " + scale, job.Token);
+            Store.AddHistory(storeKey, deviceLabel, "Animations réglées à " + scale + "x");
+        }
+
+        /// <summary>Lit le DNS privé (Android 9+) : renvoie « opportunistic », « off » ou le nom d'hôte configuré.</summary>
+        public static string GetPrivateDns(string exe, string serial, CancellationToken ct)
+        {
+            var mode = GetGlobalSetting(exe, serial, "private_dns_mode", ct);
+            if (string.Equals(mode, "hostname", StringComparison.OrdinalIgnoreCase))
+            {
+                var host = GetGlobalSetting(exe, serial, "private_dns_specifier", ct);
+                return !string.IsNullOrEmpty(host) && host != "null" ? host : "opportunistic";
+            }
+            if (string.Equals(mode, "off", StringComparison.OrdinalIgnoreCase)) return "off";
+            return "opportunistic";
+        }
+
+        /// <summary>Configure le DNS privé chiffré (DNS-over-TLS) sur Android 9+ ; réversible avec mode « opportunistic ».</summary>
+        public static void SetPrivateDns(string exe, string serial, string storeKey, string deviceLabel, string mode, string host, Job job)
+        {
+            if (Store.Setting(storeKey) == null)
+            {
+                var curMode = GetGlobalSetting(exe, serial, "private_dns_mode", job.Token);
+                var curHost = GetGlobalSetting(exe, serial, "private_dns_specifier", job.Token);
+                Store.SetSetting(storeKey, (curMode == "null" ? "" : curMode) + "|" + (curHost == "null" ? "" : curHost));
+            }
+            if (mode == "hostname")
+            {
+                if (!IsValidDnsHost(host)) throw new ArgumentException("Nom d'hôte DNS privé invalide.");
+                Shell(exe, serial, "settings put global private_dns_mode hostname", job.Token);
+                Shell(exe, serial, "settings put global private_dns_specifier " + host, job.Token);
+                Store.AddHistory(storeKey, deviceLabel, "DNS privé : " + host);
+            }
+            else if (mode == "off")
+            {
+                Shell(exe, serial, "settings put global private_dns_mode off", job.Token);
+                Store.AddHistory(storeKey, deviceLabel, "DNS privé désactivé");
+            }
+            else
+            {
+                Shell(exe, serial, "settings put global private_dns_mode opportunistic", job.Token);
+                Shell(exe, serial, "settings delete global private_dns_specifier", job.Token);
+                Store.AddHistory(storeKey, deviceLabel, "DNS privé : automatique");
+            }
+        }
+
+        /// <summary>Lance la compilation officielle ART/DEX d'Android (accélère l'ouverture des applications et réduit la chauffe).</summary>
+        public static string OptimizeApps(string exe, string serial, Job job)
+        {
+            job.Status("Compilation optimisée des applications (ART / DEX)…");
+            job.Log("Exécution de la tâche officielle Android « cmd package bg-dexopt-job » (peut prendre 1 à 5 minutes)...");
+            var o = Shell(exe, serial, "cmd package bg-dexopt-job", job.Token).Trim();
+            if (o.Length > 0) job.Log(o);
+            return o;
+        }
+
+        /// <summary>Applications tierces installées par l'utilisateur (sans les paquets système).</summary>
+        public static List<string> ListThirdPartyApps(string exe, string serial, CancellationToken ct)
+        {
+            return TvOptimizer.ParsePackages(Shell(exe, serial, "pm list packages -3 -e", ct)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        public static void ForceStop(string exe, string serial, string pkg, CancellationToken ct)
+        {
+            if (!IsValidPackage(pkg)) throw new ArgumentException("Paquet invalide.");
+            Shell(exe, serial, "am force-stop " + pkg, ct);
         }
 
         /// <summary>Lit la sortie de « adb devices ».</summary>
@@ -244,32 +452,50 @@ namespace OptiTech
                 // Publicités et rangées sponsorisées
                 I("com.google.android.tvrecommendations", "Recommandations Google", GAds, true, "Rangées sponsorisées de l'accueil"),
                 I("com.google.android.leanbacklauncher.recommendations", "Recommandations de l'ancien accueil", GAds, true, "Android TV 8 et antérieur"),
+                I("com.google.android.partnersetup", "Partenaires Google TV", GAds, true, "Suggestions et préchargements partenaires"),
                 I("com.xm.webcontent", "Contenus web Xiaomi", GAds, true, "Rangées promotionnelles PatchWall"),
                 I("com.xiaomi.floatingframe", "Bandeaux flottants Xiaomi", GAds, true, "Fenêtres promotionnelles"),
+                I("com.xiaomi.mitv.shop", "Boutique Xiaomi", GAds, true, "Vitrine commerciale intégrée"),
                 I("com.sony.dtv.sonyselect", "Sony Select", GAds, true, "Vitrine d'applications sponsorisées"),
+                I("com.sony.dtv.promos", "Promotions Sony", GAds, true, "Bannières promotionnelles Bravia"),
                 I("org.droidtv.nettvrecommender", "Recommandations Philips", GAds, true, "Suggestions NetTV"),
                 I("org.droidtv.nettvadvert", "Publicités Philips", GAds, true, "Régie NetTV"),
                 I("com.tcl.messagebox", "Boîte de messages TCL", GAds, true, "Messages promotionnels"),
+                I("com.tcl.appmarket2", "Boutique d'apps TCL", GAds, true, "Boutique redondante avec le Play Store"),
+                I("com.hisense.store.tv", "Boutique Hisense", GAds, true, "Vitrine promotionnelle"),
 
-                // Pistage
+                // Pistage et télémétrie
                 I("com.google.android.feedback", "Envoi d'avis à Google", GTrack, true, "Rapports et commentaires"),
-                I("com.google.android.tv.bugreportsender", "Envoi de rapports de bogue", GTrack, true, ""),
+                I("com.google.android.tv.bugreportsender", "Envoi de rapports de bogue", GTrack, true, "Collecte de diagnostics"),
+                I("com.google.android.gms.location.history", "Historique de localisation Google", GTrack, true, ""),
                 I("com.miui.tv.analytics", "Statistiques Xiaomi", GTrack, true, "Mesure d'usage"),
                 I("com.xiaomi.statistic", "Télémétrie Xiaomi", GTrack, true, ""),
                 I("com.tcl.bi", "Statistiques TCL", GTrack, true, "Mesure d'usage"),
+                I("com.tcl.usercenter", "Compte et suivi TCL", GTrack, true, ""),
                 I("com.sony.dtv.networkrecommendation", "Recommandations réseau Sony", GTrack, true, "Suggestions fondées sur l'usage"),
-                I("tv.samba.ssm", "Samba TV", GTrack, true, "Reconnaissance de ce que vous regardez"),
-                I("com.nielsen.", "Mesure d'audience Nielsen", GTrack, true, ""),
+                I("com.nvidia.stats", "Statistiques NVIDIA Shield", GTrack, true, "Envoi de télémétrie Shield"),
+                I("com.nvidia.feedback", "Avis et diagnostics NVIDIA", GTrack, true, ""),
+                I("com.nvidia.diagtools", "Diagnostics NVIDIA", GTrack, true, "Télémétrie de fond"),
+                I("tv.samba.ssm", "Samba TV", GTrack, true, "Reconnaissance automatique de ce que vous regardez (ACR)"),
+                I("com.nielsen.", "Mesure d'audience Nielsen", GTrack, true, "Suivi d'audience"),
+                I("com.hisense.tv.analytics", "Télémétrie Hisense", GTrack, true, ""),
 
                 // Extras du fabricant
                 I("com.xiaomi.mitv.tvmanager", "Gestionnaire TV Xiaomi", GBrand, true, "Service d'arrière-plan"),
                 I("com.xiaomi.mitv.handbook", "Manuel Xiaomi", GBrand, true, ""),
                 I("com.xiaomi.mimusic2", "Mi Musique", GBrand, true, ""),
+                I("com.xiaomi.mitv.payment", "Paiements Xiaomi", GBrand, true, "Inutile hors écosystème Xiaomi"),
+                I("com.xiaomi.mitv.mediaexplorer", "Explorateur Xiaomi", GBrand, false, "Doublon si vous utilisez VLC/Kodi"),
                 I("com.mitv.gallery", "Galerie Xiaomi", GBrand, false, "Diaporama de photos"),
                 I("com.sony.dtv.demomode", "Mode démonstration Sony", GBrand, true, "Réservé aux magasins"),
                 I("com.sony.dtv.demosupport", "Assistance démonstration Sony", GBrand, true, "Réservé aux magasins"),
+                I("com.sony.dtv.livingdecor", "Living Decor Sony", GBrand, false, "Écran de veille décoratif"),
+                I("com.sony.dtv.osat.album", "Album photo Sony", GBrand, false, ""),
                 I("org.droidtv.demome", "Démonstration Philips", GBrand, true, "Réservé aux magasins"),
                 I("com.tcl.partnercustomizer", "Personnalisation partenaires TCL", GBrand, false, "Applications suggérées à l'installation"),
+                I("com.tcl.browser", "Navigateur TCL", GBrand, false, ""),
+                I("com.tcl.tcast", "MagiConnect / T-Cast TCL", GBrand, false, "Doublon de Chromecast"),
+                I("com.nvidia.tegrazone3", "NVIDIA Games", GBrand, false, "Si vous n'utilisez pas GeForce NOW"),
 
                 // Assistant vocal : utile à certains, donc jamais coché d'office
                 I("com.google.android.katniss", "Assistant Google", GVoice, false, "Le bouton micro de la télécommande ne répondra plus"),
@@ -286,10 +512,16 @@ namespace OptiTech
                 I("com.disney.disneyplus", "Disney+", GApps, false, "Si vous ne l'utilisez pas"),
                 I("com.spotify.tv.android", "Spotify", GApps, false, "Si vous ne l'utilisez pas"),
                 I("com.apple.atve.androidtv.appletv", "Apple TV", GApps, false, "Si vous ne l'utilisez pas"),
+                I("com.wbd.stream", "Max (HBO)", GApps, false, "Si vous ne l'utilisez pas"),
+                I("com.cbs.ott", "Paramount+", GApps, false, "Si vous ne l'utilisez pas"),
+                I("com.canal.android.canal", "CANAL+", GApps, false, "Si vous ne l'utilisez pas"),
+                I("tv.molotov.app", "Molotov TV", GApps, false, "Si vous ne l'utilisez pas"),
                 I("tv.twitch.android.app", "Twitch", GApps, false, "Si vous ne l'utilisez pas"),
+                I("com.zhiliaoapp.musically.tv", "TikTok TV", GApps, true, "Réseau social préinstallé"),
                 I("com.facebook.katana", "Facebook", GApps, true, ""),
                 I("tv.pluto.android", "Pluto TV", GApps, false, "Si vous ne l'utilisez pas"),
                 I("com.rakuten.tv.android", "Rakuten TV", GApps, false, "Si vous ne l'utilisez pas"),
+                I("com.redbull.rbtv", "Red Bull TV", GApps, false, "Si vous ne l'utilisez pas"),
             };
         }
 
@@ -301,7 +533,7 @@ namespace OptiTech
             "com.google.android.gms", "com.google.android.gsf", "com.google.android.webview", "com.google.android.ext.services",
             "com.google.android.apps.mediashell", "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx",
             "com.google.android.leanbacklauncher", "com.google.android.tv.remote.service", "com.xiaomi.mitv.updateservice",
-            "com.google.android.youtube.tv", "com.google.android.tts", "com.google.android.backdrop",
+            "com.google.android.youtube.tv", "com.google.android.tts", "com.google.android.backdrop", "com.nvidia.ota",
         };
         static readonly string[] ProtectedPrefix =
         {
@@ -427,7 +659,7 @@ namespace OptiTech
                 var o = Adb.Out(adb, "connect " + target, job.Token).Trim();
                 job.Log(o);
                 if (o.IndexOf("connected to", StringComparison.OrdinalIgnoreCase) < 0 && o.IndexOf("authenticate", StringComparison.OrdinalIgnoreCase) < 0)
-                    throw new InvalidOperationException("Le téléviseur ne répond pas à " + target + ". Vérifiez que le débogage réseau y est activé, et que le PC et le téléviseur sont sur le même réseau.");
+                    throw new InvalidOperationException("L'appareil ne répond pas à " + target + ". Vérifiez que le débogage réseau y est activé, et que le PC et l'appareil sont sur le même réseau.");
             }
             var limit = DateTime.UtcNow.AddSeconds(90);
             var told = false;
@@ -438,15 +670,15 @@ namespace OptiTech
                 var d = target != null ? devs.FirstOrDefault(x => x.Serial == target) : (devs.FirstOrDefault(x => x.Ready) ?? devs.FirstOrDefault());
                 if (d != null && d.Ready) return d.Serial;
                 if (d == null && target == null)
-                    throw new InvalidOperationException("Aucun appareil détecté. Indiquez l'adresse IP du téléviseur, ou branchez-le en USB avec le débogage activé.");
+                    throw new InvalidOperationException("Aucun appareil détecté. Indiquez une adresse IP, ou branchez l'appareil en USB avec le débogage activé.");
                 if (!told)
                 {
                     told = true;
-                    job.Status("Regardez le téléviseur : cochez « Toujours autoriser », puis validez");
+                    job.Status("Regardez l'écran de l'appareil : cochez « Toujours autoriser », puis validez");
                     job.Progress(-1);
                 }
                 if (DateTime.UtcNow > limit)
-                    throw new TimeoutException("Le téléviseur n'a pas autorisé ce PC. Relancez la connexion et validez la demande affichée à l'écran.");
+                    throw new TimeoutException("L'appareil n'a pas autorisé ce PC. Relancez la connexion et validez la demande affichée à l'écran.");
                 job.Token.WaitHandle.WaitOne(1500);
             }
         }
@@ -527,41 +759,21 @@ namespace OptiTech
             return ok;
         }
 
-        static readonly string[] AnimKeys = { "window_animation_scale", "transition_animation_scale", "animator_duration_scale" };
-        const string AnimFast = "0.5";
-
-        static string GetSetting(string adb, string serial, string key, CancellationToken ct)
-        {
-            return Adb.Shell(adb, serial, "settings get global " + key, ct).Trim();
-        }
-
         public static bool AnimationsFast(string adb, string serial, CancellationToken ct)
         {
-            return AnimKeys.All(k => GetSetting(adb, serial, k, ct) == AnimFast);
+            var s = Adb.GetAnimScale(adb, serial, ct);
+            return s == "0.5" || s == "0.25" || s == "0";
         }
 
         /// <summary>Animations deux fois plus courtes : l'interface paraît nettement plus vive sur un téléviseur lent.</summary>
         public static void SetAnimations(string adb, string serial, TvInfo tv, bool fast, Job job)
         {
-            var key = "tv.anim." + tv.Id;
-            if (fast)
-            {
-                // Les valeurs d'origine ne sont mémorisées qu'une fois, pour ne pas les écraser par les nôtres.
-                if (Store.Setting(key) == null)
-                    Store.SetSetting(key, string.Join(",", AnimKeys.Select(k => { var v = GetSetting(adb, serial, k, job.Token); return Regex.IsMatch(v, @"^\d+(\.\d+)?$") ? v : "null"; })));
-                foreach (var k in AnimKeys) Adb.Shell(adb, serial, "settings put global " + k + " " + AnimFast, job.Token);
-                Store.AddHistory("tv:" + tv.Id, "Téléviseur : " + tv.Name, "Animations accélérées");
-                return;
-            }
-            var saved = (Store.Setting(key) ?? "").Split(',');
-            for (int i = 0; i < AnimKeys.Length; i++)
-            {
-                var v = i < saved.Length ? saved[i] : "null";
-                if (Regex.IsMatch(v, @"^\d+(\.\d+)?$")) Adb.Shell(adb, serial, "settings put global " + AnimKeys[i] + " " + v, job.Token);
-                else Adb.Shell(adb, serial, "settings delete global " + AnimKeys[i], job.Token);
-            }
-            Store.SetSetting(key, null);
-            Store.AddHistory("tv:" + tv.Id, "Téléviseur : " + tv.Name, "Animations d'origine rétablies");
+            Adb.SetAnimScale(adb, serial, "tv.anim." + tv.Id, "Téléviseur : " + tv.Name, fast ? "0.5" : "restore", job);
+        }
+
+        public static void SetAnimationPreset(string adb, string serial, TvInfo tv, string scale, Job job)
+        {
+            Adb.SetAnimScale(adb, serial, "tv.anim." + tv.Id, "Téléviseur : " + tv.Name, scale, job);
         }
 
         /// <summary>Demande à Android de vider les caches de toutes les applications. Renvoie l'espace gagné.</summary>

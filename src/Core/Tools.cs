@@ -233,9 +233,9 @@ namespace OptiTech
                         if (!string.IsNullOrWhiteSpace(err)) j.Log(err.Trim());
                         j.Summary = "Store réparé. S'il reste muet, redémarrez le PC.";
                     } },
-                new ToolAction { Id = "weekly", Icon = "IcoClock", Title = weekly ? "Retirer l'entretien automatique" : "Entretien automatique chaque semaine",
-                    Desc = weekly ? "Actif : fichiers temporaires nettoyés chaque dimanche à 12 h, ou dès que le PC est allumé. Lancer retire cette tâche planifiée."
-                                  : "Nettoie les fichiers temporaires sans intervention, chaque dimanche. Relancez pour le retirer.",
+                new ToolAction { Id = "weekly", Icon = "IcoClock", Title = weekly ? "Retirer l'entretien automatique" : "Activer l'entretien automatique",
+                    Desc = weekly ? "Actif (" + MaintenanceSchedule.Load().SummaryText() + "). Personnalisable dans Nettoyer › Automatisation. Lancer retire la tâche."
+                                  : "Nettoie automatiquement vos caches selon votre planning (personnalisable dans Nettoyer › Automatisation).",
                     Duration = "Immédiat", NeedsAdmin = true,
                     Run = (j, _) => ToggleWeekly(j) },
             };
@@ -262,39 +262,41 @@ namespace OptiTech
 
         public static string WeeklyXml(string exe)
         {
-            return "<?xml version=\"1.0\" encoding=\"UTF-16\"?>\r\n" +
-                "<Task version=\"1.2\" xmlns=\"http://schemas.microsoft.com/windows/2004/02/mit/task\">\r\n" +
-                "<RegistrationInfo><Description>Entretien hebdomadaire OptiTech : fichiers temporaires uniquement.</Description></RegistrationInfo>\r\n" +
-                "<Triggers><CalendarTrigger><StartBoundary>2026-01-04T12:00:00</StartBoundary><ScheduleByWeek><DaysOfWeek><Sunday/></DaysOfWeek><WeeksInterval>1</WeeksInterval></ScheduleByWeek></CalendarTrigger></Triggers>\r\n" +
-                "<Principals><Principal id=\"Author\"><RunLevel>HighestAvailable</RunLevel><LogonType>InteractiveToken</LogonType></Principal></Principals>\r\n" +
-                "<Settings><StartWhenAvailable>true</StartWhenAvailable><DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>true</StopIfGoingOnBatteries><ExecutionTimeLimit>PT1H</ExecutionTimeLimit><Priority>7</Priority></Settings>\r\n" +
-                "<Actions><Exec><Command>" + System.Security.SecurityElement.Escape(exe) + "</Command><Arguments>--maintenance</Arguments></Exec></Actions>\r\n" +
-                "</Task>";
+            return MaintenanceSchedule.DefaultWeekly().BuildXml(exe);
         }
 
         static void ToggleWeekly(Job j)
         {
             if (WeeklyInstalled())
             {
-                if (TaskExists("OptiWin")) Proc.Run("schtasks.exe", "/Delete /TN \"" + LegacyTaskName + "\" /F", j.Log, j.Token);
-                if (TaskExists("OptiTech")) Proc.RunChecked("schtasks.exe", "/Delete /TN \"" + TaskName + "\" /F", j.Log, j.Token);
-                Store.AddHistory("weekly", "Entretien automatique", "Retiré");
-                j.Summary = "Entretien automatique retiré.";
+                RemoveMaintenance(j);
                 return;
             }
-            EnableWeekly(j);
-            j.Summary = "Entretien programmé chaque dimanche à 12 h, ou dès que le PC est allumé. Ne déplacez pas OptiTech.exe.";
+            var s = MaintenanceSchedule.Load();
+            ApplyMaintenance(s, j);
+            j.Summary = "Entretien programmé (" + s.SummaryText() + "). Ne déplacez pas OptiTech.exe.";
         }
 
-        public static void EnableWeekly(Job j)
+        public static void EnableWeekly(Job j) { ApplyMaintenance(MaintenanceSchedule.Load(), j); }
+
+        public static void RemoveMaintenance(Job j)
         {
+            if (TaskExists("OptiWin")) Proc.Run("schtasks.exe", "/Delete /TN \"" + LegacyTaskName + "\" /F", j.Log, j.Token);
+            if (TaskExists("OptiTech")) Proc.RunChecked("schtasks.exe", "/Delete /TN \"" + TaskName + "\" /F", j.Log, j.Token);
+            Store.AddHistory("weekly", "Entretien automatique", "Désactivé");
+            j.Summary = "Entretien automatique désactivé.";
+        }
+
+        public static void ApplyMaintenance(MaintenanceSchedule s, Job j)
+        {
+            s.Save();
             var xml = Path.Combine(Path.GetTempPath(), "optitech-task-" + Guid.NewGuid().ToString("N") + ".xml");
-            File.WriteAllText(xml, WeeklyXml(Paths.Exe), Encoding.Unicode);
+            File.WriteAllText(xml, s.BuildXml(Paths.Exe), Encoding.Unicode);
             try { Proc.RunChecked("schtasks.exe", "/Create /TN \"" + TaskName + "\" /XML \"" + xml + "\" /F", j.Log, j.Token); }
             finally { try { File.Delete(xml); } catch { } }
             // L'ancienne tâche ferait double emploi, et viserait un exécutable qui n'existe peut-être plus.
             if (TaskExists("OptiWin")) Proc.Run("schtasks.exe", "/Delete /TN \"" + LegacyTaskName + "\" /F", j.Log, j.Token);
-            Store.AddHistory("weekly", "Entretien automatique", "Activé");
+            Store.AddHistory("weekly", "Entretien automatique", s.SummaryText());
         }
 
         public static string BuildReport()
@@ -535,6 +537,185 @@ namespace OptiTech
             }
             Proc.Run("ipconfig.exe", "/flushdns", null, j.Token);
             Store.AddHistory("dns", "DNS", "Réglage d'origine restauré");
+        }
+    }
+
+    /// <summary>Planning personnalisable du nettoyage automatique du PC (fréquence, jour, heure, options et catégories).</summary>
+    public sealed class MaintenanceSchedule
+    {
+        public static readonly string[] SafeDefaultCategories = { "temp.user", "temp.win", "thumbs", "shader", "wer", "logs" };
+        public static readonly string[] AllowedAutoCategories = { "temp.user", "temp.win", "browsers", "apps.cache", "thumbs", "shader", "wu", "dopt", "wer", "dumps", "logs" };
+        static readonly string[] XmlDays = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        static readonly string[] FrDays = { "dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi" };
+
+        public string Frequency = "weekly"; // daily, weekly, biweekly, monthly, logon
+        public int DayOfWeek;               // 0 = dimanche .. 6 = samedi
+        public int DayOfMonth = 1;          // 1 .. 28
+        public int Hour = 12;               // 0 .. 23
+        public int Minute;                  // 0 .. 59
+        public bool StartWhenAvailable = true;
+        public bool SkipOnBattery = true;
+        public List<string> Categories = new List<string>(SafeDefaultCategories);
+
+        public static MaintenanceSchedule DefaultWeekly()
+        {
+            return new MaintenanceSchedule { Frequency = "weekly", DayOfWeek = 0, Hour = 12, Minute = 0, StartWhenAvailable = true, SkipOnBattery = true };
+        }
+
+        public static MaintenanceSchedule Load()
+        {
+            var s = DefaultWeekly();
+            var freq = Store.Setting("auto.clean.freq");
+            if (freq == "daily" || freq == "weekly" || freq == "biweekly" || freq == "monthly" || freq == "logon") s.Frequency = freq;
+            int dow = 0; if (int.TryParse(Store.Setting("auto.clean.dow") ?? "", out dow) && dow >= 0 && dow <= 6) s.DayOfWeek = dow;
+            int dom = 1; if (int.TryParse(Store.Setting("auto.clean.dom") ?? "", out dom) && dom >= 1 && dom <= 28) s.DayOfMonth = dom;
+            int h = 12; if (int.TryParse(Store.Setting("auto.clean.hour") ?? "", out h) && h >= 0 && h <= 23) s.Hour = h;
+            int m = 0; if (int.TryParse(Store.Setting("auto.clean.min") ?? "", out m) && m >= 0 && m <= 59) s.Minute = m;
+            var swa = Store.Setting("auto.clean.missed"); if (swa != null) s.StartWhenAvailable = swa == "1";
+            var bat = Store.Setting("auto.clean.battery"); if (bat != null) s.SkipOnBattery = bat == "1";
+            var cats = Store.Setting("auto.clean.cats");
+            if (cats != null)
+            {
+                var parsed = cats.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(c => AllowedAutoCategories.Contains(c)).Distinct().ToList();
+                if (parsed.Count > 0) s.Categories = parsed;
+            }
+            return s;
+        }
+
+        public void Save()
+        {
+            Store.BeginBatch();
+            try
+            {
+                Store.SetSetting("auto.clean.freq", Frequency);
+                Store.SetSetting("auto.clean.dow", DayOfWeek.ToString(CultureInfo.InvariantCulture));
+                Store.SetSetting("auto.clean.dom", DayOfMonth.ToString(CultureInfo.InvariantCulture));
+                Store.SetSetting("auto.clean.hour", Hour.ToString(CultureInfo.InvariantCulture));
+                Store.SetSetting("auto.clean.min", Minute.ToString(CultureInfo.InvariantCulture));
+                Store.SetSetting("auto.clean.missed", StartWhenAvailable ? "1" : "0");
+                Store.SetSetting("auto.clean.battery", SkipOnBattery ? "1" : "0");
+                var safe = SafeCategories();
+                Store.SetSetting("auto.clean.cats", string.Join(",", safe));
+            }
+            finally { Store.EndBatch(); }
+        }
+
+        public List<string> SafeCategories()
+        {
+            var list = (Categories ?? new List<string>()).Where(c => AllowedAutoCategories.Contains(c)).Distinct().ToList();
+            return list.Count > 0 ? list : new List<string>(SafeDefaultCategories);
+        }
+
+        public string SummaryText()
+        {
+            var time = Hour.ToString("00", CultureInfo.InvariantCulture) + " h " + (Minute > 0 ? Minute.ToString("00", CultureInfo.InvariantCulture) : "");
+            time = time.Trim();
+            var d = FrDays[Math.Max(0, Math.Min(6, DayOfWeek))];
+            var n = SafeCategories().Count;
+            string when;
+            switch (Frequency)
+            {
+                case "daily": when = "Chaque jour à " + time; break;
+                case "biweekly": when = "Toutes les 2 semaines (" + d + " à " + time + ")"; break;
+                case "monthly": when = "Le " + DayOfMonth + " de chaque mois à " + time; break;
+                case "logon": when = "À l'ouverture de session"; break;
+                default: when = "Chaque " + d + " à " + time; break;
+            }
+            return when + " · " + Fmt.N(n, "catégorie");
+        }
+
+        public string BuildXml(string exe)
+        {
+            var h = Math.Max(0, Math.Min(23, Hour));
+            var m = Math.Max(0, Math.Min(59, Minute));
+            var boundary = "2026-01-04T" + h.ToString("00", CultureInfo.InvariantCulture) + ":" + m.ToString("00", CultureInfo.InvariantCulture) + ":00";
+            var dayTag = XmlDays[Math.Max(0, Math.Min(6, DayOfWeek))];
+            var dom = Math.Max(1, Math.Min(28, DayOfMonth));
+            string trigger;
+            switch (Frequency)
+            {
+                case "daily":
+                    trigger = "<CalendarTrigger><StartBoundary>" + boundary + "</StartBoundary><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger>";
+                    break;
+                case "biweekly":
+                    trigger = "<CalendarTrigger><StartBoundary>" + boundary + "</StartBoundary><ScheduleByWeek><DaysOfWeek><" + dayTag + "/></DaysOfWeek><WeeksInterval>2</WeeksInterval></ScheduleByWeek></CalendarTrigger>";
+                    break;
+                case "monthly":
+                    trigger = "<CalendarTrigger><StartBoundary>" + boundary + "</StartBoundary><ScheduleByMonth><DaysOfMonth><Day>" + dom + "</Day></DaysOfMonth>" +
+                        "<Months><January/><February/><March/><April/><May/><June/><July/><August/><September/><October/><November/><December/></Months></ScheduleByMonth></CalendarTrigger>";
+                    break;
+                case "logon":
+                    trigger = "<LogonTrigger><Enabled>true</Enabled><Delay>PT2M</Delay></LogonTrigger>";
+                    break;
+                default:
+                    trigger = "<CalendarTrigger><StartBoundary>" + boundary + "</StartBoundary><ScheduleByWeek><DaysOfWeek><" + dayTag + "/></DaysOfWeek><WeeksInterval>1</WeeksInterval></ScheduleByWeek></CalendarTrigger>";
+                    break;
+            }
+            var swa = StartWhenAvailable ? "true" : "false";
+            var bat = SkipOnBattery ? "true" : "false";
+            return "<?xml version=\"1.0\" encoding=\"UTF-16\"?>\r\n" +
+                "<Task version=\"1.2\" xmlns=\"http://schemas.microsoft.com/windows/2004/02/mit/task\">\r\n" +
+                "<RegistrationInfo><Description>Entretien automatique OptiTech : " + System.Security.SecurityElement.Escape(SummaryText()) + "</Description></RegistrationInfo>\r\n" +
+                "<Triggers>" + trigger + "</Triggers>\r\n" +
+                "<Principals><Principal id=\"Author\"><RunLevel>HighestAvailable</RunLevel><LogonType>InteractiveToken</LogonType></Principal></Principals>\r\n" +
+                "<Settings><StartWhenAvailable>" + swa + "</StartWhenAvailable><DisallowStartIfOnBatteries>" + bat + "</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>" + bat + "</StopIfGoingOnBatteries><ExecutionTimeLimit>PT1H</ExecutionTimeLimit><Priority>7</Priority></Settings>\r\n" +
+                "<Actions><Exec><Command>" + System.Security.SecurityElement.Escape(exe) + "</Command><Arguments>--maintenance</Arguments></Exec></Actions>\r\n" +
+                "</Task>";
+        }
+    }
+
+    public sealed class PowerPlanRow
+    {
+        public string Guid { get; set; }
+        public string Name { get; set; }
+        public bool IsActive { get; set; }
+        public string StateLabel { get { return IsActive ? "Actif" : "Activer"; } }
+        public bool CanActivate { get { return !IsActive; } }
+        public ICommand Activate { get; set; }
+    }
+
+    /// <summary>Modes d'alimentation Windows (powercfg) : bascule en un clic et déblocage de Performances optimales.</summary>
+    public static class PowerPlans
+    {
+        public const string UltimateGuid = "e9a42b02-d5df-448d-aa00-03f14749eb61";
+        static readonly Regex LineRx = new Regex(@"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s+\(([^)]+)\)\s*(\*?)", RegexOptions.Compiled);
+
+        public static List<PowerPlanRow> ParseList(string text)
+        {
+            var res = new List<PowerPlanRow>();
+            foreach (var raw in (text ?? "").Split('\n'))
+            {
+                var m = LineRx.Match(raw);
+                if (!m.Success) continue;
+                res.Add(new PowerPlanRow
+                {
+                    Guid = m.Groups[1].Value.ToLowerInvariant(),
+                    Name = m.Groups[2].Value.Trim(),
+                    IsActive = m.Groups[3].Value == "*"
+                });
+            }
+            return res;
+        }
+
+        public static List<PowerPlanRow> List()
+        {
+            var sb = new StringBuilder();
+            Proc.Run("powercfg.exe", "/list", delegate(string l) { lock (sb) sb.AppendLine(l); });
+            return ParseList(sb.ToString());
+        }
+
+        public static void SetActive(string guid, string name)
+        {
+            if (string.IsNullOrEmpty(guid) || !Regex.IsMatch(guid, @"^[0-9a-fA-F\-]{36}$")) throw new ArgumentException("Identifiant de plan invalide.");
+            Proc.RunChecked("powercfg.exe", "/setactive " + guid, null);
+            Store.AddHistory("power:" + guid, "Mode d'alimentation", name);
+        }
+
+        public static bool UnlockUltimate()
+        {
+            var code = Proc.Run("powercfg.exe", "-duplicatescheme " + UltimateGuid, null);
+            return code == 0;
         }
     }
 }

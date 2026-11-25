@@ -6,11 +6,13 @@
     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
       <RadioButton x:Name="TabClean" Style="{StaticResource Pill}" GroupName="CleanTabs" Content="Nettoyage" IsChecked="True"/>
       <RadioButton x:Name="TabAnalyze" Style="{StaticResource Pill}" GroupName="CleanTabs" Content="Où est passé mon espace ?"/>
+      <RadioButton x:Name="TabAuto" Style="{StaticResource Pill}" GroupName="CleanTabs" Content="Automatisation"/>
+      <RadioButton x:Name="TabDup" Style="{StaticResource Pill}" GroupName="CleanTabs" Content="Fichiers en double"/>
     </StackPanel>
   </StackPanel>
 
   <Grid>
-  <!-- Nettoyage -->
+  <!-- 1. Nettoyage manuel -->
   <Grid x:Name="PanelClean">
     <DockPanel>
       <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="20,14">
@@ -78,7 +80,7 @@
     </DockPanel>
   </Grid>
 
-  <!-- Analyse de l'espace -->
+  <!-- 2. Analyse de l'espace -->
   <Grid x:Name="PanelAnalyze" Visibility="Collapsed">
     <DockPanel>
       <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="16,12">
@@ -132,6 +134,206 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+    </DockPanel>
+  </Grid>
+
+  <!-- 3. Automatisation personnalisable du nettoyage -->
+  <ScrollViewer x:Name="PanelAuto" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Focusable="False">
+    <StackPanel Margin="32,0,32,28">
+      <!-- Bandeau d'état -->
+      <Border Style="{StaticResource Card}" Margin="0,0,0,14" Padding="20,16">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button x:Name="BtnAutoRunNow" Margin="0,0,8,0" ToolTip="Exécute immédiatement le nettoyage automatique avec les catégories cochées ci-dessous">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoPlay}"/><TextBlock Text="Tester maintenant" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+            <Button x:Name="BtnAutoDisable" Margin="0,0,8,0" Content="Désactiver" IsEnabled="False"/>
+            <Button x:Name="BtnAutoSave" Style="{StaticResource BtnPrimary}" Padding="18,8">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoCalendar}"/><TextBlock Text="Enregistrer et activer" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+          </StackPanel>
+          <StackPanel VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+              <Border x:Name="AutoStateBadge" Style="{StaticResource ChipBase}" Background="{DynamicResource HoverLayer}" Margin="0,0,10,0">
+                <TextBlock x:Name="AutoStateText" Text="Inactif" Style="{StaticResource ChipText}" Foreground="{DynamicResource TextMuted}"/>
+              </Border>
+              <TextBlock Text="Nettoyage automatique programmé" Style="{StaticResource TxtH2}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock x:Name="AutoSummary" Style="{StaticResource TxtSmall}" Text="Choisissez votre rythme et vos catégories : Windows exécutera OptiTech en silence en arrière-plan."/>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="14"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Planning -->
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,12">
+              <Border DockPanel.Dock="Left" Style="{StaticResource IconBadge}" Margin="0,0,11,0">
+                <Path Style="{StaticResource Ico}" Data="{StaticResource IcoClock}" TextElement.Foreground="{DynamicResource Accent}" HorizontalAlignment="Center"/>
+              </Border>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="1. Rythme et horaire" Style="{StaticResource TxtH2}"/>
+                <TextBlock Style="{StaticResource TxtSmall}" Text="Tâche native du Planificateur Windows (aucun processus permanent en mémoire)."/>
+              </StackPanel>
+            </DockPanel>
+
+            <TextBlock Text="Fréquence" Style="{StaticResource TxtLabel}"/>
+            <ComboBox x:Name="AutoFreq" Margin="0,0,0,12">
+              <ComboBoxItem Content="Tous les jours" Tag="daily"/>
+              <ComboBoxItem Content="Chaque semaine" Tag="weekly"/>
+              <ComboBoxItem Content="Toutes les 2 semaines" Tag="biweekly"/>
+              <ComboBoxItem Content="Chaque mois" Tag="monthly"/>
+              <ComboBoxItem Content="À l'ouverture de session Windows" Tag="logon"/>
+            </ComboBox>
+
+            <Grid x:Name="AutoWhenGrid" Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="120"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel x:Name="AutoDowBox">
+                <TextBlock Text="Jour de la semaine" Style="{StaticResource TxtLabel}"/>
+                <ComboBox x:Name="AutoDow">
+                  <ComboBoxItem Content="Dimanche" Tag="0"/>
+                  <ComboBoxItem Content="Lundi" Tag="1"/>
+                  <ComboBoxItem Content="Mardi" Tag="2"/>
+                  <ComboBoxItem Content="Mercredi" Tag="3"/>
+                  <ComboBoxItem Content="Jeudi" Tag="4"/>
+                  <ComboBoxItem Content="Vendredi" Tag="5"/>
+                  <ComboBoxItem Content="Samedi" Tag="6"/>
+                </ComboBox>
+              </StackPanel>
+              <StackPanel x:Name="AutoDomBox" Visibility="Collapsed">
+                <TextBlock Text="Jour du mois" Style="{StaticResource TxtLabel}"/>
+                <ComboBox x:Name="AutoDom">
+                  <ComboBoxItem Content="Le 1er du mois" Tag="1"/>
+                  <ComboBoxItem Content="Le 5 du mois" Tag="5"/>
+                  <ComboBoxItem Content="Le 10 du mois" Tag="10"/>
+                  <ComboBoxItem Content="Le 15 du mois" Tag="15"/>
+                  <ComboBoxItem Content="Le 20 du mois" Tag="20"/>
+                  <ComboBoxItem Content="Le 25 du mois" Tag="25"/>
+                </ComboBox>
+              </StackPanel>
+              <StackPanel x:Name="AutoHourBox" Grid.Column="2">
+                <TextBlock Text="Heure" Style="{StaticResource TxtLabel}"/>
+                <ComboBox x:Name="AutoHour"/>
+              </StackPanel>
+            </Grid>
+
+            <CheckBox x:Name="AutoMissed" Content="Exécuter dès que possible si le PC était éteint à l'heure prévue" IsChecked="True" Margin="0,0,0,8"/>
+            <CheckBox x:Name="AutoBattery" Content="Ne pas lancer sur batterie (PC portable uniquement sur secteur)" IsChecked="True" Margin="0,0,0,10"/>
+            <TextBlock Style="{StaticResource TxtSmall}" Foreground="{DynamicResource TextFaint}" Text="Note : ne déplacez pas OptiTech.exe après activation, ou cliquez à nouveau sur « Enregistrer et activer » pour mettre à jour le chemin."/>
+          </StackPanel>
+        </Border>
+
+        <!-- Catégories à nettoyer automatiquement -->
+        <Border Grid.Column="2" Style="{StaticResource Card}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="BtnAutoCatAll" Style="{StaticResource BtnGhost}" Content="Tout" Margin="0,0,2,0"/>
+                <Button x:Name="BtnAutoCatDef" Style="{StaticResource BtnGhost}" Content="Par défaut"/>
+              </StackPanel>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="2. Catégories à nettoyer" Style="{StaticResource TxtH2}"/>
+                <TextBlock Style="{StaticResource TxtSmall}" Text="Uniquement des caches sûrs (jamais la Corbeille ni Windows.old)."/>
+              </StackPanel>
+            </DockPanel>
+            <ItemsControl x:Name="AutoCatList">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource GlassBorderSoft}" BorderThickness="1" CornerRadius="10" Padding="11,7" Margin="0,0,0,5">
+                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Title}" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding Desc}" Style="{StaticResource TxtSmall}"/>
+                      </StackPanel>
+                    </CheckBox>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+
+  <!-- 4. Détecteur de fichiers en double (lecture seule) -->
+  <Grid x:Name="PanelDup" Visibility="Collapsed">
+    <DockPanel>
+      <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="16,12">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <ComboBox x:Name="DupMinSize" Width="135" Margin="0,0,8,0">
+              <ComboBoxItem Content="≥ 100 Ko" Tag="102400"/>
+              <ComboBoxItem Content="≥ 1 Mo" Tag="1048576" IsSelected="True"/>
+              <ComboBoxItem Content="≥ 10 Mo" Tag="10485760"/>
+              <ComboBoxItem Content="≥ 50 Mo" Tag="52428800"/>
+            </ComboBox>
+            <Button x:Name="BtnDupPick" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFolder}"/><TextBlock Text="Choisir un dossier…" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+            <Button x:Name="BtnDupScan" Style="{StaticResource BtnPrimary}" Content="Chercher les doublons" Padding="16,8"/>
+          </StackPanel>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock x:Name="DupSummary" Text="Détecteur de doublons (SHA-256)" Style="{StaticResource TxtH2}"/>
+            <TextBlock x:Name="DupFolderText" Style="{StaticResource TxtSmall}" Text="Choisissez un dossier (Téléchargements, Photos, Documents…) : lecture seule, aucune suppression automatique."/>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+      <ProgressBar x:Name="DupBar" DockPanel.Dock="Top" IsIndeterminate="True" Margin="32,0,32,10" Visibility="Collapsed" Height="3"/>
+      <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+          <ItemsControl x:Name="DupList" Margin="32,0,32,28">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource GlassBorderSoft}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,4">
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BtnIcon}" ToolTip="Ouvrir dans l'Explorateur" Command="{Binding DataContext.RevealDup, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                      <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoExternal}"/>
+                    </Button>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Style="{StaticResource TxtBody}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,8,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" Style="{StaticResource TxtBody}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                      <TextBlock Text="{Binding Folder}" Style="{StaticResource TxtSmall}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                    </StackPanel>
+                  </DockPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+            <ItemsControl.GroupStyle>
+              <GroupStyle>
+                <GroupStyle.ContainerStyle>
+                  <Style TargetType="GroupItem">
+                    <Setter Property="Template">
+                      <Setter.Value>
+                        <ControlTemplate TargetType="GroupItem">
+                          <StackPanel><ContentPresenter/><ItemsPresenter/></StackPanel>
+                        </ControlTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </Style>
+                </GroupStyle.ContainerStyle>
+                <GroupStyle.HeaderTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource TxtLabel}" Foreground="{DynamicResource Accent}" Margin="2,10,0,6"/>
+                  </DataTemplate>
+                </GroupStyle.HeaderTemplate>
+              </GroupStyle>
+            </ItemsControl.GroupStyle>
+          </ItemsControl>
+        </ScrollViewer>
+        <TextBlock x:Name="DupEmpty" Style="{StaticResource TxtEmpty}" Text="Aucun doublon trouvé dans ce dossier."/>
+      </Grid>
     </DockPanel>
   </Grid>
   </Grid>
