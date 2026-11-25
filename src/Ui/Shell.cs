@@ -345,10 +345,10 @@ namespace OptiTech
             add("Action", Themes.IsDark ? "Passer au thème clair" : "Passer au thème sombre", "Raccourci Ctrl+T", Themes.IsDark ? "IcoSun" : "IcoMoon", () => SetTheme(!Themes.IsDark));
             add("Action", Ui.Lightweight ? "Réactiver les effets verre dépoli" : "Activer le mode léger (sans animations)", "Idéal sur vieux PC ou bureau à distance", "IcoLayers", () => SetLightweight(!Ui.Lightweight));
             add("Action", "Rechercher une mise à jour d'OptiTech", "Vérifie les nouvelles versions sur GitHub", "IcoRefresh", () => CheckUpdates(true));
-            add("Action", "Créer un point de restauration Windows", "Sauvegarde système avant modification", "IcoShield", () =>
+            add("Action", "Créer un point de restauration Windows", "Sauvegarde système avant modification", "IcoShield", async () =>
             {
                 if (!Os.IsAdmin) { Toast("Créer un point de restauration demande le mode administrateur.", "warn"); return; }
-                RunJob("Point de restauration", false, job =>
+                await RunJob("Point de restauration", false, job =>
                 {
                     job.Status("Création en cours");
                     if (!TweakEngine.CreateRestorePoint("Point manuel OptiTech", job.Log))

@@ -413,7 +413,7 @@ namespace OptiTech
             if (id == "41")
             {
                 var bug = d.SelectSingleNode("//e:EventData/e:Data[@Name='BugcheckCode']", ns);
-                long b;
+                long b = 0;
                 var hasBug = bug != null && long.TryParse(bug.InnerText.Trim(), out b) && b > 0;
                 return new CrashRow
                 {
