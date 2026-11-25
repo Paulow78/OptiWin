@@ -290,21 +290,36 @@ namespace OptiTech
     }
 
     // ─────────────────────────── Nettoyer ───────────────────────────
+    public sealed class AutoCleanCatRow : Bindable
+    {
+        public string Id;
+        public string Title { get; set; }
+        public string Desc { get; set; }
+        bool sel;
+        public bool Selected { get { return sel; } set { Set(ref sel, value); } }
+    }
+
     public sealed class CleanPage : Page
     {
         readonly List<CleanCat> catsAll = Cleaner.BuildCatalog();
-        readonly TextBlock total, sub, analyzePath, topFilesLabel;
-        readonly Button btnScan, btnClean, btnAnalyze, btnUp, btnTopFiles;
-        readonly ItemsControl analyzeList;
-        readonly ComboBox driveCombo;
-        readonly ProgressBar analyzeBar;
+        readonly List<AutoCleanCatRow> autoCats = new List<AutoCleanCatRow>();
+        readonly TextBlock total, sub, analyzePath, topFilesLabel, autoStateText, autoSummary, dupSummary, dupFolderText, dupEmpty;
+        readonly Border autoStateBadge;
+        readonly Button btnScan, btnClean, btnAnalyze, btnUp, btnTopFiles, btnAutoSave, btnAutoDisable, btnDupScan;
+        readonly ItemsControl analyzeList, dupList;
+        readonly ComboBox driveCombo, autoFreq, autoDow, autoDom, autoHour, dupMinSize;
+        readonly CheckBox autoMissed, autoBattery;
+        readonly FrameworkElement panelClean, panelAnalyze, panelAuto, panelDup, autoWhenGrid, autoDowBox, autoDomBox, autoHourBox;
+        readonly ProgressBar analyzeBar, dupBar;
         bool scanned, scanning, showingTop;
         DirNode scanRoot, node;
-        CancellationTokenSource analyzeCts;
+        CancellationTokenSource analyzeCts, dupCts;
         HistoryEntry lastCleanup;
+        string dupFolder;
 
         public ICommand Open { get; private set; }
         public ICommand Reveal { get; private set; }
+        public ICommand RevealDup { get; private set; }
 
         public CleanPage()
         {
@@ -322,25 +337,226 @@ namespace OptiTech
             F<Button>("BtnSelectNone").Click += delegate { foreach (var c in catsAll) c.Selected = false; };
             lastCleanup = Cleaner.LastCleanup();
 
-            var panelClean = F<Grid>("PanelClean"); var panelAnalyze = F<Grid>("PanelAnalyze");
-            F<RadioButton>("TabClean").Checked += delegate { panelClean.Visibility = Visibility.Visible; panelAnalyze.Visibility = Visibility.Collapsed; };
-            F<RadioButton>("TabAnalyze").Checked += delegate { panelClean.Visibility = Visibility.Collapsed; panelAnalyze.Visibility = Visibility.Visible; };
+            panelClean = F<FrameworkElement>("PanelClean"); panelAnalyze = F<FrameworkElement>("PanelAnalyze");
+            panelAuto = F<FrameworkElement>("PanelAuto"); panelDup = F<FrameworkElement>("PanelDup");
+            F<RadioButton>("TabClean").Checked += delegate { ShowTab(0); };
+            F<RadioButton>("TabAnalyze").Checked += delegate { ShowTab(1); };
+            F<RadioButton>("TabAuto").Checked += delegate { ShowTab(2); };
+            F<RadioButton>("TabDup").Checked += delegate { ShowTab(3); };
 
             analyzeList = F<ItemsControl>("AnalyzeList"); driveCombo = F<ComboBox>("DriveCombo"); analyzePath = F<TextBlock>("AnalyzePath");
             btnAnalyze = F<Button>("BtnAnalyze"); btnUp = F<Button>("BtnUp"); btnTopFiles = F<Button>("BtnTopFiles"); topFilesLabel = F<TextBlock>("TopFilesLabel");
             analyzeBar = F<ProgressBar>("AnalyzeBar");
             Open = new RelayCommand(o => OpenNode(o as DirNode));
             Reveal = new RelayCommand(o => RevealNode(o as DirNode));
+            RevealDup = new RelayCommand(o => RevealDupRow(o as DuplicateRow));
             analyzeList.DataContext = this;
             driveCombo.ItemsSource = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).Select(d => d.Name).ToList();
             driveCombo.SelectedIndex = 0;
             btnAnalyze.Click += delegate { Analyze(); };
             btnUp.Click += delegate { if (showingTop && node != null) ShowNode(node); else if (node != null && node.Parent != null) ShowNode(node.Parent); };
             btnTopFiles.Click += delegate { ToggleTopFiles(); };
+
+            // Onglet 3 : Automatisation du nettoyage
+            autoStateBadge = F<Border>("AutoStateBadge"); autoStateText = F<TextBlock>("AutoStateText"); autoSummary = F<TextBlock>("AutoSummary");
+            autoFreq = F<ComboBox>("AutoFreq"); autoDow = F<ComboBox>("AutoDow"); autoDom = F<ComboBox>("AutoDom"); autoHour = F<ComboBox>("AutoHour");
+            autoWhenGrid = F<FrameworkElement>("AutoWhenGrid"); autoDowBox = F<FrameworkElement>("AutoDowBox"); autoDomBox = F<FrameworkElement>("AutoDomBox"); autoHourBox = F<FrameworkElement>("AutoHourBox");
+            autoMissed = F<CheckBox>("AutoMissed"); autoBattery = F<CheckBox>("AutoBattery");
+            btnAutoSave = F<Button>("BtnAutoSave"); btnAutoDisable = F<Button>("BtnAutoDisable");
+            for (int h = 0; h < 24; h++) autoHour.Items.Add(new ComboBoxItem { Content = h.ToString("00") + " h 00", Tag = h.ToString() });
+            foreach (var c in catsAll.Where(x => MaintenanceSchedule.AllowedAutoCategories.Contains(x.Id)))
+                autoCats.Add(new AutoCleanCatRow { Id = c.Id, Title = c.Title, Desc = c.Desc });
+            F<ItemsControl>("AutoCatList").ItemsSource = autoCats;
+            autoFreq.SelectionChanged += delegate { UpdateAutoFields(); };
+            F<Button>("BtnAutoCatAll").Click += delegate { foreach (var r in autoCats) r.Selected = true; };
+            F<Button>("BtnAutoCatDef").Click += delegate { foreach (var r in autoCats) r.Selected = MaintenanceSchedule.SafeDefaultCategories.Contains(r.Id); };
+            btnAutoSave.Click += delegate { SaveAutoSchedule(); };
+            btnAutoDisable.Click += delegate { DisableAutoSchedule(); };
+            F<Button>("BtnAutoRunNow").Click += delegate { RunAutoNow(); };
+            LoadAutoScheduleUi();
+
+            // Onglet 4 : Détecteur de fichiers en double
+            dupMinSize = F<ComboBox>("DupMinSize"); btnDupScan = F<Button>("BtnDupScan");
+            dupSummary = F<TextBlock>("DupSummary"); dupFolderText = F<TextBlock>("DupFolderText"); dupEmpty = F<TextBlock>("DupEmpty");
+            dupBar = F<ProgressBar>("DupBar"); dupList = F<ItemsControl>("DupList");
+            dupList.DataContext = this;
+            dupFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            if (!Directory.Exists(dupFolder)) dupFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            dupFolderText.Text = "Dossier ciblé : " + dupFolder + " (lecture seule, aucune suppression automatique).";
+            F<Button>("BtnDupPick").Click += delegate
+            {
+                var p = Dialogs.PickFolder("Choisir un dossier à analyser pour les doublons");
+                if (p != null) { dupFolder = p; dupFolderText.Text = "Dossier ciblé : " + dupFolder + " (lecture seule)."; }
+            };
+            btnDupScan.Click += delegate { ScanDuplicates(); };
         }
 
-        public override void OnShow() { if (!scanned && !scanning) Scan(); }
-        public override void OnRefresh() { if (!scanning) Scan(); }
+        public void ShowTab(int index)
+        {
+            var tabs = new[] { F<RadioButton>("TabClean"), F<RadioButton>("TabAnalyze"), F<RadioButton>("TabAuto"), F<RadioButton>("TabDup") };
+            if (index >= 0 && index < tabs.Length && tabs[index].IsChecked != true) tabs[index].IsChecked = true;
+            panelClean.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
+            panelAnalyze.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
+            panelAuto.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
+            panelDup.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
+            if (index == 2) RefreshAutoStatus();
+        }
+
+        public override void OnShow() { if (!scanned && !scanning) Scan(); RefreshAutoStatus(); }
+        public override void OnRefresh() { if (!scanning) Scan(); RefreshAutoStatus(); }
+
+        void LoadAutoScheduleUi()
+        {
+            var s = MaintenanceSchedule.Load();
+            SelectTag(autoFreq, s.Frequency);
+            SelectTag(autoDow, s.DayOfWeek.ToString());
+            SelectTag(autoDom, s.DayOfMonth.ToString());
+            SelectTag(autoHour, s.Hour.ToString());
+            autoMissed.IsChecked = s.StartWhenAvailable;
+            autoBattery.IsChecked = s.SkipOnBattery;
+            var chosen = s.SafeCategories();
+            foreach (var r in autoCats) r.Selected = chosen.Contains(r.Id);
+            UpdateAutoFields();
+            RefreshAutoStatus();
+        }
+
+        static void SelectTag(ComboBox box, string tag)
+        {
+            for (int i = 0; i < box.Items.Count; i++)
+            {
+                var it = box.Items[i] as ComboBoxItem;
+                if (it != null && string.Equals(it.Tag as string, tag, StringComparison.OrdinalIgnoreCase)) { box.SelectedIndex = i; return; }
+            }
+            if (box.Items.Count > 0) box.SelectedIndex = 0;
+        }
+
+        static string SelectedTag(ComboBox box, string fallback)
+        {
+            var it = box.SelectedItem as ComboBoxItem;
+            return it != null && it.Tag is string ? (string)it.Tag : fallback;
+        }
+
+        void UpdateAutoFields()
+        {
+            var f = SelectedTag(autoFreq, "weekly");
+            autoWhenGrid.Visibility = f == "logon" ? Visibility.Collapsed : Visibility.Visible;
+            autoDowBox.Visibility = f == "weekly" || f == "biweekly" ? Visibility.Visible : Visibility.Collapsed;
+            autoDomBox.Visibility = f == "monthly" ? Visibility.Visible : Visibility.Collapsed;
+            autoHourBox.Visibility = f == "logon" ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        MaintenanceSchedule ReadAutoScheduleFromUi()
+        {
+            int dow = 0; int.TryParse(SelectedTag(autoDow, "0"), out dow);
+            int dom = 1; int.TryParse(SelectedTag(autoDom, "1"), out dom);
+            int hr = 12; int.TryParse(SelectedTag(autoHour, "12"), out hr);
+            return new MaintenanceSchedule
+            {
+                Frequency = SelectedTag(autoFreq, "weekly"),
+                DayOfWeek = dow,
+                DayOfMonth = dom,
+                Hour = hr,
+                Minute = 0,
+                StartWhenAvailable = autoMissed.IsChecked == true,
+                SkipOnBattery = autoBattery.IsChecked == true,
+                Categories = autoCats.Where(r => r.Selected).Select(r => r.Id).ToList()
+            };
+        }
+
+        void RefreshAutoStatus()
+        {
+            var active = Tools.WeeklyInstalled();
+            var sched = MaintenanceSchedule.Load();
+            autoStateText.Text = active ? "Actif" : "Inactif";
+            autoStateBadge.Background = (System.Windows.Media.Brush)Application.Current.Resources[active ? "OkSoft" : "HoverLayer"];
+            autoStateText.Foreground = (System.Windows.Media.Brush)Application.Current.Resources[active ? "Ok" : "TextMuted"];
+            btnAutoDisable.IsEnabled = active && Os.IsAdmin;
+            btnAutoSave.IsEnabled = Os.IsAdmin;
+            var lastAuto = Store.History().LastOrDefault(h => h.Id == "maintenance");
+            var lastTxt = lastAuto != null ? "  ·  Dernier passage : " + Fmt.When(lastAuto.When) + " (" + lastAuto.Action + ")" : "";
+            autoSummary.Text = active
+                ? "Actif : " + sched.SummaryText() + "." + lastTxt
+                : (Os.IsAdmin ? "Désactivé. Choisissez votre rythme et vos catégories puis cliquez sur « Enregistrer et activer »." : "Activer la tâche planifiée demande le mode administrateur.");
+        }
+
+        async void SaveAutoSchedule()
+        {
+            if (!Os.IsAdmin) { Shell.I.Toast("Activer le nettoyage automatique demande le mode administrateur.", "warn"); return; }
+            var s = ReadAutoScheduleFromUi();
+            if (s.Categories.Count == 0) { Shell.I.Toast("Cochez au moins une catégorie à nettoyer.", "warn"); return; }
+            var ok = await Shell.I.RunJob("Programmation du nettoyage automatique", false, job =>
+            {
+                Tools.ApplyMaintenance(s, job);
+                job.Summary = "Nettoyage automatique activé : " + s.SummaryText() + ".";
+            });
+            if (ok) RefreshAutoStatus();
+        }
+
+        async void DisableAutoSchedule()
+        {
+            if (!Os.IsAdmin) { Shell.I.Toast("Modifier la tâche planifiée demande le mode administrateur.", "warn"); return; }
+            var ok = await Shell.I.RunJob("Désactivation du nettoyage automatique", false, job => Tools.RemoveMaintenance(job));
+            if (ok) RefreshAutoStatus();
+        }
+
+        async void RunAutoNow()
+        {
+            var s = ReadAutoScheduleFromUi();
+            if (s.Categories.Count == 0) { Shell.I.Toast("Cochez au moins une catégorie à nettoyer.", "warn"); return; }
+            s.Save();
+            await Shell.I.RunJob("Test du nettoyage automatique", true, job =>
+            {
+                var freed = Cleaner.Maintenance(job);
+                Store.AddHistory("maintenance", "Entretien automatique", Fmt.Size(freed) + " libérés");
+                job.Summary = Fmt.Size(freed) + " libérés (" + Fmt.N(s.SafeCategories().Count, "catégorie") + ").";
+            }, delegate { RefreshAutoStatus(); Scan(); });
+        }
+
+        void ScanDuplicates()
+        {
+            if (dupCts != null) { dupCts.Cancel(); return; }
+            if (string.IsNullOrEmpty(dupFolder) || !Directory.Exists(dupFolder)) { Shell.I.Toast("Choisissez d'abord un dossier valide.", "warn"); return; }
+            long minBytes = 1048576;
+            long.TryParse(SelectedTag(dupMinSize, "1048576"), out minBytes);
+            dupCts = new CancellationTokenSource();
+            var ct = dupCts.Token;
+            btnDupScan.Content = "Arrêter";
+            dupBar.Visibility = Visibility.Visible;
+            dupEmpty.Visibility = Visibility.Collapsed;
+            dupList.ItemsSource = null;
+            DateTime last = DateTime.MinValue;
+            var folder = dupFolder;
+            Task.Factory.StartNew(() => DuplicateFinder.Scan(folder, minBytes, ct, msg =>
+            {
+                if ((DateTime.UtcNow - last).TotalMilliseconds < 150) return;
+                last = DateTime.UtcNow;
+                dupFolderText.Dispatcher.BeginInvoke(new Action(() => dupFolderText.Text = msg));
+            }), ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith(t =>
+            {
+                dupCts = null;
+                btnDupScan.Content = "Chercher les doublons";
+                dupBar.Visibility = Visibility.Collapsed;
+                if (t.IsCanceled || t.IsFaulted) { dupFolderText.Text = t.IsFaulted ? t.Exception.GetBaseException().Message : "Recherche arrêtée."; return; }
+                var r = t.Result;
+                dupSummary.Text = r.GroupCount == 0 ? "Aucun doublon détecté" : Fmt.N(r.GroupCount, "groupe de doublons", "groupes de doublons") + " — " + Fmt.Size(r.WastedBytes) + " en double";
+                dupFolderText.Text = Fmt.N(r.FilesScanned, "fichier analysé", "fichiers analysés") + " dans " + folder + ". Cliquez sur l'icône à droite pour ouvrir un fichier dans l'Explorateur.";
+                var cv = new ListCollectionView(r.Rows);
+                cv.GroupDescriptions.Add(new PropertyGroupDescription("GroupLabel"));
+                dupList.ItemsSource = cv;
+                dupEmpty.Visibility = r.Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void RevealDupRow(DuplicateRow row)
+        {
+            if (row == null || string.IsNullOrEmpty(row.FullPath)) return;
+            try
+            {
+                if (File.Exists(row.FullPath)) Process.Start("explorer.exe", "/select,\"" + row.FullPath + "\"");
+                else if (Directory.Exists(row.Folder)) Process.Start("explorer.exe", "\"" + row.Folder + "\"");
+            }
+            catch { }
+        }
 
         // L'analyse tourne en arrière-plan : la mise à jour de l'écran doit revenir sur le thread de l'interface.
         void OnCatChanged(object s, PropertyChangedEventArgs e) { if (e.PropertyName == "Selected" || e.PropertyName == "Size") View.Dispatcher.BeginInvoke(new Action(UpdateTotal)); }
@@ -1044,7 +1260,7 @@ namespace OptiTech
     // ─────────────────────────── Outils ───────────────────────────
     public sealed class ToolsPage : Page
     {
-        readonly ItemsControl dnsList;
+        readonly ItemsControl dnsList, powerPlanList;
         readonly TextBlock dnsCurrent;
         readonly CheckBox chkLight;
         readonly List<DnsResult> dns = Dns.Candidates();
@@ -1055,6 +1271,7 @@ namespace OptiTech
             View = (FrameworkElement)Ui.Load("PageTools.xaml");
             LoadTools();
             dnsList = F<ItemsControl>("DnsList"); dnsCurrent = F<TextBlock>("DnsCurrent");
+            powerPlanList = F<ItemsControl>("PowerPlanList");
             chkLight = F<CheckBox>("ChkLightweight");
             foreach (var d in dns)
             {
@@ -1063,6 +1280,8 @@ namespace OptiTech
             }
             dnsList.ItemsSource = dns;
             F<Button>("BtnDnsTest").Click += delegate { TestDns(); };
+            F<Button>("BtnPowerRefresh").Click += delegate { RefreshPowerPlans(); };
+            F<Button>("BtnPowerUltimate").Click += delegate { UnlockUltimatePower(); };
             F<TextBlock>("AboutVersion").Text = "OptiTech " + Updater.Text(Updater.Current);
             F<Button>("BtnCheckUpdate").Click += delegate { Shell.I.CheckUpdates(true); };
             F<Button>("BtnReleases").Click += delegate { try { Process.Start(Updater.ReleasesPage); } catch (Exception e) { Shell.I.Toast(e.Message, "bad"); } };
@@ -1103,15 +1322,49 @@ namespace OptiTech
         {
             chkLight.IsChecked = Ui.Lightweight;
             RefreshDns();
+            RefreshPowerPlans();
             var list = F<ItemsControl>("Win11List");
             if (list.ItemsSource == null)
                 Task.Factory.StartNew(() => Win11Check.Run(SysInfo.Current)).ContinueWith(t => { if (!t.IsFaulted) list.ItemsSource = t.Result; }, TaskScheduler.FromCurrentSynchronizationContext());
         }
-        public override void OnRefresh() { LoadTools(); RefreshDns(); }
+        public override void OnRefresh() { LoadTools(); RefreshDns(); RefreshPowerPlans(); }
 
         void RefreshDns()
         {
             Task.Factory.StartNew(() => Dns.CurrentSummary()).ContinueWith(t => { dnsCurrent.Text = t.IsFaulted ? "" : "Actuel : " + t.Result; }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void RefreshPowerPlans()
+        {
+            Task.Factory.StartNew(() => PowerPlans.List()).ContinueWith(t =>
+            {
+                if (t.IsFaulted) return;
+                foreach (var p in t.Result)
+                {
+                    var row = p;
+                    row.Activate = new RelayCommand(() => ActivatePowerPlan(row));
+                }
+                powerPlanList.ItemsSource = t.Result;
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void ActivatePowerPlan(PowerPlanRow row)
+        {
+            if (row == null) return;
+            Task.Factory.StartNew(() => PowerPlans.SetActive(row.Guid, row.Name)).ContinueWith(t =>
+            {
+                if (t.IsFaulted) Shell.I.Toast("Impossible d'activer ce mode : " + t.Exception.GetBaseException().Message, "warn");
+                else { Shell.I.Toast("Mode d'alimentation activé : " + row.Name); RefreshPowerPlans(); }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void UnlockUltimatePower()
+        {
+            Task.Factory.StartNew(() => PowerPlans.UnlockUltimate()).ContinueWith(t =>
+            {
+                if (!t.IsFaulted && t.Result) { Shell.I.Toast("Mode « Performances optimales » ajouté : vous pouvez maintenant l'activer."); RefreshPowerPlans(); }
+                else Shell.I.Toast("Ce PC (veille moderne S0ix) ou Windows n'expose pas le mode Performances optimales.", "warn");
+            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         async void Launch(ToolAction t)

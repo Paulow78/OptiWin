@@ -16,9 +16,9 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("OptiTech")]
 [assembly: AssemblyProduct("OptiTech")]
 [assembly: AssemblyDescription("Optimisation de Windows et création de clés bootables")]
-[assembly: AssemblyVersion("26.11.3.0")]
-[assembly: AssemblyFileVersion("26.11.3.0")]
-[assembly: AssemblyInformationalVersion("26.11.3")]
+[assembly: AssemblyVersion("26.11.4.0")]
+[assembly: AssemblyFileVersion("26.11.4.0")]
+[assembly: AssemblyInformationalVersion("26.11.4")]
 
 namespace OptiTech
 {
@@ -150,10 +150,14 @@ namespace OptiTech
                 sh.OpenPalette(); await Task.Delay(400); Save(sh, dir, "1b-palette"); sh.HideDemo();
                 sh.Go("optimize"); await Task.Delay(2000); Save(sh, dir, "2-optimiser");
                 sh.ShowProfile(Prof.OldPc); await Task.Delay(500); Save(sh, dir, "2b-plan"); sh.HideDemo();
-                sh.Go("clean"); await Task.Delay(9000); Save(sh, dir, "3-nettoyer");
+                var clean = sh.PageOf<CleanPage>("clean"); await Task.Delay(9000); Save(sh, dir, "3-nettoyer");
+                clean.ShowTab(2); await Task.Delay(400); Save(sh, dir, "3b-auto");
+                clean.ShowTab(3); await Task.Delay(400); Save(sh, dir, "3c-doublons");
+                clean.ShowTab(0);
                 sh.Go("startup"); await Task.Delay(2000); Save(sh, dir, "4-demarrage");
                 sh.Go("apps"); await Task.Delay(5000); Save(sh, dir, "5-applications");
                 sh.Go("tv"); await Task.Delay(600); Save(sh, dir, "5c-televiseur");
+                sh.Go("phone"); await Task.Delay(600); Save(sh, dir, "5d-telephone");
                 var usb = sh.PageOf<UsbPage>("usb"); await Task.Delay(3000); Save(sh, dir, "6-usb");
                 usb.DemoSetTab(1); await Task.Delay(300); Save(sh, dir, "6b-iso");
                 usb.DemoSetTab(2); await Task.Delay(300); Save(sh, dir, "6c-iso-perso");

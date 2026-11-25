@@ -347,11 +347,12 @@ namespace OptiTech
             return t;
         }
 
-        /// <summary>Entretien silencieux lancé par la tâche planifiée : uniquement ce qui est sans risque.</summary>
+        /// <summary>Entretien silencieux lancé par la tâche planifiée : respecte les catégories sûres choisies par l'utilisateur.</summary>
         public static long Maintenance(Job j)
         {
+            var chosen = MaintenanceSchedule.Load().SafeCategories();
             long t = 0;
-            foreach (var c in BuildCatalog().Where(x => new[] { "temp.user", "temp.win", "thumbs", "shader", "wer", "logs" }.Contains(x.Id) && x.Available))
+            foreach (var c in BuildCatalog().Where(x => chosen.Contains(x.Id) && x.Available && !x.Permanent && !x.SizeUnknown))
                 try { var n = c.Cleaner(j); t += n; j.Log(c.Title + " : " + Fmt.Size(n)); }
                 catch (Exception e) { j.Log(c.Title + " : " + e.Message); }
             return t;
@@ -448,6 +449,152 @@ namespace OptiTech
             if (looseCount > 0) node.Kids.Add(new DirNode { Name = looseCount + " petits fichiers", FullPath = node.FullPath, SubPath = "", IsFile = true, IsLooseGroup = true, Size = loose, Parent = node });
             node.Kids.Sort((a, b) => b.Size.CompareTo(a.Size));
             if (node.Size > 0) foreach (var k in node.Kids) k.Share = k.Size * 100.0 / node.Size;
+        }
+    }
+
+    public sealed class DuplicateRow
+    {
+        public string GroupLabel { get; set; }
+        public string Name { get; set; }
+        public string Folder { get; set; }
+        public string FullPath { get; set; }
+        public long Size { get; set; }
+        public string SizeText { get { return Fmt.Size(Size); } }
+    }
+
+    public sealed class DuplicateScanResult
+    {
+        public List<DuplicateRow> Rows = new List<DuplicateRow>();
+        public int GroupCount;
+        public long WastedBytes;
+        public int FilesScanned;
+    }
+
+    /// <summary>
+    /// Détecteur de fichiers en double en lecture seule : regroupe par taille, puis empreinte des 64 premiers Ko,
+    /// puis SHA-256 complet. N'efface jamais rien automatiquement et ignore toujours les liens symboliques.
+    /// </summary>
+    public static class DuplicateFinder
+    {
+        public static DuplicateScanResult Scan(string root, long minBytes, CancellationToken ct, Action<string> onStatus)
+        {
+            var res = new DuplicateScanResult();
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return res;
+            var bySize = new Dictionary<long, List<string>>();
+            WalkCollect(root, Math.Max(1, minBytes), bySize, ref res.FilesScanned, ct, onStatus);
+
+            var candidates = bySize.Where(kv => kv.Value.Count > 1).OrderByDescending(kv => kv.Key * (kv.Value.Count - 1)).ToList();
+            if (onStatus != null) onStatus("Comparaison des empreintes (" + candidates.Count + " tailles candidates)…");
+
+            var groups = new List<KeyValuePair<long, List<string>>>();
+            foreach (var kv in candidates)
+            {
+                ct.ThrowIfCancellationRequested();
+                // Passe 2 : empreinte rapide des 64 premiers Ko (évite de lire de gros fichiers différents).
+                var byQuick = new Dictionary<string, List<string>>();
+                foreach (var path in kv.Value)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var h = HashFile(path, 65536);
+                    if (h == null) continue;
+                    List<string> l;
+                    if (!byQuick.TryGetValue(h, out l)) { l = new List<string>(); byQuick[h] = l; }
+                    l.Add(path);
+                }
+                foreach (var qk in byQuick.Where(x => x.Value.Count > 1))
+                {
+                    if (kv.Key <= 65536) { groups.Add(new KeyValuePair<long, List<string>>(kv.Key, qk.Value)); continue; }
+                    // Passe 3 : SHA-256 complet sur les vrais candidats.
+                    var byFull = new Dictionary<string, List<string>>();
+                    foreach (var path in qk.Value)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var h = HashFile(path, -1);
+                        if (h == null) continue;
+                        List<string> l;
+                        if (!byFull.TryGetValue(h, out l)) { l = new List<string>(); byFull[h] = l; }
+                        l.Add(path);
+                    }
+                    foreach (var fk in byFull.Where(x => x.Value.Count > 1))
+                        groups.Add(new KeyValuePair<long, List<string>>(kv.Key, fk.Value));
+                }
+            }
+
+            groups.Sort((a, b) => (b.Key * (b.Value.Count - 1)).CompareTo(a.Key * (a.Value.Count - 1)));
+            res.GroupCount = groups.Count;
+            int idx = 0;
+            foreach (var g in groups.Take(150))
+            {
+                idx++;
+                var waste = g.Key * (g.Value.Count - 1);
+                res.WastedBytes += waste;
+                var label = "Groupe " + idx + " — " + g.Value.Count + " copies identiques (" + Fmt.Size(g.Key) + " chacune, " + Fmt.Size(waste) + " récupérables)";
+                foreach (var path in g.Value)
+                {
+                    res.Rows.Add(new DuplicateRow
+                    {
+                        GroupLabel = label,
+                        Name = Path.GetFileName(path),
+                        Folder = Path.GetDirectoryName(path) ?? "",
+                        FullPath = path,
+                        Size = g.Key
+                    });
+                }
+            }
+            return res;
+        }
+
+        static void WalkCollect(string dir, long minBytes, Dictionary<long, List<string>> bySize, ref int count, CancellationToken ct, Action<string> onStatus)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                foreach (var e in new DirectoryInfo(dir).EnumerateFileSystemInfos())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    try
+                    {
+                        if ((e.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+                        var f = e as FileInfo;
+                        if (f != null)
+                        {
+                            count++;
+                            if (count % 400 == 0 && onStatus != null) onStatus("Inventaire : " + count + " fichiers parcourus…");
+                            if (f.Length < minBytes) continue;
+                            List<string> list;
+                            if (!bySize.TryGetValue(f.Length, out list)) { list = new List<string>(); bySize[f.Length] = list; }
+                            list.Add(f.FullName);
+                        }
+                        else
+                        {
+                            WalkCollect(e.FullName, minBytes, bySize, ref count, ct, onStatus);
+                        }
+                    }
+                    catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
+                }
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
+        static string HashFile(string path, int maxBytes)
+        {
+            try
+            {
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    if (maxBytes > 0)
+                    {
+                        var buf = new byte[Math.Min(maxBytes, (int)Math.Min(int.MaxValue, fs.Length))];
+                        var read = fs.Read(buf, 0, buf.Length);
+                        return BitConverter.ToString(sha.ComputeHash(buf, 0, read));
+                    }
+                    return BitConverter.ToString(sha.ComputeHash(fs));
+                }
+            }
+            catch { return null; }
         }
     }
 }

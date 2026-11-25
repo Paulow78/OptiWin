@@ -81,7 +81,7 @@ namespace OptiTech
             host = F<ContentControl>("PageHost");
             btnMax = F<Button>("BtnMax");
 
-            foreach (var kv in new Dictionary<string, string> { {"home","NavHome"},{"optimize","NavOptimize"},{"clean","NavClean"},{"startup","NavStartup"},{"apps","NavApps"},{"tv","NavTv"},{"reinstall","NavReinstall"},{"usb","NavUsb"},{"diagnostic","NavDiagnostic"},{"tools","NavTools"},{"history","NavHistory"} })
+            foreach (var kv in new Dictionary<string, string> { {"home","NavHome"},{"optimize","NavOptimize"},{"clean","NavClean"},{"startup","NavStartup"},{"apps","NavApps"},{"tv","NavTv"},{"phone","NavPhone"},{"reinstall","NavReinstall"},{"usb","NavUsb"},{"diagnostic","NavDiagnostic"},{"tools","NavTools"},{"history","NavHistory"} })
             {
                 var id = kv.Key;
                 var r = F<RadioButton>(kv.Value);
@@ -331,19 +331,22 @@ namespace OptiTech
             add("Page", "Accueil", "Score de santé, processeur, mémoire et actions rapides", "IcoGauge", () => Go("home"));
             add("Page", "Optimiser", "Profils et réglages réversibles de Windows", "IcoZap", () => Go("optimize"));
             add("Page", "Nettoyer", "Caches, fichiers temporaires et analyse de l'espace disque", "IcoSpark", () => Go("clean"));
+            add("Page", "Nettoyer › Automatisation", "Programmer le nettoyage automatique du PC selon votre rythme", "IcoCalendar", () => PageOf<CleanPage>("clean").ShowTab(2));
+            add("Page", "Nettoyer › Fichiers en double", "Trouver les doublons exacts (SHA-256) dans un dossier", "IcoCopy", () => PageOf<CleanPage>("clean").ShowTab(3));
             add("Page", "Démarrage", "Gérer les programmes lancés avec Windows", "IcoPower", () => Go("startup"));
             add("Page", "Applications", "Retirer, installer ou mettre à jour des logiciels via winget", "IcoGrid", () => Go("apps"));
             add("Page", "Applications › Mettre à jour", "Mettre à jour vos logiciels installés via winget", "IcoArrowUp", () => PageOf<AppsPage>("apps").ShowTab(2));
-            add("Page", "Téléviseur", "Optimiser un téléviseur Android TV ou Google TV", "IcoTv", () => Go("tv"));
+            add("Page", "Téléviseur", "Android TV et Google TV : débloat, DNS, APK, télécommande", "IcoTv", () => Go("tv"));
+            add("Page", "Téléphone Android", "Smartphone Android (USB ou Wi-Fi) : débloat, nettoyage, DNS, ART", "IcoPhone", () => Go("phone"));
             add("Page", "Réinstaller", "Exporter et réimporter un profil de PC", "IcoPackage", () => Go("reinstall"));
             add("Page", "USB et ISO", "Clé bootable, multiboot, ISO personnalisée, SHA-256", "IcoUsb", () => Go("usb"));
             add("Page", "Diagnostic", "Avant/après, mémoire, réseau, arrêts imprévus, santé des disques", "IcoActivity", () => Go("diagnostic"));
-            add("Page", "Outils", "DISM/SFC, DNS, pilotes, réseau, mises à jour", "IcoTool", () => Go("tools"));
+            add("Page", "Outils", "DISM/SFC, DNS, modes d'alimentation, pilotes, réseau", "IcoTool", () => Go("tools"));
             add("Page", "Historique", "Annuler des réglages et consulter le journal", "IcoClock", () => Go("history"));
 
             // Actions rapides
             add("Action", Themes.IsDark ? "Passer au thème clair" : "Passer au thème sombre", "Raccourci Ctrl+T", Themes.IsDark ? "IcoSun" : "IcoMoon", () => SetTheme(!Themes.IsDark));
-            add("Action", Ui.Lightweight ? "Réactiver les effets verre dépoli" : "Activer le mode léger (sans animations)", "Idéal sur vieux PC ou bureau à distance", "IcoLayers", () => SetLightweight(!Ui.Lightweight));
+            add("Action", Ui.Lightweight ? "Réactiver les effets verre liquide" : "Activer le mode léger (sans animations)", "Idéal sur vieux PC ou bureau à distance", "IcoLayers", () => SetLightweight(!Ui.Lightweight));
             add("Action", "Rechercher une mise à jour d'OptiTech", "Vérifie les nouvelles versions sur GitHub", "IcoRefresh", () => CheckUpdates(true));
             add("Action", "Créer un point de restauration Windows", "Sauvegarde système avant modification", "IcoShield", async () =>
             {
@@ -474,6 +477,7 @@ namespace OptiTech
                 case "startup": return new StartupPage();
                 case "apps": return new AppsPage();
                 case "tv": return new TvPage();
+                case "phone": return new PhonePage();
                 case "reinstall": return new ReinstallPage();
                 case "usb": return new UsbPage();
                 case "diagnostic": return new DiagnosticPage();

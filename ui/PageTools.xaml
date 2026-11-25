@@ -94,6 +94,47 @@
       </Border>
     </Grid>
 
+    <!-- Modes d'alimentation Windows -->
+    <Border Style="{StaticResource Card}" Margin="0,14,0,0">
+      <StackPanel>
+        <DockPanel Margin="0,0,0,10">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button x:Name="BtnPowerUltimate" Style="{StaticResource BtnGhost}" Margin="0,0,6,0" ToolTip="Ajoute le mode caché « Performances optimales » de Windows sans rien modifier d'autre">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoZap}"/><TextBlock Text="Débloquer Performances optimales" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+            <Button x:Name="BtnPowerRefresh" Padding="10,6" ToolTip="Actualiser les modes d'alimentation">
+              <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoRefresh}"/>
+            </Button>
+          </StackPanel>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="Mode d'alimentation Windows" Style="{StaticResource TxtH2}"/>
+            <TextBlock Style="{StaticResource TxtSmall}" Text="Basculez en un clic entre Économie, Équilibré, Performances élevées ou Performances optimales. 100 % réversible."/>
+          </StackPanel>
+        </DockPanel>
+        <ItemsControl x:Name="PowerPlanList">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border x:Name="CardB" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource GlassBorderSoft}" BorderThickness="1" CornerRadius="12" Padding="14,10" Margin="0,0,10,8">
+                <StackPanel Orientation="Horizontal">
+                  <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{DynamicResource TextFaint}" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                  <TextBlock Text="{Binding Name}" Style="{StaticResource TxtBody}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                  <Button Content="{Binding StateLabel}" Command="{Binding Activate}" IsEnabled="{Binding CanActivate}" Padding="11,4"/>
+                </StackPanel>
+              </Border>
+              <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                  <Setter TargetName="CardB" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                  <Setter TargetName="CardB" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                  <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Accent}"/>
+                </DataTrigger>
+              </DataTemplate.Triggers>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
     <!-- Préférences et mises à jour -->
     <Border Style="{StaticResource Card}" Margin="0,14,0,0">
       <DockPanel>
@@ -109,7 +150,7 @@
           <TextBlock x:Name="AboutVersion" Text="OptiTech" Style="{StaticResource TxtH2}"/>
           <TextBlock Style="{StaticResource TxtSmall}" Margin="0,2,0,8" Text="Les nouvelles versions sont publiées sur GitHub. Chaque mise à jour est téléchargée en HTTPS et son empreinte SHA-256 contrôlée avant de remplacer l'exécutable."/>
           <CheckBox x:Name="ChkAutoUpdate" Content="Rechercher une nouvelle version au lancement, une fois par jour au plus" Margin="0,0,0,6"/>
-          <CheckBox x:Name="ChkLightweight" Content="Mode léger : couper le verre dépoli, le flou et les animations (idéal sur vieux PC ou bureau à distance)"/>
+          <CheckBox x:Name="ChkLightweight" Content="Mode léger : couper le verre liquide, le flou et les animations (idéal sur vieux PC ou bureau à distance)"/>
         </StackPanel>
       </DockPanel>
     </Border>

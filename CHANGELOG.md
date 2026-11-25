@@ -1,6 +1,32 @@
 # Journal des versions
 
-Le numéro de version suit la date : `26.11.3` est la troisième version publiée en novembre 2026. Jusqu'à la 26.11.1, l'application s'appelait OptiWin.
+Le numéro de version suit la date : `26.11.4` est la quatrième version publiée en novembre 2026. Jusqu'à la 26.11.1, l'application s'appelait OptiWin.
+
+## 26.11.4
+
+### Visuel « Liquid Glass » & Fond nuit profonde
+
+- **Fond nuit profonde avec nébuleuse colorée** : nouvelle toile de fond très sombre (`#04060C`) éclairée par 5 halos colorés subtils (menthe, saphir, violet électrique, touche magenta, cyan) mis en cache GPU (`BitmapCache`) en une seule passe.
+- **Glassmorphisme façon Apple (Liquid Glass)** : cartes, panneaux, dialogues, pilules et boutons vitrés à plusieurs couches, arêtes spéculaires lumineuses (`GlassBorder` / `GlassBorderSoft`) et reflets supérieurs discrets (`CardSheen`) sans flou coûteux par carte. Le **mode léger** reste disponible en un clic.
+
+### Téléphone Android (nouvelle page — USB & Wi-Fi)
+
+- **Connexion USB & Wi-Fi / Réseau** : connexion directe par câble USB, bascule en un clic « Passer en Wi-Fi » (`adb tcpip 5555` + lecture auto de l'IP), scan réseau local (port 5555) et **appairage sans fil Android 11+** par code à 6 chiffres (`adb pair`).
+- **Télémétrie en direct** : marque, modèle, Android + patch de sécurité, batterie (% + température + santé), stockage libre/total, RAM disponible/totale, SoC et définition d'écran.
+- **Débloatage sûr et réversible (85+ paquets)** : publicités et installeurs fantômes (MSA, AppCloud/Aura, Digital Turbine, Meta Services), Samsung Galaxy/One UI, Xiaomi/Redmi/POCO (MIUI/HyperOS), Oppo/Realme/OnePlus, Motorola/Huawei/Honor, réseaux sociaux/partenaires et extras Google. Blocage strict des composants vitaux (appels, SMS, contacts, clavier, caméra, système, lanceur actif, Play Store). Repli réversible `pm uninstall -k --user 0` restauré automatiquement par `cmd package install-existing`.
+- **Optimisation 1 clic & outils** : vidage des caches (`pm trim-caches`), vitesse d'animations (`1× / 0,5× / 0,25× / 0×`), DNS privé chiffré anti-pub/rapide (AdGuard, Cloudflare, Quad9, Automatique), compilation officielle **ART / DEX** (`bg-dexopt-job`), installation d'APK depuis le PC, capture d'écran PNG et liste d'applications tierces (forcer l'arrêt).
+
+### Téléviseur Android TV / Google TV enrichi
+
+- **Catalogue étendu (60+ paquets)** : ajout de NVIDIA Shield (diagnostics/promos), Hisense, Sony Bravia, TCL, Xiaomi PatchWall et applications préinstallées.
+- **Nouvelles capacités** : appairage sans fil Android 11+, bouton **Optimiser en 1 clic**, sélecteur de vitesse d'animations (`1× / 0,5× / 0,25× / 0×`), **DNS privé anti-pub/rapide**, optimisation **ART / DEX**, installation d'applications `.apk` depuis le PC, capture d'écran PNG, **télécommande rapide** (Accueil, Retour, OK, Lecture/Pause, Volume, Muet, Veille) et inspecteur d'applications tierces.
+
+### Automatisation du nettoyage PC & nouveaux outils
+
+- **Nettoyer › Automatisation** : choisissez librement le rythme (**quotidien**, **hebdomadaire** avec jour au choix, **toutes les 2 semaines**, **mensuel** avec jour du mois, ou **à l'ouverture de session**), l'heure, la gestion batterie / rattrapage si PC éteint, et exactement quelles catégories sûres nettoyer automatiquement. Bouton « Tester maintenant » intégré.
+- **Nettoyer › Fichiers en double** : détecteur rapide en 3 passes (taille → empreinte 64 Ko → **SHA-256** complet) dans le dossier de votre choix, en lecture seule (aucune suppression automatique) avec ouverture directe dans l'Explorateur.
+- **Outils › Mode d'alimentation Windows** : bascule en un clic entre vos plans d'alimentation (Économie, Équilibré, Performances élevées…) et bouton pour débloquer le mode **Performances optimales**.
+- Palette de commandes (`Ctrl+K`) enrichie avec toutes les nouvelles pages et onglets ; 7 nouveaux auto-tests (144 au total).
 
 ## 26.11.3
 

@@ -3,7 +3,7 @@
               VerticalScrollBarVisibility="Auto" Focusable="False">
   <StackPanel Margin="32,22,32,32">
     <TextBlock Text="Téléviseur" Style="{StaticResource TxtTitle}"/>
-    <TextBlock Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,4,0,18" Text="Android TV et Google TV : coupez publicités, pistage et applications imposées depuis ce PC. Rien n'est désinstallé, tout se rétablit d'un clic."/>
+    <TextBlock Style="{StaticResource TxtMuted}" FontSize="14" Margin="0,4,0,18" Text="Android TV et Google TV : supprimez publicités, pistage et applications imposées, accélérez les menus, réglez le DNS anti-pub, installez des APK ou pilotez le téléviseur. Tout est réversible."/>
 
     <Grid Margin="0,0,0,14">
       <Grid.ColumnDefinitions>
@@ -22,20 +22,40 @@
             <TextBlock Text="1. Connecter le téléviseur" Style="{StaticResource TxtH2}" VerticalAlignment="Center"/>
           </DockPanel>
           <TextBlock Style="{StaticResource TxtSmall}" Margin="0,0,0,3" Text="Sur le téléviseur, une seule fois :"/>
-          <TextBlock Style="{StaticResource TxtSmall}" Margin="8,0,0,2" Text="•  Paramètres › Système › À propos : validez 7 fois sur « Build » pour faire apparaître les options pour les développeurs."/>
-          <TextBlock Style="{StaticResource TxtSmall}" Margin="8,0,0,2" Text="•  Options pour les développeurs : activez le débogage USB (ou « débogage réseau »)."/>
-          <TextBlock Style="{StaticResource TxtSmall}" Margin="8,0,0,12" Text="•  Le PC et le téléviseur doivent être sur le même réseau. L'adresse IP se lit dans Paramètres › Réseau."/>
-          <TextBlock Text="Adresse du téléviseur" Style="{StaticResource TxtLabel}"/>
+          <TextBlock Style="{StaticResource TxtSmall}" Margin="8,0,0,2" Text="•  Paramètres › Système › À propos : validez 7 fois sur « Build » pour activer les options développeurs."/>
+          <TextBlock Style="{StaticResource TxtSmall}" Margin="8,0,0,2" Text="•  Options développeurs : activez le débogage USB (ou débogage réseau / sans fil)."/>
+          <TextBlock Style="{StaticResource TxtSmall}" Margin="8,0,0,12" Text="•  PC et téléviseur sur le même réseau. L'adresse IP se lit dans Paramètres › Réseau."/>
+          <TextBlock Text="Adresse du téléviseur (Wi-Fi ou USB)" Style="{StaticResource TxtLabel}"/>
           <TextBox x:Name="TvHost" Tag="Ex. 192.168.1.42 (vide : appareil branché en USB)"/>
-          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-            <Button x:Name="BtnTvConnect" Style="{StaticResource BtnPrimary}" Content="Connecter" Margin="0,0,8,0" Padding="20,8"/>
-            <Button x:Name="BtnTvScan" ToolTip="Cherche sur votre réseau local les appareils dont le débogage réseau est ouvert. Rien n'est envoyé hors de chez vous.">
+          <WrapPanel Margin="0,8,0,0">
+            <Button x:Name="BtnTvConnect" Style="{StaticResource BtnPrimary}" Content="Connecter" Margin="0,0,8,6" Padding="20,8"/>
+            <Button x:Name="BtnTvScan" Margin="0,0,8,6" ToolTip="Cherche sur votre réseau local les appareils dont le débogage réseau est ouvert (port 5555).">
               <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSearch}"/><TextBlock Text="Chercher sur le réseau" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
             </Button>
-          </StackPanel>
+            <Button x:Name="BtnTvPairToggle" Style="{StaticResource BtnGhost}" Margin="0,0,0,6" ToolTip="Pour Android TV 11+ avec débogage sans fil par code à 6 chiffres">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoKey}"/><TextBlock Text="Appairage (Android 11+)" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+          </WrapPanel>
+          <Border x:Name="TvPairBox" Visibility="Collapsed" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource GlassBorderSoft}" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,6,0,0">
+            <StackPanel>
+              <TextBlock Text="Appairage sans fil par code" Style="{StaticResource TxtBody}" FontWeight="SemiBold" Margin="0,0,0,6"/>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="8"/>
+                  <ColumnDefinition Width="125"/>
+                  <ColumnDefinition Width="8"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="TvPairHost" Tag="IP:port (ex. 192.168.1.42:37421)"/>
+                <TextBox x:Name="TvPairCode" Grid.Column="2" Tag="Code 6 chiffres" MaxLength="6"/>
+                <Button x:Name="BtnTvPair" Grid.Column="4" Content="Appairer" Padding="14,8"/>
+              </Grid>
+            </StackPanel>
+          </Border>
           <ComboBox x:Name="TvFound" Margin="0,8,0,0" Visibility="Collapsed"/>
           <TextBlock x:Name="TvStatus" Style="{StaticResource TxtSmallAuto}" Foreground="{DynamicResource Accent}" Margin="0,10,0,0"/>
-          <TextBlock Style="{StaticResource TxtSmall}" Margin="0,10,0,0" Text="À la première connexion, le téléviseur demande s'il fait confiance à ce PC : cochez « Toujours autoriser », puis validez avec la télécommande."/>
+          <TextBlock Style="{StaticResource TxtSmall}" Margin="0,8,0,0" Text="À la première connexion, cochez « Toujours autoriser » sur l'écran du téléviseur puis validez."/>
         </StackPanel>
       </Border>
 
@@ -44,6 +64,9 @@
         <Grid>
           <StackPanel x:Name="TvDeviceCard" Visibility="Collapsed">
             <DockPanel Margin="0,0,0,10">
+              <Button x:Name="BtnTvQuickOpt" DockPanel.Dock="Right" Style="{StaticResource BtnPrimary}" Padding="14,7" ToolTip="Désactive les éléments recommandés, accélère les animations (0,5x), vide les caches et ferme l'arrière-plan">
+                <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoZap}"/><TextBlock Text="Optimiser en 1 clic" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              </Button>
               <Border DockPanel.Dock="Left" Style="{StaticResource IconBadge}" Margin="0,0,11,0">
                 <Path Style="{StaticResource Ico}" Data="{StaticResource IcoTv}" TextElement.Foreground="{DynamicResource Accent}" HorizontalAlignment="Center"/>
               </Border>
@@ -59,21 +82,15 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="10" Padding="12,9" Margin="0,8,0,10">
-              <DockPanel>
-                <ToggleButton x:Name="TvAnim" DockPanel.Dock="Right" Style="{StaticResource Switch}" Margin="12,0,0,0"/>
-                <StackPanel>
-                  <TextBlock Text="Animations accélérées" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
-                  <TextBlock Text="Transitions deux fois plus courtes : le gain le plus sensible sur un téléviseur lent. Réversible." Style="{StaticResource TxtSmall}"/>
-                </StackPanel>
-              </DockPanel>
-            </Border>
-            <WrapPanel>
+            <WrapPanel Margin="0,10,0,0">
               <Button x:Name="BtnTvCaches" Margin="0,0,8,6" ToolTip="Demande à Android de vider les caches de toutes les applications. Elles les recréent au besoin.">
                 <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSpark}"/><TextBlock Text="Vider les caches" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
               </Button>
-              <Button x:Name="BtnTvKill" Margin="0,0,8,6" ToolTip="Libère la mémoire occupée par les applications qui ne sont plus à l'écran.">
+              <Button x:Name="BtnTvKill" Margin="0,0,8,6" ToolTip="Libère la mémoire occupée par les applications en arrière-plan.">
                 <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoLayers}"/><TextBlock Text="Fermer l'arrière-plan" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              </Button>
+              <Button x:Name="BtnTvShot" Margin="0,0,8,6" ToolTip="Prend une capture d'écran du téléviseur en PNG">
+                <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoCamera}"/><TextBlock Text="Capture" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
               </Button>
               <Button x:Name="BtnTvReboot" Margin="0,0,0,6">
                 <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoPower}"/><TextBlock Text="Redémarrer" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
@@ -91,97 +108,244 @@
             </StackPanel.Style>
             <Path Style="{StaticResource IcoLg}" Data="{StaticResource IcoTv}" TextElement.Foreground="{DynamicResource TextFaint}" HorizontalAlignment="Center"/>
             <TextBlock Text="Aucun téléviseur connecté" Style="{StaticResource TxtBody}" FontWeight="SemiBold" TextAlignment="Center" Margin="0,10,0,2"/>
-            <TextBlock Style="{StaticResource TxtSmall}" TextAlignment="Center" Text="Une fois connecté, OptiTech lit le téléviseur et propose un plan. Rien ne change avant votre accord."/>
+            <TextBlock Style="{StaticResource TxtSmall}" TextAlignment="Center" Text="Connectez votre téléviseur en Wi-Fi ou en USB : OptiTech l'analyse et propose un plan complet. Rien ne change avant votre accord."/>
           </StackPanel>
         </Grid>
       </Border>
     </Grid>
 
-    <!-- Plan -->
-    <Border x:Name="TvPlanCard" Style="{StaticResource Card}" Margin="0,0,0,14" Visibility="Collapsed">
-      <StackPanel>
-        <DockPanel Margin="0,0,0,10">
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button x:Name="BtnTvAll" Style="{StaticResource BtnGhost}" Content="Tout cocher" Margin="0,0,2,0"/>
-            <Button x:Name="BtnTvNone" Style="{StaticResource BtnGhost}" Content="Tout décocher" Margin="0,0,10,0"/>
-            <Button x:Name="BtnTvAnalyze" Margin="0,0,8,0" ToolTip="F5">
-              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoRefresh}"/><TextBlock Text="Analyser" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
-            </Button>
-            <Button x:Name="BtnTvClean" Style="{StaticResource BtnPrimary}" Padding="18,8" IsEnabled="False">
-              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSpark}"/><TextBlock Text="Désactiver la sélection" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
-            </Button>
-          </StackPanel>
-          <StackPanel VerticalAlignment="Center">
-            <TextBlock x:Name="TvPlanTitle" Text="2. Ce qui peut être coupé" Style="{StaticResource TxtH2}"/>
-            <TextBlock x:Name="TvPlanSub" Style="{StaticResource TxtSmall}"/>
-          </StackPanel>
-        </DockPanel>
-        <ItemsControl x:Name="TvPlan">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,4">
-                <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}">
-                  <StackPanel>
-                    <TextBlock Text="{Binding Label}" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding Detail}" Style="{StaticResource TxtSmall}"/>
-                  </StackPanel>
-                </CheckBox>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-          <ItemsControl.GroupStyle>
-            <GroupStyle>
-              <GroupStyle.ContainerStyle>
-                <Style TargetType="GroupItem">
-                  <Setter Property="Template">
-                    <Setter.Value>
-                      <ControlTemplate TargetType="GroupItem">
-                        <StackPanel><ContentPresenter/><ItemsPresenter/></StackPanel>
-                      </ControlTemplate>
-                    </Setter.Value>
-                  </Setter>
-                </Style>
-              </GroupStyle.ContainerStyle>
-              <GroupStyle.HeaderTemplate>
-                <DataTemplate>
-                  <TextBlock Text="{Binding Name}" Style="{StaticResource TxtLabel}" Margin="2,10,0,7"/>
-                </DataTemplate>
-              </GroupStyle.HeaderTemplate>
-            </GroupStyle>
-          </ItemsControl.GroupStyle>
-        </ItemsControl>
+    <!-- Onglets une fois connecté -->
+    <StackPanel x:Name="TvWorkspace" Visibility="Collapsed">
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+        <RadioButton x:Name="TabTvDebloat" Style="{StaticResource Pill}" GroupName="TvTabs" Content="Débloat &amp; Rétablissement" IsChecked="True"/>
+        <RadioButton x:Name="TabTvTune" Style="{StaticResource Pill}" GroupName="TvTabs" Content="Fluidité, DNS &amp; APK"/>
+        <RadioButton x:Name="TabTvRemote" Style="{StaticResource Pill}" GroupName="TvTabs" Content="Télécommande &amp; Applications"/>
       </StackPanel>
-    </Border>
 
-    <!-- Ce qu'OptiTech a coupé -->
-    <Border x:Name="TvDisabledCard" Style="{StaticResource Card}" Visibility="Collapsed">
-      <StackPanel>
-        <DockPanel Margin="0,0,0,10">
-          <Button x:Name="BtnTvRestore" DockPanel.Dock="Right" VerticalAlignment="Center" IsEnabled="False">
-            <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoUndo}"/><TextBlock Text="Tout rétablir" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
-          </Button>
-          <StackPanel VerticalAlignment="Center">
-            <TextBlock Text="3. Désactivé par OptiTech sur ce téléviseur" Style="{StaticResource TxtH2}"/>
-            <TextBlock Style="{StaticResource TxtSmall}" Text="La liste est mémorisée sur ce PC avant chaque changement : c'est elle qui permet de revenir en arrière."/>
+      <!-- Onglet 1 : Débloat & Rétablissement -->
+      <StackPanel x:Name="PanelTvDebloat">
+        <Border x:Name="TvPlanCard" Style="{StaticResource Card}" Margin="0,0,0,14">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="BtnTvRec" Style="{StaticResource BtnGhost}" Content="Recommandés" Margin="0,0,2,0"/>
+                <Button x:Name="BtnTvAll" Style="{StaticResource BtnGhost}" Content="Tout" Margin="0,0,2,0"/>
+                <Button x:Name="BtnTvNone" Style="{StaticResource BtnGhost}" Content="Aucun" Margin="0,0,8,0"/>
+                <Button x:Name="BtnTvAnalyze" Margin="0,0,8,0" ToolTip="F5">
+                  <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoRefresh}"/><TextBlock Text="Analyser" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+                </Button>
+                <Button x:Name="BtnTvClean" Style="{StaticResource BtnPrimary}" Padding="18,8" IsEnabled="False">
+                  <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSpark}"/><TextBlock Text="Désactiver la sélection" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+                </Button>
+              </StackPanel>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="TvPlanTitle" Text="2. Ce qui peut être coupé" Style="{StaticResource TxtH2}"/>
+                <TextBlock x:Name="TvPlanSub" Style="{StaticResource TxtSmall}"/>
+              </StackPanel>
+            </DockPanel>
+            <TextBox x:Name="TvPlanSearch" Tag="Filtrer par nom ou paquet…" Margin="0,0,0,10"/>
+            <ItemsControl x:Name="TvPlan">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource GlassBorderSoft}" BorderThickness="1" CornerRadius="11" Padding="12,8" Margin="0,0,0,5">
+                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Label}" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding Detail}" Style="{StaticResource TxtSmall}"/>
+                      </StackPanel>
+                    </CheckBox>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+              <ItemsControl.GroupStyle>
+                <GroupStyle>
+                  <GroupStyle.ContainerStyle>
+                    <Style TargetType="GroupItem">
+                      <Setter Property="Template">
+                        <Setter.Value>
+                          <ControlTemplate TargetType="GroupItem">
+                            <StackPanel><ContentPresenter/><ItemsPresenter/></StackPanel>
+                          </ControlTemplate>
+                        </Setter.Value>
+                      </Setter>
+                    </Style>
+                  </GroupStyle.ContainerStyle>
+                  <GroupStyle.HeaderTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding Name}" Style="{StaticResource TxtLabel}" Margin="2,10,0,7"/>
+                    </DataTemplate>
+                  </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+              </ItemsControl.GroupStyle>
+            </ItemsControl>
           </StackPanel>
-        </DockPanel>
-        <ItemsControl x:Name="TvDisabled">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="10" Padding="12,7" Margin="0,0,0,4">
-                <DockPanel>
-                  <Button DockPanel.Dock="Right" Command="{Binding Enable}" Content="Réactiver" Padding="10,4"/>
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Label}" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding Package}" Style="{StaticResource TxtSmall}"/>
-                  </StackPanel>
-                </DockPanel>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <TextBlock x:Name="TvDisabledEmpty" Style="{StaticResource TxtMuted}" Text="Rien pour le moment."/>
+        </Border>
+
+        <Border x:Name="TvDisabledCard" Style="{StaticResource Card}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+              <Button x:Name="BtnTvRestore" DockPanel.Dock="Right" VerticalAlignment="Center" IsEnabled="False">
+                <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoUndo}"/><TextBlock Text="Tout rétablir" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              </Button>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="3. Désactivé par OptiTech sur ce téléviseur" Style="{StaticResource TxtH2}"/>
+                <TextBlock Style="{StaticResource TxtSmall}" Text="Mémorisé sur ce PC avant chaque changement : tout se rétablit d'un clic."/>
+              </StackPanel>
+            </DockPanel>
+            <ItemsControl x:Name="TvDisabled">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource GlassBorderSoft}" BorderThickness="1" CornerRadius="11" Padding="12,7" Margin="0,0,0,5">
+                    <DockPanel>
+                      <Button DockPanel.Dock="Right" Command="{Binding Enable}" Content="Réactiver" Padding="10,4"/>
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Label}" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding Package}" Style="{StaticResource TxtSmall}"/>
+                      </StackPanel>
+                    </DockPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock x:Name="TvDisabledEmpty" Style="{StaticResource TxtMuted}" Text="Rien pour le moment."/>
+          </StackPanel>
+        </Border>
       </StackPanel>
-    </Border>
+
+      <!-- Onglet 2 : Fluidité, DNS privé & APK -->
+      <StackPanel x:Name="PanelTvTune" Visibility="Collapsed">
+        <Grid Margin="0,0,0,14">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- Vitesse des animations -->
+          <Border Style="{StaticResource Card}">
+            <StackPanel>
+              <DockPanel Margin="0,0,0,10">
+                <Border DockPanel.Dock="Left" Style="{StaticResource IconBadge}" Margin="0,0,11,0">
+                  <Path Style="{StaticResource Ico}" Data="{StaticResource IcoSliders}" TextElement.Foreground="{DynamicResource Accent}" HorizontalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="Vitesse des animations" Style="{StaticResource TxtH2}"/>
+                  <TextBlock x:Name="TvAnimInfo" Style="{StaticResource TxtSmall}" Text="Le gain de réactivité le plus immédiat sur un téléviseur lent."/>
+                </StackPanel>
+              </DockPanel>
+              <UniformGrid Columns="4" Margin="0,4,0,0">
+                <Button x:Name="BtnTvAnim1" Content="1× Origine" Margin="0,0,6,0" Padding="8,9"/>
+                <Button x:Name="BtnTvAnim05" Content="0,5× Rapide" Margin="0,0,6,0" Padding="8,9"/>
+                <Button x:Name="BtnTvAnim025" Content="0,25× Ultra" Margin="0,0,6,0" Padding="8,9"/>
+                <Button x:Name="BtnTvAnim0" Content="0× Instant." Padding="8,9"/>
+              </UniformGrid>
+            </StackPanel>
+          </Border>
+
+          <!-- DNS privé chiffré (Android 9+) -->
+          <Border Grid.Column="2" Style="{StaticResource Card}">
+            <StackPanel>
+              <DockPanel Margin="0,0,0,10">
+                <Border DockPanel.Dock="Left" Style="{StaticResource IconBadge}" Margin="0,0,11,0">
+                  <Path Style="{StaticResource Ico}" Data="{StaticResource IcoShield}" TextElement.Foreground="{DynamicResource Accent}" HorizontalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="DNS privé chiffré (Android 9+)" Style="{StaticResource TxtH2}"/>
+                  <TextBlock x:Name="TvDnsInfo" Style="{StaticResource TxtSmall}" Text="Bloque les publicités réseau ou accélère les requêtes DNS."/>
+                </StackPanel>
+              </DockPanel>
+              <WrapPanel Margin="0,4,0,0">
+                <Button x:Name="BtnTvDnsAdguard" Content="AdGuard (anti-pub)" Margin="0,0,8,6" Padding="12,8"/>
+                <Button x:Name="BtnTvDnsCf" Content="Cloudflare (rapide)" Margin="0,0,8,6" Padding="12,8"/>
+                <Button x:Name="BtnTvDnsQuad9" Content="Quad9 (sécurité)" Margin="0,0,8,6" Padding="12,8"/>
+                <Button x:Name="BtnTvDnsAuto" Content="Automatique" Margin="0,0,0,6" Padding="12,8"/>
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="14"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <!-- Optimisation ART/DEX -->
+          <Border Style="{StaticResource Card}">
+            <DockPanel>
+              <Button x:Name="BtnTvDexOpt" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="14,0,0,0" Padding="16,9">
+                <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoZap}"/><TextBlock Text="Optimiser" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              </Button>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Optimiser les applications (ART / DEX)" Style="{StaticResource TxtH2}"/>
+                <TextBlock Style="{StaticResource TxtSmall}" Margin="0,4,0,0" Text="Lance la compilation officielle Android des applications pour accélérer leur ouverture et soulager le processeur du téléviseur."/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+
+          <!-- Installer un APK -->
+          <Border Grid.Column="2" Style="{StaticResource Card}">
+            <DockPanel>
+              <Button x:Name="BtnTvApk" DockPanel.Dock="Right" Style="{StaticResource BtnPrimary}" VerticalAlignment="Center" Margin="14,0,0,0" Padding="16,9">
+                <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoUpload}"/><TextBlock Text="Installer un APK…" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              </Button>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Installer une application (.apk)" Style="{StaticResource TxtH2}"/>
+                <TextBlock Style="{StaticResource TxtSmall}" Margin="0,4,0,0" Text="Installe directement un fichier .apk depuis ce PC sur le téléviseur, sans clé USB ni gestionnaire de fichiers."/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+        </Grid>
+      </StackPanel>
+
+      <!-- Onglet 3 : Télécommande & Applications installées -->
+      <StackPanel x:Name="PanelTvRemote" Visibility="Collapsed">
+        <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+          <StackPanel>
+            <TextBlock Text="Télécommande rapide" Style="{StaticResource TxtH2}" Margin="0,0,0,4"/>
+            <TextBlock Style="{StaticResource TxtSmall}" Margin="0,0,0,12" Text="Pilotez instantanément le téléviseur depuis le PC pour tester vos réglages ou valider un écran."/>
+            <WrapPanel>
+              <Button x:Name="BtnRemHome" Margin="0,0,8,8" Padding="14,8"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoHomeBtn}"/><TextBlock Text="Accueil" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+              <Button x:Name="BtnRemBack" Margin="0,0,8,8" Padding="14,8"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoBack}"/><TextBlock Text="Retour" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+              <Button x:Name="BtnRemOk" Margin="0,0,8,8" Padding="16,8" Content="OK / Valider"/>
+              <Button x:Name="BtnRemPlay" Margin="0,0,8,8" Padding="14,8"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoPlay}"/><TextBlock Text="Lecture / Pause" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+              <Button x:Name="BtnRemVolDown" Margin="0,0,8,8" Padding="12,8"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoVolumeDown}"/><TextBlock Text="Vol −" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+              <Button x:Name="BtnRemVolUp" Margin="0,0,8,8" Padding="12,8"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoVolumeUp}"/><TextBlock Text="Vol +" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+              <Button x:Name="BtnRemMute" Margin="0,0,8,8" Padding="12,8"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoMute}"/><TextBlock Text="Muet" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+              <Button x:Name="BtnRemSleep" Margin="0,0,0,8" Padding="12,8"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoPower}"/><TextBlock Text="Veille" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+              <Button x:Name="BtnTvAppsRefresh" DockPanel.Dock="Right" Padding="12,6">
+                <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoRefresh}"/><TextBlock Text="Actualiser" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              </Button>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Applications tierces installées" Style="{StaticResource TxtH2}"/>
+                <TextBlock x:Name="TvAppsSub" Style="{StaticResource TxtSmall}" Text="Forcez l'arrêt d'une application bloquée sans rien effacer."/>
+              </StackPanel>
+            </DockPanel>
+            <TextBox x:Name="TvAppsSearch" Tag="Rechercher une application installée…" Margin="0,0,0,10"/>
+            <ItemsControl x:Name="TvThirdApps">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource GlassBorderSoft}" BorderThickness="1" CornerRadius="10" Padding="12,7" Margin="0,0,0,4">
+                    <DockPanel>
+                      <Button DockPanel.Dock="Right" Command="{Binding Stop}" Content="Forcer l'arrêt" Padding="10,4"/>
+                      <TextBlock Text="{Binding Package}" Style="{StaticResource TxtBody}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock x:Name="TvAppsEmpty" Style="{StaticResource TxtMuted}" Text="Aucune application tierce listée." Visibility="Collapsed"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </StackPanel>
   </StackPanel>
 </ScrollViewer>
