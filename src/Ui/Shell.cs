@@ -24,7 +24,33 @@ namespace OptiTech
         public Action Changed;
     }
 
-    /// <summary>Fenêtre principale : navigation, dialogues, tâches longues.</summary>
+    public sealed class PaletteEntry
+    {
+        public string Kind { get; set; }
+        public string Title { get; set; }
+        public string Sub { get; set; }
+        public string Icon { get; set; }
+        public string Keywords;
+        public Action Run;
+        public object IconGeo { get { return Application.Current != null ? Application.Current.Resources[Icon] : null; } }
+
+        public bool Matches(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return true;
+            var cmp = StringComparison.CurrentCultureIgnoreCase;
+            foreach (var tok in query.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var ok = (Title ?? "").IndexOf(tok, cmp) >= 0
+                    || (Sub ?? "").IndexOf(tok, cmp) >= 0
+                    || (Kind ?? "").IndexOf(tok, cmp) >= 0
+                    || (Keywords ?? "").IndexOf(tok, cmp) >= 0;
+                if (!ok) return false;
+            }
+            return true;
+        }
+    }
+
+    /// <summary>Fenêtre principale : navigation, palette de commandes, dialogues, tâches longues.</summary>
     public sealed class Shell
     {
         public static Shell I;
@@ -67,6 +93,7 @@ namespace OptiTech
             btnMax.Click += delegate { ToggleMax(); };
             F<Button>("BtnClose").Click += delegate { Win.Close(); };
             F<Button>("BtnTheme").Click += delegate { SetTheme(!Themes.IsDark); };
+            F<Button>("BtnPalette").Click += delegate { OpenPalette(); };
 
             Win.SourceInitialized += OnSourceInitialized;
             Win.StateChanged += delegate { UpdateMaxMargin(); };
@@ -94,8 +121,10 @@ namespace OptiTech
             WireConfirm();
             WirePlan();
             WireJob();
+            WirePalette();
             WireBlur();
             WireUpdate();
+            ApplyLightweightVisuals();
             UpdateThemeButton();
         }
 
@@ -103,18 +132,32 @@ namespace OptiTech
         void WireBlur()
         {
             var stage = F<Grid>("Stage");
-            var layers = new[] { F<Grid>("ConfirmLayer"), F<Grid>("PlanLayer"), F<Grid>("JobLayer") };
+            var layers = new[] { F<Grid>("ConfirmLayer"), F<Grid>("PlanLayer"), F<Grid>("JobLayer"), F<Grid>("PaletteLayer") };
             // Sans accélération matérielle (bureau à distance, machine virtuelle), le flou coûterait trop cher.
             var capable = (RenderCapability.Tier >> 16) > 0;
             DependencyPropertyChangedEventHandler update = delegate
             {
-                if (!capable) return;
+                if (!capable || Ui.Lightweight) { stage.Effect = null; return; }
                 var open = layers.Any(l => l.IsVisible);
                 if (open && stage.Effect == null)
-                    stage.Effect = new System.Windows.Media.Effects.BlurEffect { Radius = 16, RenderingBias = System.Windows.Media.Effects.RenderingBias.Performance };
+                    stage.Effect = new System.Windows.Media.Effects.BlurEffect { Radius = 14, RenderingBias = System.Windows.Media.Effects.RenderingBias.Performance };
                 else if (!open) stage.Effect = null;
             };
             foreach (var l in layers) l.IsVisibleChanged += update;
+        }
+
+        void ApplyLightweightVisuals()
+        {
+            F<Grid>("AmbientLayer").Visibility = Ui.Lightweight ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public void SetLightweight(bool on)
+        {
+            Ui.Lightweight = on;
+            Themes.Apply(Themes.IsDark);
+            ApplyLightweightVisuals();
+            if (on) F<Grid>("Stage").Effect = null;
+            Toast(on ? "Mode léger activé : effets visuels et animations coupés." : "Mode verre dépoli activé.");
         }
 
         // ──────── Mise à jour depuis GitHub ────────
@@ -177,21 +220,30 @@ namespace OptiTech
 
         static readonly string[] PageOrder = { "home", "optimize", "clean", "startup", "apps", "reinstall", "usb", "diagnostic", "tools", "history" };
 
-        bool DialogOpen { get { return F<Grid>("ConfirmLayer").IsVisible || F<Grid>("PlanLayer").IsVisible || F<Grid>("JobLayer").IsVisible; } }
+        bool DialogOpen { get { return F<Grid>("ConfirmLayer").IsVisible || F<Grid>("PlanLayer").IsVisible || F<Grid>("JobLayer").IsVisible || F<Grid>("PaletteLayer").IsVisible; } }
 
-        // Raccourcis : Ctrl+1 à Ctrl+0 pour les pages, F5 pour actualiser, Ctrl+F pour chercher, Ctrl+T pour le thème, Échap pour fermer.
+        // Raccourcis : Ctrl+K pour la palette, Ctrl+1 à Ctrl+0 pour les pages, F5 pour actualiser, Ctrl+F pour chercher, Ctrl+T pour le thème, Échap pour fermer.
         void OnKey(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
-                if (F<Grid>("ConfirmLayer").IsVisible) { CloseConfirm(false); e.Handled = true; }
+                if (F<Grid>("PaletteLayer").IsVisible) { ClosePalette(); e.Handled = true; }
+                else if (F<Grid>("ConfirmLayer").IsVisible) { CloseConfirm(false); e.Handled = true; }
                 else if (F<Grid>("PlanLayer").IsVisible) { F<Grid>("PlanLayer").Visibility = Visibility.Collapsed; e.Handled = true; }
                 else if (F<Grid>("JobLayer").IsVisible && !jobRunning) { F<Grid>("JobLayer").Visibility = Visibility.Collapsed; e.Handled = true; }
                 return;
             }
+            var ctrl = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+            if (ctrl && e.Key == Key.K)
+            {
+                if (F<Grid>("PaletteLayer").IsVisible) ClosePalette();
+                else if (!DialogOpen) OpenPalette();
+                e.Handled = true;
+                return;
+            }
             if (DialogOpen) return;
             if (e.Key == Key.F5) { if (current != null) current.OnRefresh(); e.Handled = true; return; }
-            if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+            if (!ctrl) return;
             if (e.Key == Key.F) { if (current != null && current.OnFind()) e.Handled = true; return; }
             if (e.Key == Key.T) { SetTheme(!Themes.IsDark); e.Handled = true; return; }
             int n = -1;
@@ -200,6 +252,141 @@ namespace OptiTech
             else if (e.Key >= Key.NumPad1 && e.Key <= Key.NumPad9) n = e.Key - Key.NumPad1;
             else if (e.Key == Key.NumPad0) n = 9;
             if (n >= 0 && n < PageOrder.Length) { Go(PageOrder[n]); e.Handled = true; }
+        }
+
+        // ──────── Palette de commandes (Ctrl+K) ────────
+        List<PaletteEntry> paletteAll = new List<PaletteEntry>();
+
+        void WirePalette()
+        {
+            var layer = F<Grid>("PaletteLayer");
+            var input = F<TextBox>("PaletteInput");
+            var list = F<ListBox>("PaletteList");
+            layer.MouseDown += delegate(object s, MouseButtonEventArgs e)
+            {
+                if (ReferenceEquals(e.OriginalSource, layer)) ClosePalette();
+            };
+            Ui.Debounce(input, 60, FilterPalette);
+            input.PreviewKeyDown += delegate(object s, KeyEventArgs e)
+            {
+                if (e.Key == Key.Down && list.Items.Count > 0)
+                {
+                    list.SelectedIndex = Math.Min(list.Items.Count - 1, list.SelectedIndex + 1);
+                    list.ScrollIntoView(list.SelectedItem);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Up && list.Items.Count > 0)
+                {
+                    list.SelectedIndex = Math.Max(0, list.SelectedIndex - 1);
+                    list.ScrollIntoView(list.SelectedItem);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Enter) { RunPaletteSelected(); e.Handled = true; }
+            };
+            list.MouseLeftButtonUp += delegate { RunPaletteSelected(); };
+            list.KeyDown += delegate(object s, KeyEventArgs e) { if (e.Key == Key.Enter) { RunPaletteSelected(); e.Handled = true; } };
+        }
+
+        public void OpenPalette()
+        {
+            paletteAll = BuildPaletteEntries();
+            var input = F<TextBox>("PaletteInput");
+            input.Text = "";
+            FilterPalette();
+            F<Grid>("PaletteLayer").Visibility = Visibility.Visible;
+            input.Focus();
+        }
+
+        void ClosePalette()
+        {
+            F<Grid>("PaletteLayer").Visibility = Visibility.Collapsed;
+        }
+
+        void FilterPalette()
+        {
+            var q = F<TextBox>("PaletteInput").Text;
+            var shown = paletteAll.Where(x => x.Matches(q)).Take(40).ToList();
+            var list = F<ListBox>("PaletteList");
+            list.ItemsSource = shown;
+            if (shown.Count > 0) list.SelectedIndex = 0;
+            F<TextBlock>("PaletteEmpty").Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            F<TextBlock>("PaletteCount").Text = shown.Count == 0 ? "" : Fmt.N(shown.Count, "résultat");
+        }
+
+        void RunPaletteSelected()
+        {
+            var item = F<ListBox>("PaletteList").SelectedItem as PaletteEntry;
+            if (item == null) return;
+            ClosePalette();
+            if (item.Run != null) item.Run();
+        }
+
+        List<PaletteEntry> BuildPaletteEntries()
+        {
+            var r = new List<PaletteEntry>();
+            Action<string, string, string, string, Action> add = (kind, title, sub, icon, run) =>
+                r.Add(new PaletteEntry { Kind = kind, Title = title, Sub = sub, Icon = icon, Run = run });
+
+            // Pages
+            add("Page", "Accueil", "Score de santé, processeur, mémoire et actions rapides", "IcoGauge", () => Go("home"));
+            add("Page", "Optimiser", "Profils et réglages réversibles de Windows", "IcoZap", () => Go("optimize"));
+            add("Page", "Nettoyer", "Caches, fichiers temporaires et analyse de l'espace disque", "IcoSpark", () => Go("clean"));
+            add("Page", "Démarrage", "Gérer les programmes lancés avec Windows", "IcoPower", () => Go("startup"));
+            add("Page", "Applications", "Retirer, installer ou mettre à jour des logiciels via winget", "IcoGrid", () => Go("apps"));
+            add("Page", "Applications › Mettre à jour", "Mettre à jour vos logiciels installés via winget", "IcoArrowUp", () => PageOf<AppsPage>("apps").ShowTab(2));
+            add("Page", "Téléviseur", "Optimiser un téléviseur Android TV ou Google TV", "IcoTv", () => Go("tv"));
+            add("Page", "Réinstaller", "Exporter et réimporter un profil de PC", "IcoPackage", () => Go("reinstall"));
+            add("Page", "USB et ISO", "Clé bootable, multiboot, ISO personnalisée, SHA-256", "IcoUsb", () => Go("usb"));
+            add("Page", "Diagnostic", "Avant/après, mémoire, réseau, arrêts imprévus, santé des disques", "IcoActivity", () => Go("diagnostic"));
+            add("Page", "Outils", "DISM/SFC, DNS, pilotes, réseau, mises à jour", "IcoTool", () => Go("tools"));
+            add("Page", "Historique", "Annuler des réglages et consulter le journal", "IcoClock", () => Go("history"));
+
+            // Actions rapides
+            add("Action", Themes.IsDark ? "Passer au thème clair" : "Passer au thème sombre", "Raccourci Ctrl+T", Themes.IsDark ? "IcoSun" : "IcoMoon", () => SetTheme(!Themes.IsDark));
+            add("Action", Ui.Lightweight ? "Réactiver les effets verre dépoli" : "Activer le mode léger (sans animations)", "Idéal sur vieux PC ou bureau à distance", "IcoLayers", () => SetLightweight(!Ui.Lightweight));
+            add("Action", "Rechercher une mise à jour d'OptiTech", "Vérifie les nouvelles versions sur GitHub", "IcoRefresh", () => CheckUpdates(true));
+            add("Action", "Créer un point de restauration Windows", "Sauvegarde système avant modification", "IcoShield", () =>
+            {
+                if (!Os.IsAdmin) { Toast("Créer un point de restauration demande le mode administrateur.", "warn"); return; }
+                RunJob("Point de restauration", false, job =>
+                {
+                    job.Status("Création en cours");
+                    if (!TweakEngine.CreateRestorePoint("Point manuel OptiTech", job.Log))
+                        throw new InvalidOperationException("Windows a refusé de créer le point. La protection du système est peut-être désactivée.");
+                    job.Summary = "Point de restauration créé.";
+                });
+            });
+
+            // Profils
+            foreach (var prof in new[] { Prof.OldPc, Prof.Fresh, Prof.Gaming, Prof.Laptop, Prof.Privacy })
+            {
+                var p = prof;
+                add("Profil", "Appliquer le profil « " + SysInfo.ProfileName(p) + " »", "Ouvre le plan détaillé avant toute modification", "IcoZap", () => ShowProfile(p));
+            }
+
+            // Outils
+            foreach (var tool in Tools.Catalog())
+            {
+                var t = tool;
+                add("Outil", t.Title, t.Desc, t.Icon, () => { var pg = PageOf<ToolsPage>("tools"); pg.LaunchById(t.Id); });
+            }
+
+            // Réglages
+            foreach (var tw in TweakCatalog.All)
+            {
+                if (!tw.IsSupported) continue;
+                var tweak = tw;
+                r.Add(new PaletteEntry
+                {
+                    Kind = tweak.Cat,
+                    Title = tweak.Title,
+                    Sub = tweak.Desc,
+                    Icon = "IcoZap",
+                    Keywords = tweak.Id,
+                    Run = () => { var pg = PageOf<OptimizePage>("optimize"); pg.FocusSearch(tweak.Title); }
+                });
+            }
+            return r;
         }
 
         void OnSourceInitialized(object sender, EventArgs e)
@@ -308,7 +495,18 @@ namespace OptiTech
             var r = nav[id];
             if (r.IsChecked != true) r.IsChecked = true;
             p.OnShow();
-            host.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.2, 1, new Duration(TimeSpan.FromMilliseconds(160))));
+            var tx = F<TranslateTransform>("PageTx");
+            if (Ui.Lightweight)
+            {
+                host.BeginAnimation(UIElement.OpacityProperty, null); host.Opacity = 1;
+                tx.BeginAnimation(TranslateTransform.YProperty, null); tx.Y = 0;
+            }
+            else
+            {
+                var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+                host.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.25, 1, new Duration(TimeSpan.FromMilliseconds(150))) { EasingFunction = ease });
+                tx.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(8, 0, new Duration(TimeSpan.FromMilliseconds(170))) { EasingFunction = ease });
+            }
         }
 
         // ──────── Message éphémère ────────
@@ -319,11 +517,19 @@ namespace OptiTech
             F<TextBlock>("ToastText").Text = text;
             F<System.Windows.Shapes.Ellipse>("ToastDot").Fill = (Brush)Application.Current.Resources[kind == "bad" ? "Danger" : kind == "warn" ? "Warn" : kind == "info" ? "Info" : "Ok"];
             t.Visibility = Visibility.Visible;
-            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            t.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, new Duration(TimeSpan.FromMilliseconds(160))) { EasingFunction = ease });
-            var slide = new TranslateTransform(0, 14);
-            t.RenderTransform = slide;
-            slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(14, 0, new Duration(TimeSpan.FromMilliseconds(200))) { EasingFunction = ease });
+            if (Ui.Lightweight)
+            {
+                t.BeginAnimation(UIElement.OpacityProperty, null); t.Opacity = 1;
+                t.RenderTransform = null;
+            }
+            else
+            {
+                var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+                t.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, new Duration(TimeSpan.FromMilliseconds(160))) { EasingFunction = ease });
+                var slide = new TranslateTransform(0, 14);
+                t.RenderTransform = slide;
+                slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(14, 0, new Duration(TimeSpan.FromMilliseconds(200))) { EasingFunction = ease });
+            }
             if (toastTimer != null) toastTimer.Stop();
             // Un message long reste plus longtemps lisible, une erreur aussi.
             var seconds = Math.Max(kind == "bad" ? 7 : 4, Math.Min(12, text.Length / 18));
@@ -331,6 +537,7 @@ namespace OptiTech
             toastTimer.Tick += delegate
             {
                 toastTimer.Stop();
+                if (Ui.Lightweight) { t.Visibility = Visibility.Collapsed; return; }
                 var fade = new DoubleAnimation(1, 0, new Duration(TimeSpan.FromMilliseconds(220)));
                 fade.Completed += delegate { if (t.Opacity < 0.05) t.Visibility = Visibility.Collapsed; };
                 t.BeginAnimation(UIElement.OpacityProperty, fade);
@@ -483,21 +690,26 @@ namespace OptiTech
                     TweakEngine.CreateRestorePoint("Avant OptiTech : " + name, job.Log);
                 }
                 int ok = 0, ko = 0;
-                for (int i = 0; i < chosen.Count; i++)
+                Store.BeginBatch();
+                try
                 {
-                    job.Token.ThrowIfCancellationRequested();
-                    var t = chosen[i];
-                    job.Status(t.Title);
-                    job.Progress(100.0 * i / Math.Max(1, chosen.Count) * (clean ? 0.6 : 1));
-                    try
+                    for (int i = 0; i < chosen.Count; i++)
                     {
-                        TweakEngine.Apply(t);
-                        ok++;
-                        if (t.Effect > maxEffect) maxEffect = t.Effect;
+                        job.Token.ThrowIfCancellationRequested();
+                        var t = chosen[i];
+                        job.Status(t.Title);
+                        job.Progress(100.0 * i / Math.Max(1, chosen.Count) * (clean ? 0.6 : 1));
+                        try
+                        {
+                            TweakEngine.Apply(t);
+                            ok++;
+                            if (t.Effect > maxEffect) maxEffect = t.Effect;
+                        }
+                        catch (SettingProtectedException) { ko++; job.Log("  Windows protège ce réglage contre les programmes : faites-le dans les Paramètres de Windows. Il ne sera plus proposé."); }
+                        catch (Exception e) { ko++; job.Log("  Échec : " + e.Message); }
                     }
-                    catch (SettingProtectedException) { ko++; job.Log("  Windows protège ce réglage contre les programmes : faites-le dans les Paramètres de Windows. Il ne sera plus proposé."); }
-                    catch (Exception e) { ko++; job.Log("  Échec : " + e.Message); }
                 }
+                finally { Store.EndBatch(); }
                 long freed = 0;
                 if (clean)
                 {
@@ -644,6 +856,7 @@ namespace OptiTech
             F<Grid>("JobLayer").Visibility = Visibility.Collapsed;
             F<Grid>("PlanLayer").Visibility = Visibility.Collapsed;
             F<Grid>("ConfirmLayer").Visibility = Visibility.Collapsed;
+            F<Grid>("PaletteLayer").Visibility = Visibility.Collapsed;
         }
     }
 }

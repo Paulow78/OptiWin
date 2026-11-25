@@ -66,6 +66,7 @@ namespace OptiTech
                 Rescue(tmp);
                 Ergonomics();
                 TvAndUpdate(tmp);
+                Modern26113(tmp);
             }
             finally
             {

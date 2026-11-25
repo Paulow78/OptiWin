@@ -46,7 +46,9 @@ namespace OptiTech
             var s = new MetricSnapshot { When = DateTime.Now.ToString("o"), Label = label, UptimeMin = SysInfo.Uptime.TotalMinutes };
             s.Cpu = IdleCpu(3000, ct);
             s.Ram = SysInfo.RamUsed();
-            s.Processes = Process.GetProcesses().Length;
+            var procs = Process.GetProcesses();
+            s.Processes = procs.Length;
+            foreach (var p in procs) p.Dispose();
             s.Services = SysInfo.Wmi(@"root\cimv2", "SELECT Name FROM Win32_Service WHERE State='Running'").Count;
             try { s.Startup = StartupManager.List().Count(i => i.IsOn); } catch { }
             try { s.Free = SysInfo.SystemDrive.AvailableFreeSpace; } catch { }
@@ -138,6 +140,9 @@ namespace OptiTech
         public long Bytes { get; set; }
         public int Count { get; set; }
         public double Share { get; set; }
+        public string ExePath { get; set; }
+        public bool CanReveal { get { return !string.IsNullOrEmpty(ExePath) && System.IO.File.Exists(ExePath); } }
+        public System.Windows.Input.ICommand RevealCmd { get; set; }
         public string MemText { get { return Fmt.Size(Bytes); } }
         public string CountText { get { return Count > 1 ? Count + " instances" : ""; } }
     }
@@ -145,24 +150,36 @@ namespace OptiTech
     /// <summary>Programmes les plus gourmands en mémoire, pour comprendre ce qui pèse sur le PC en ce moment.</summary>
     public static class TopProcesses
     {
+        sealed class Acc { public long Bytes; public int Count; public string Path; }
+
         public static List<ProcRow> Read(int n)
         {
-            var groups = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase);
+            var groups = new Dictionary<string, Acc>(StringComparer.OrdinalIgnoreCase);
             foreach (var p in Process.GetProcesses())
             {
                 try
                 {
-                    long[] g;
-                    if (!groups.TryGetValue(p.ProcessName, out g)) { g = new long[2]; groups[p.ProcessName] = g; }
-                    g[0] += p.WorkingSet64;
-                    g[1]++;
+                    Acc g;
+                    if (!groups.TryGetValue(p.ProcessName, out g)) { g = new Acc(); groups[p.ProcessName] = g; }
+                    g.Bytes += p.WorkingSet64;
+                    g.Count++;
+                    if (g.Path == null) try { g.Path = p.MainModule.FileName; } catch { }
                 }
                 catch { }
                 finally { p.Dispose(); }
             }
-            var top = groups.OrderByDescending(kv => kv.Value[0]).Take(n).ToList();
-            var max = top.Count == 0 ? 1.0 : Math.Max(1.0, top[0].Value[0]);
-            return top.Select(kv => new ProcRow { Name = kv.Key, Bytes = kv.Value[0], Count = (int)kv.Value[1], Share = 100.0 * kv.Value[0] / max }).ToList();
+            var top = groups.OrderByDescending(kv => kv.Value.Bytes).Take(n).ToList();
+            var max = top.Count == 0 ? 1.0 : Math.Max(1.0, top[0].Value.Bytes);
+            return top.Select(kv =>
+            {
+                var path = kv.Value.Path;
+                return new ProcRow
+                {
+                    Name = kv.Key, Bytes = kv.Value.Bytes, Count = kv.Value.Count,
+                    Share = 100.0 * kv.Value.Bytes / max, ExePath = path,
+                    RevealCmd = string.IsNullOrEmpty(path) ? null : new RelayCommand(() => { try { Process.Start("explorer.exe", "/select,\"" + path + "\""); } catch { } })
+                };
+            }).ToList();
         }
     }
 
@@ -274,6 +291,139 @@ namespace OptiTech
                 Name = S(d, "Name"), Sub = type + (size.HasValue ? " · " + Fmt.Size(size.Value) : ""),
                 Level = level, Verdict = verdict, Facts = facts
             };
+        }
+    }
+
+    public sealed class NetAdapterRow
+    {
+        public string Name { get; set; }
+        public string Type { get; set; }
+        public string SpeedText { get; set; }
+        public string Ip { get; set; }
+        public string Gateway { get; set; }
+        public string Detail { get { return Type + " · " + SpeedText + (string.IsNullOrEmpty(Ip) ? "" : " · IP " + Ip) + (string.IsNullOrEmpty(Gateway) ? "" : " · Passerelle " + Gateway); } }
+    }
+
+    /// <summary>Cartes réseau actives, vitesse de liaison et adresse IP locale, sans aucun accès Internet.</summary>
+    public static class NetworkSnapshot
+    {
+        public static List<NetAdapterRow> Read()
+        {
+            var res = new List<NetAdapterRow>();
+            try
+            {
+                foreach (var n in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (n.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                    var isEth = n.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Ethernet;
+                    var isWifi = n.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Wireless80211;
+                    if (!isEth && !isWifi) continue;
+                    var props = n.GetIPProperties();
+                    var ip = props.UnicastAddresses
+                        .Where(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        .Select(a => a.Address.ToString()).FirstOrDefault() ?? "";
+                    var gw = props.GatewayAddresses
+                        .Where(g => g.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        .Select(g => g.Address.ToString()).FirstOrDefault() ?? "";
+                    if (ip.Length == 0 && gw.Length == 0) continue;
+                    res.Add(new NetAdapterRow
+                    {
+                        Name = n.Name,
+                        Type = isWifi ? "Wi-Fi" : "Ethernet",
+                        SpeedText = FormatSpeed(n.Speed),
+                        Ip = ip,
+                        Gateway = gw
+                    });
+                }
+            }
+            catch (Exception e) { Logger.Info("Réseau : " + e.Message); }
+            return res;
+        }
+
+        public static string FormatSpeed(long bps)
+        {
+            if (bps <= 0) return "Vitesse inconnue";
+            if (bps >= 1000000000L) return Fmt.Num(bps / 1000000000.0, "0.#") + " Gbit/s";
+            if (bps >= 1000000L) return Fmt.Num(bps / 1000000.0, "0") + " Mbit/s";
+            return Fmt.Num(bps / 1000.0, "0") + " kbit/s";
+        }
+    }
+
+    public sealed class CrashRow
+    {
+        public string When { get; set; }
+        public string Kind { get; set; }
+        public string Detail { get; set; }
+        public string Level { get; set; }
+    }
+
+    /// <summary>Lit les arrêts imprévus (Kernel-Power 41) et écrans bleus (BugCheck 1001) des 30 derniers jours, en lecture seule.</summary>
+    public static class CrashReader
+    {
+        public static List<CrashRow> ReadRecent(int days, int max)
+        {
+            var res = new List<CrashRow>();
+            try
+            {
+                var ms = (long)days * 86400L * 1000L;
+                var xpath = "*[System[(EventID=41 and Provider[@Name='Microsoft-Windows-Kernel-Power']) or (EventID=1001 and Provider[@Name='Microsoft-Windows-WER-SystemErrorReporting'])] and System[TimeCreated[timediff(@SystemTime) <= " + ms + "]]]";
+                var q = new EventLogQuery("System", PathType.LogName, xpath) { ReverseDirection = true };
+                using (var r = new EventLogReader(q))
+                {
+                    EventRecord e;
+                    while (res.Count < max && (e = r.ReadEvent()) != null)
+                    {
+                        using (e)
+                        {
+                            var row = ParseEventXml(e.ToXml());
+                            if (row != null) res.Add(row);
+                        }
+                    }
+                }
+            }
+            catch (Exception e) { Logger.Info("Journal des plantages : " + e.Message); }
+            return res;
+        }
+
+        public static CrashRow ParseEventXml(string xml)
+        {
+            if (string.IsNullOrWhiteSpace(xml)) return null;
+            var d = new XmlDocument { XmlResolver = null };
+            d.LoadXml(xml);
+            var ns = new XmlNamespaceManager(d.NameTable);
+            ns.AddNamespace("e", "http://schemas.microsoft.com/win/2004/08/events/event");
+            var idNode = d.SelectSingleNode("//e:System/e:EventID", ns);
+            var timeNode = d.SelectSingleNode("//e:System/e:TimeCreated/@SystemTime", ns);
+            if (idNode == null) return null;
+            var id = idNode.InnerText.Trim();
+            var when = timeNode != null ? Fmt.When(timeNode.Value) : "";
+            if (id == "1001")
+            {
+                var code = d.SelectSingleNode("//e:EventData/e:Data[@Name='param1']", ns);
+                var raw = code != null ? code.InnerText.Trim() : "";
+                var codeWord = raw.Length > 0 ? raw.Split(' ')[0] : "";
+                return new CrashRow
+                {
+                    When = when,
+                    Kind = "Écran bleu (BSOD)",
+                    Detail = codeWord.Length > 0 ? "Code d'arrêt : " + codeWord : "Arrêt critique enregistré par Windows.",
+                    Level = "bad"
+                };
+            }
+            if (id == "41")
+            {
+                var bug = d.SelectSingleNode("//e:EventData/e:Data[@Name='BugcheckCode']", ns);
+                long b;
+                var hasBug = bug != null && long.TryParse(bug.InnerText.Trim(), out b) && b > 0;
+                return new CrashRow
+                {
+                    When = when,
+                    Kind = hasBug ? "Redémarrage après erreur critique" : "Arrêt imprévu (coupure ou blocage)",
+                    Detail = hasBug ? "Code Bugcheck : 0x" + b.ToString("X") : "Kernel-Power 41 : coupure de courant, bouton maintenu ou plantage matériel.",
+                    Level = hasBug ? "bad" : "warn"
+                };
+            }
+            return null;
         }
     }
 }

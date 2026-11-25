@@ -182,9 +182,33 @@ namespace OptiTech
             }
         }
 
+        static string R(string rel) { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), rel); }
+
+        static IEnumerable<FsSpec> AppCacheSpecs()
+        {
+            foreach (var rel in new[] { @"discord\Cache\Cache_Data", @"discord\Code Cache", @"discord\GPUCache", @"Code\Cache\Cache_Data", @"Code\CachedData", @"Code\GPUCache" })
+            {
+                var p = R(rel);
+                if (Directory.Exists(p)) yield return new FsSpec(p);
+            }
+            foreach (var rel in new[] { @"Spotify\Data", @"Spotify\Browser\Cache\Cache_Data", @"Steam\htmlcache\Cache\Cache_Data", @"Steam\htmlcache\Code Cache" })
+            {
+                var p = L(rel);
+                if (Directory.Exists(p)) yield return new FsSpec(p);
+            }
+        }
+
         public static string[] RunningBrowsers()
         {
-            return new[] { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi" }.Where(n => Process.GetProcessesByName(n).Length > 0).ToArray();
+            var running = new List<string>();
+            foreach (var n in new[] { "chrome", "msedge", "brave", "firefox", "opera", "vivaldi" })
+            {
+                var procs = Process.GetProcessesByName(n);
+                var any = procs.Length > 0;
+                foreach (var p in procs) p.Dispose();
+                if (any) running.Add(n);
+            }
+            return running.ToArray();
         }
 
         /// <summary>Une mise à jour attend un redémarrage pour se terminer.</summary>
@@ -220,6 +244,8 @@ namespace OptiTech
                 return Fs.Delete(BrowserSpecs(), j.Token);
             };
             list.Add(browsers);
+
+            list.Add(Simple("apps.cache", g1, "Caches d'applications (Discord, Spotify, Steam, VS Code)", "Uniquement les caches web et graphiques recréés au besoin. Vos comptes et données ne sont jamais touchés.", true, false, AppCacheSpecs));
 
             list.Add(Simple("thumbs", g1, "Miniatures de l'Explorateur", "Recréées automatiquement à l'affichage des dossiers.", true, false,
                 () => new[] { new FsSpec(L(@"Microsoft\Windows\Explorer"), 0, "thumbcache_*.db", false) }));
@@ -336,7 +362,9 @@ namespace OptiTech
     {
         public string Name { get; set; }
         public string FullPath { get; set; }
+        public string SubPath { get; set; }
         public bool IsFile { get; set; }
+        public bool IsLooseGroup;
         public long Size { get; set; }
         public double Share { get; set; }
         public string SizeText { get { return Fmt.Size(Size); } }
@@ -356,6 +384,35 @@ namespace OptiTech
             return n;
         }
 
+        /// <summary>Extrait les plus gros fichiers (> 50 Mo) déjà repérés dans l'arbre, sans relire le disque.</summary>
+        public static List<DirNode> TopFiles(DirNode root, int max)
+        {
+            var files = new List<DirNode>();
+            if (root == null) return files;
+            CollectFiles(root, files);
+            files.Sort((a, b) => b.Size.CompareTo(a.Size));
+            var top = files.Take(max).ToList();
+            var biggest = top.Count > 0 ? Math.Max(1.0, top[0].Size) : 1.0;
+            return top.Select(f => new DirNode
+            {
+                Name = f.Name,
+                FullPath = f.FullPath,
+                SubPath = Path.GetDirectoryName(f.FullPath) ?? "",
+                IsFile = true,
+                Size = f.Size,
+                Share = 100.0 * f.Size / biggest
+            }).ToList();
+        }
+
+        static void CollectFiles(DirNode n, List<DirNode> acc)
+        {
+            foreach (var k in n.Kids)
+            {
+                if (k.IsFile) { if (!k.IsLooseGroup) acc.Add(k); }
+                else CollectFiles(k, acc);
+            }
+        }
+
         static void Walk(DirNode node, CancellationToken ct, Action<string> onDir)
         {
             ct.ThrowIfCancellationRequested();
@@ -371,12 +428,12 @@ namespace OptiTech
                         var f = e as FileInfo;
                         if (f != null)
                         {
-                            if (f.Length >= KeepFileAbove) { node.Kids.Add(new DirNode { Name = f.Name, FullPath = f.FullName, IsFile = true, Size = f.Length, Parent = node }); node.Size += f.Length; }
+                            if (f.Length >= KeepFileAbove) { node.Kids.Add(new DirNode { Name = f.Name, FullPath = f.FullName, SubPath = "", IsFile = true, Size = f.Length, Parent = node }); node.Size += f.Length; }
                             else { loose += f.Length; looseCount++; node.Size += f.Length; }
                         }
                         else
                         {
-                            var kid = new DirNode { Name = e.Name, FullPath = e.FullName, Parent = node };
+                            var kid = new DirNode { Name = e.Name, FullPath = e.FullName, SubPath = "", Parent = node };
                             Walk(kid, ct, onDir);
                             node.Kids.Add(kid);
                             node.Size += kid.Size;
@@ -388,7 +445,7 @@ namespace OptiTech
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
-            if (looseCount > 0) node.Kids.Add(new DirNode { Name = looseCount + " petits fichiers", FullPath = node.FullPath, IsFile = true, Size = loose, Parent = node });
+            if (looseCount > 0) node.Kids.Add(new DirNode { Name = looseCount + " petits fichiers", FullPath = node.FullPath, SubPath = "", IsFile = true, IsLooseGroup = true, Size = loose, Parent = node });
             node.Kids.Sort((a, b) => b.Size.CompareTo(a.Size));
             if (node.Size > 0) foreach (var k in node.Kids) k.Share = k.Size * 100.0 / node.Size;
         }

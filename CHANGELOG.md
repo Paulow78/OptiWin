@@ -1,6 +1,32 @@
 # Journal des versions
 
-Le numéro de version suit la date : `26.11.2` est la deuxième version publiée en novembre 2026. Jusqu'à la 26.11.1, l'application s'appelait OptiWin.
+Le numéro de version suit la date : `26.11.3` est la troisième version publiée en novembre 2026. Jusqu'à la 26.11.1, l'application s'appelait OptiWin.
+
+## 26.11.3
+
+### Fonctionnalités
+
+- **Palette de commandes (`Ctrl+K`)** : recherche instantanée dans toutes les pages, réglages, profils, outils et actions rapides, pilotable au clavier (`↑↓`, `Entrée`, `Échap`) ou depuis la barre latérale.
+- **Applications › Mettre à jour** : nouvel onglet qui liste vos logiciels installés disposant d'une mise à jour via `winget`, avec version actuelle → disponible et mise à jour groupée en un clic. Catalogue d'installation enrichi de 6 logiciels (52 au total : LocalSend, LibreWolf, Paint.NET, Blender, RustDesk, WinSCP).
+- **Optimiser** : 8 réglages réversibles de plus (66 au total) : allégement d'Edge (barre latérale, shopping, télémétrie), synchro cloud du presse-papiers, offres OneDrive dans l'Explorateur, Galerie Windows 11, Aero Shake, messages détaillés au démarrage/arrêt, limitation énergétique des processus et VRR pour jeux fenêtrés. Bouton « Réinitialiser les filtres » quand aucun réglage ne correspond.
+- **Nettoyer** : nouvelle catégorie pour les caches d'applications courantes (Discord, Spotify, Steam, VS Code). Dans l'analyseur d'espace, bouton « Plus gros fichiers » (> 50 Mo) et bouton pour ouvrir n'importe quel dossier ou fichier dans l'Explorateur.
+- **Diagnostic** : nouvelles cartes « Réseau actif » (vitesse de liaison, IP, passerelle et batterie sur portable) et « Stabilité (30 derniers jours) » (arrêts imprévus Kernel-Power 41 et écrans bleus BugCheck 1001 lus dans le journal système), plus ouverture directe de l'emplacement des processus gourmands.
+- **Outils** : 3 nouveaux outils : déblocage de la file d'attente d'impression, diagnostic rapide de la connexion réseau et vérification de l'état d'activation de Windows.
+- **Accueil** : barre d'actions rapides en 4 raccourcis directs et état de la batterie sur PC portable.
+
+### Visuel et fluidité
+
+- **Mode léger adaptatif** : coupe le verre dépoli, le flou et les animations (activé automatiquement si Windows désactive les animations ou sans accélération matérielle, et basculable dans Outils ou `Ctrl+K`).
+- **Compromis verre dépoli / légèreté** : mise en cache GPU (`BitmapCache`) des halos ambiants et du logo, pinceaux figés et mis en cache dans la jauge circulaire et les courbes (zéro allocation par image), courbes lissées avec point lumineux en direct, transitions de page en douceur et survols fluides.
+- **Listes virtualisées** : défilement fluide au pixel avec recyclage des conteneurs sur Optimiser, Démarrage, Nettoyer et Applications.
+
+### Optimisations et correctifs
+
+- Démarrage plus rapide : les requêtes WMI de `SysInfo` tournent en parallèle ; le benchmark DNS interroge les 5 serveurs en parallèle (~5× plus rapide) ; l'analyse de nettoyage parallélise sur SSD et reste séquentielle sur disque dur mécanique (HDD).
+- L'échantillonnage toutes les 5 s sur l'Accueil (processus et espace disque) ne bloque plus le thread d'interface ; la mémoire est lue en un seul appel noyau.
+- Regroupement des écritures `state.json` (`BeginBatch`/`EndBatch`) lors de l'application d'un profil ou d'une annulation complète.
+- Correction de fuites de handles `Process` dans les mesures, le rapport système, la détection des navigateurs et le redémarrage de l'Explorateur ; identifiants de requêtes DNS sûrs en concurrence.
+- 11 auto-tests de plus (137 au total).
 
 ## 26.11.2
 

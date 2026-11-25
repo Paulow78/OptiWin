@@ -6,6 +6,7 @@
     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
       <RadioButton x:Name="TabRemove" Style="{StaticResource Pill}" GroupName="AppTabs" Content="Retirer" IsChecked="True"/>
       <RadioButton x:Name="TabInstall" Style="{StaticResource Pill}" GroupName="AppTabs" Content="Installer"/>
+      <RadioButton x:Name="TabUpgrade" Style="{StaticResource Pill}" GroupName="AppTabs" Content="Mettre à jour"/>
     </StackPanel>
   </StackPanel>
 
@@ -45,7 +46,10 @@
     <DockPanel>
       <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="20,12">
         <DockPanel>
-          <Button x:Name="BtnInstall" DockPanel.Dock="Right" Style="{StaticResource BtnPrimary}" Content="Installer la sélection" Padding="18,8" IsEnabled="False"/>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button x:Name="BtnInstallNone" Style="{StaticResource BtnGhost}" Content="Tout décocher" Margin="0,0,6,0" Visibility="Collapsed"/>
+            <Button x:Name="BtnInstall" Style="{StaticResource BtnPrimary}" Content="Installer la sélection" Padding="18,8" IsEnabled="False"/>
+          </StackPanel>
           <TextBox x:Name="InstallSearch" DockPanel.Dock="Right" Width="210" Margin="12,0" VerticalAlignment="Center" Tag="Rechercher un logiciel (Ctrl+F)"/>
           <StackPanel VerticalAlignment="Center">
             <TextBlock x:Name="InstallInfo" Text="Choisissez vos logiciels" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
@@ -79,6 +83,56 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
       </ScrollViewer>
+    </DockPanel>
+  </Grid>
+
+  <!-- Mettre à jour via winget -->
+  <Grid x:Name="PanelUpgrade" Visibility="Collapsed">
+    <DockPanel>
+      <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="20,12">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button x:Name="BtnUpgradeAll" Style="{StaticResource BtnGhost}" Content="Tout cocher" Margin="0,0,2,0"/>
+            <Button x:Name="BtnUpgradeNone" Style="{StaticResource BtnGhost}" Content="Tout décocher" Margin="0,0,8,0"/>
+            <Button x:Name="BtnUpgradeScan" Margin="0,0,8,0" ToolTip="F5">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoRefresh}"/><TextBlock Text="Rechercher" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+            <Button x:Name="BtnUpgradeRun" Style="{StaticResource BtnPrimary}" Padding="18,8" IsEnabled="False">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoArrowUp}"/><TextBlock Text="Mettre à jour" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+          </StackPanel>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock x:Name="UpgradeInfo" Text="Cliquez sur Rechercher pour vérifier vos logiciels" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
+            <TextBlock x:Name="UpgradeNote" Text="Utilise winget pour vérifier et installer les mises à jour depuis les sources officielles." Style="{StaticResource TxtSmall}"/>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+      <Grid>
+        <ItemsControl x:Name="UpgradeList" Style="{StaticResource VirtList}" Padding="32,0,32,28">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Style="{StaticResource Row}">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Margin="4,0,14,0">
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource TxtRow}"/>
+                    <TextBlock Text="{Binding Id}" Style="{StaticResource TxtSmall}"/>
+                  </StackPanel>
+                  <Border Grid.Column="2" Style="{StaticResource ChipBase}" Background="{DynamicResource AccentSoft}" Padding="9,3">
+                    <TextBlock Text="{Binding VersionSummary}" Style="{StaticResource ChipText}" Foreground="{DynamicResource Accent}"/>
+                  </Border>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock x:Name="UpgradeEmpty" Style="{StaticResource TxtEmpty}" VerticalAlignment="Top" Margin="0,42,0,0"/>
+      </Grid>
     </DockPanel>
   </Grid>
   </Grid>

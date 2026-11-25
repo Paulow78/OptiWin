@@ -16,9 +16,9 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("OptiTech")]
 [assembly: AssemblyProduct("OptiTech")]
 [assembly: AssemblyDescription("Optimisation de Windows et création de clés bootables")]
-[assembly: AssemblyVersion("26.11.2.0")]
-[assembly: AssemblyFileVersion("26.11.2.0")]
-[assembly: AssemblyInformationalVersion("26.11.2")]
+[assembly: AssemblyVersion("26.11.3.0")]
+[assembly: AssemblyFileVersion("26.11.3.0")]
+[assembly: AssemblyInformationalVersion("26.11.3")]
 
 namespace OptiTech
 {
@@ -147,6 +147,7 @@ namespace OptiTech
                 sh.Root.SetResourceReference(Panel.BackgroundProperty, "WinBg");
                 await Task.Delay(9000);
                 Save(sh, dir, "1-accueil");
+                sh.OpenPalette(); await Task.Delay(400); Save(sh, dir, "1b-palette"); sh.HideDemo();
                 sh.Go("optimize"); await Task.Delay(2000); Save(sh, dir, "2-optimiser");
                 sh.ShowProfile(Prof.OldPc); await Task.Delay(500); Save(sh, dir, "2b-plan"); sh.HideDemo();
                 sh.Go("clean"); await Task.Delay(9000); Save(sh, dir, "3-nettoyer");

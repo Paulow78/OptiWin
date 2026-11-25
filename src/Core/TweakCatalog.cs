@@ -144,6 +144,11 @@ namespace OptiTech
                   Risk.Moderate, Prof.None, Effect.Reboot,
                   M(@"SYSTEM\CurrentControlSet\Control\FileSystem", "NtfsMemoryUsage", 2, null)).If(() => SysInfo.Current.Ram >= 15L << 30),
 
+                T("perf.throttling", CatPerf, "Désactiver la limitation énergétique des processus",
+                  "Empêche Windows de brider la fréquence CPU des tâches en arrière-plan (audio, rendu, streaming). Réservé aux PC fixes.",
+                  Risk.Moderate, Prof.None, Effect.Reboot,
+                  M(@"SYSTEM\CurrentControlSet\Control\Power\PowerThrottling", "PowerThrottlingOff", 1, null)).If(() => Desktop),
+
                 // ───────────── JEUX ─────────────
                 T("game.mode", CatGame, "Activer le mode Jeu",
                   "Windows donne la priorité au jeu et suspend les mises à jour de pilotes pendant la partie.",
@@ -162,6 +167,11 @@ namespace OptiTech
                   "Réduit la latence lorsque la carte graphique et son pilote le gèrent. Sans effet sinon.",
                   Risk.Moderate, Prof.Gaming, Effect.Reboot,
                   M(@"SYSTEM\CurrentControlSet\Control\GraphicsDrivers", "HwSchMode", 2, 1)).MinB(19041),
+
+                T("game.vrr", CatGame, "Optimisations pour les jeux fenêtrés (VRR)",
+                  "Active le taux de rafraîchissement variable et réduit la latence d'affichage des jeux en fenêtre sans bordure.",
+                  Risk.Safe, Prof.Gaming, Effect.Reboot,
+                  U(@"Software\Microsoft\DirectX\UserGpuPreferences", "DirectXUserGlobalSettings", "VRROptimizeEnable=1;SwapEffectUpgradeEnable=1;", null)).MinB(22621),
 
                 T("game.mouse", CatGame, "Souris sans accélération",
                   "Le déplacement du curseur devient proportionnel au geste. Précieux pour viser.",
@@ -287,6 +297,19 @@ namespace OptiTech
                   Risk.Safe, Prof.Privacy, Effect.Immediate,
                   M(POL + @"\Windows Error Reporting", "Disabled", 1, null)),
 
+                T("priv.edge_extras", CatPriv, "Alléger Microsoft Edge (barre latérale et suivi)",
+                  "Coupe la barre latérale, l'assistant shopping et la télémétrie d'Edge via ses stratégies officielles.",
+                  Risk.Safe, Prof.Privacy | Prof.Fresh, Effect.Immediate,
+                  M(@"SOFTWARE\Policies\Microsoft\Edge", "HubsSidebarEnabled", 0, null),
+                  M(@"SOFTWARE\Policies\Microsoft\Edge", "EdgeShoppingAssistantEnabled", 0, null),
+                  M(@"SOFTWARE\Policies\Microsoft\Edge", "PersonalizationReportingEnabled", 0, null),
+                  M(@"SOFTWARE\Policies\Microsoft\Edge", "DiagnosticData", 0, null)),
+
+                T("priv.clipboard", CatPriv, "Couper la synchro cloud du presse-papiers",
+                  "Empêche Windows d'envoyer ce que vous copiez dans le cloud Microsoft.",
+                  Risk.Safe, Prof.Privacy, Effect.Immediate,
+                  M(POL + @"\System", "AllowCrossDeviceClipboard", 0, null)),
+
                 T("priv.location", CatPriv, "Refuser la localisation aux applications",
                   "Coupe l'accès à la position pour toutes les applications. La météo locale et « Localiser mon appareil » cesseront de fonctionner.",
                   Risk.Moderate, Prof.None, Effect.Immediate,
@@ -305,6 +328,14 @@ namespace OptiTech
                   Risk.Safe, Prof.Fresh, Effect.Explorer,
                   new RegOp(RegistryHive.CurrentUser, @"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32", "", RegistryValueKind.String, "", null)
                       .PruneUpTo(@"Software\Classes\CLSID")).MinB(22000),
+                T("ui.sync_ads", CatUi, "Masquer les offres OneDrive dans l'Explorateur",
+                  "Supprime les bandeaux promotionnels de stockage cloud dans les fenêtres de l'Explorateur.",
+                  Risk.Safe, Prof.Fresh | Prof.Privacy, Effect.Explorer, U(ADV, "ShowSyncProviderNotifications", 0, 1)),
+                T("ui.gallery", CatUi, "Masquer « Galerie » dans l'Explorateur",
+                  "Retire l'entrée Galerie du volet de navigation de l'Explorateur Windows 11.",
+                  Risk.Safe, Prof.None, Effect.Explorer,
+                  U(@"Software\Classes\CLSID\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}", "System.IsPinnedToNameSpaceTree", 0, null)
+                      .PruneUpTo(@"Software\Classes\CLSID")).MinB(22631),
                 T("ui.left", CatUi, "Barre des tâches alignée à gauche", "Replace le menu Démarrer dans le coin, comme sur Windows 10.",
                   Risk.Safe, Prof.None, Effect.Immediate, U(ADV, "TaskbarAl", 0, 1)).MinB(22000),
                 T("ui.taskview", CatUi, "Masquer le bouton Vue des tâches", "Libère de la place dans la barre des tâches.",
@@ -319,12 +350,19 @@ namespace OptiTech
                   Risk.Safe, Prof.None, Effect.Immediate, U(THEME, "AppsUseLightTheme", 0, 1), U(THEME, "SystemUsesLightTheme", 0, 1)),
                 T("ui.sticky", CatUi, "Couper l'alerte des touches rémanentes", "Plus de fenêtre après cinq appuis sur Maj, notamment en jeu.",
                   Risk.Safe, Prof.Gaming, Effect.Logoff, U(@"Control Panel\Accessibility\StickyKeys", "Flags", "506", "510")),
+                T("ui.shake", CatUi, "Désactiver « Secouer pour réduire »",
+                  "Empêche de réduire toutes les autres fenêtres par accident en déplaçant une fenêtre rapidement.",
+                  Risk.Safe, Prof.None, Effect.Explorer, U(ADV, "DisallowShaking", 1, 0)),
                 T("ui.nag", CatUi, "Supprimer « Finalisons la configuration »",
                   "Cet écran plein écran qui réapparaît après les mises à jour pour vendre des services Microsoft.",
                   Risk.Safe, Prof.Fresh | Prof.Privacy, Effect.Immediate,
                   U(@"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement", "ScoobeSystemSettingEnabled", 0, null)),
                 T("ui.longpaths", CatUi, "Autoriser les chemins de plus de 260 caractères", "Évite des erreurs de copie sur les arborescences profondes.",
                   Risk.Safe, Prof.Fresh, Effect.Immediate, M(@"SYSTEM\CurrentControlSet\Control\FileSystem", "LongPathsEnabled", 1, 0)),
+                T("ui.verbose_boot", CatUi, "Messages détaillés au démarrage et à l'arrêt",
+                  "Affiche l'étape précise en cours au lieu d'un simple « Préparation de Windows » : pratique pour repérer ce qui bloque.",
+                  Risk.Safe, Prof.None, Effect.Reboot,
+                  M(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System", "VerboseStatus", 1, null)),
                 T("ui.seconds", CatUi, "Afficher les secondes dans l'horloge", "Dans la barre des tâches, à côté de l'heure. Réveille l'écran un peu plus souvent : à éviter sur batterie.",
                   Risk.Safe, Prof.None, Effect.Explorer, U(ADV, "ShowSecondsInSystemClock", 1, 0)),
                 T("ui.compact", CatUi, "Explorateur en affichage compact", "Resserre les lignes de l'Explorateur de Windows 11, comme sur Windows 10.",

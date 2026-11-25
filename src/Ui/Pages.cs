@@ -25,6 +25,7 @@ namespace OptiTech
         readonly DispatcherTimer timer;
         Prof recommended = Prof.Fresh;
         int tick;
+        bool slowSampling;
 
         public HomePage()
         {
@@ -36,6 +37,10 @@ namespace OptiTech
             profName = F<TextBlock>("ProfileName"); profReason = F<TextBlock>("ProfileReason");
             diskBar = F<ProgressBar>("DiskBar"); insights = F<ItemsControl>("Insights"); facts = F<ItemsControl>("Facts");
             F<Button>("BtnOptimize").Click += delegate { Shell.I.ShowProfile(recommended); };
+            F<Button>("QaClean").Click += delegate { Shell.I.Go("clean"); };
+            F<Button>("QaUpgrades").Click += delegate { Shell.I.PageOf<AppsPage>("apps").ShowTab(2); };
+            F<Button>("QaDns").Click += delegate { Shell.I.Go("tools"); };
+            F<Button>("QaDiag").Click += delegate { Shell.I.Go("diagnostic"); };
             timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             timer.Tick += delegate { Sample(); };
             SysInfo.CpuLoad();
@@ -56,24 +61,47 @@ namespace OptiTech
         void Sample()
         {
             var c = SysInfo.CpuLoad();
-            var r = SysInfo.RamLoad();
+            int r; long used, total;
+            SysInfo.ReadMemory(out r, out used, out total);
             cpu.Push(c); ram.Push(r);
             cpuVal.Text = Fmt.Num(c, "0") + " %";
-            ramVal.Text = Fmt.Size(SysInfo.RamUsed());
+            ramVal.Text = Fmt.Size(used);
             ramLabel.Text = "Mémoire · " + r + " %";
             if (tick++ % 5 == 0)
             {
                 uptimeVal.Text = Fmt.Span(SysInfo.Uptime);
-                procSub.Text = ProcessCount() + " processus";
-                try
+                if (!slowSampling)
                 {
-                    var d = SysInfo.SystemDrive;
-                    diskLabel.Text = "Disque système (" + d.Name.TrimEnd('\\') + ")";
-                    diskVal.Text = Fmt.Size(d.AvailableFreeSpace);
-                    diskBar.Value = 100.0 * (d.TotalSize - d.AvailableFreeSpace) / d.TotalSize;
-                    diskSub.Text = "libres sur " + Fmt.Size(d.TotalSize);
+                    slowSampling = true;
+                    // Compte des processus et lecture du disque hors du thread UI : zéro micro-saccade.
+                    Task.Factory.StartNew(() =>
+                    {
+                        var procs = ProcessCount();
+                        string drive = null; long free = -1, tot = -1;
+                        try
+                        {
+                            var d = SysInfo.SystemDrive;
+                            drive = d.Name.TrimEnd('\\');
+                            free = d.AvailableFreeSpace;
+                            tot = d.TotalSize;
+                        }
+                        catch { }
+                        return new { procs, drive, free, tot };
+                    }).ContinueWith(t =>
+                    {
+                        slowSampling = false;
+                        if (t.IsFaulted) return;
+                        var res = t.Result;
+                        procSub.Text = res.procs + " processus";
+                        if (res.drive != null && res.tot > 0)
+                        {
+                            diskLabel.Text = "Disque système (" + res.drive + ")";
+                            diskVal.Text = Fmt.Size(res.free);
+                            diskBar.Value = 100.0 * (res.tot - res.free) / res.tot;
+                            diskSub.Text = "libres sur " + Fmt.Size(res.tot);
+                        }
+                    }, TaskScheduler.FromCurrentSynchronizationContext());
                 }
-                catch { }
             }
         }
 
@@ -118,6 +146,9 @@ namespace OptiTech
                     new KeyValuePair<string,string>("Disque système", r.s.DiskModel + " (" + r.s.DiskType + "), santé : " + r.s.DiskHealth),
                     new KeyValuePair<string,string>("Démarrage", (r.s.IsUefi ? "UEFI" : "BIOS") + ", Secure Boot " + (r.s.SecureBoot ? "actif" : "inactif")),
                 };
+                int batPct; bool ac, chg;
+                if (SysInfo.ReadBattery(out batPct, out ac, out chg))
+                    f.Add(new KeyValuePair<string, string>("Batterie", batPct + " % (" + (chg ? "en charge" : ac ? "sur secteur" : "sur batterie") + ")"));
                 if (r.s.InstalledOn.HasValue) f.Add(new KeyValuePair<string, string>("Windows installé le", Fmt.Date(r.s.InstalledOn.Value)));
                 if (r.last != null) f.Add(new KeyValuePair<string, string>("Dernier nettoyage", Fmt.When(r.last.When) + " — " + r.last.Action));
                 facts.ItemsSource = f;
@@ -130,7 +161,8 @@ namespace OptiTech
     {
         readonly ItemsControl list; readonly TextBox search; readonly Panel cats; readonly ComboBox stateFilter;
         readonly Border pendingBar; readonly TextBlock pendingText, countText, emptyText; readonly Button btnExplorer;
-        readonly DispatcherTimer searchTimer;
+        readonly FrameworkElement emptyBox;
+        readonly RadioButton catAll;
         string cat = "Tous";
         bool needExplorer, needLogoff, needReboot;
 
@@ -139,7 +171,7 @@ namespace OptiTech
             View = (FrameworkElement)Ui.Load("PageOptimize.xaml");
             list = F<ItemsControl>("List"); search = F<TextBox>("Search"); cats = F<Panel>("Cats"); stateFilter = F<ComboBox>("StateFilter");
             pendingBar = F<Border>("PendingBar"); pendingText = F<TextBlock>("PendingText"); btnExplorer = F<Button>("BtnRestartExplorer");
-            countText = F<TextBlock>("CountText"); emptyText = F<TextBlock>("EmptyText");
+            countText = F<TextBlock>("CountText"); emptyText = F<TextBlock>("EmptyText"); emptyBox = F<FrameworkElement>("EmptyBox");
 
             F<Button>("ProfOld").Click += delegate { Shell.I.ShowProfile(Prof.OldPc); };
             F<Button>("ProfFresh").Click += delegate { Shell.I.ShowProfile(Prof.Fresh); };
@@ -152,16 +184,15 @@ namespace OptiTech
             {
                 var label = c;
                 var r = new RadioButton { Content = label, Style = style, GroupName = "TweakCats", IsChecked = label == "Tous" };
+                if (label == "Tous") catAll = r;
                 r.Checked += delegate { cat = label; Refresh(); };
                 cats.Children.Add(r);
             }
             stateFilter.ItemsSource = new[] { "Tous les états", "Appliqués", "Non appliqués" };
             stateFilter.SelectedIndex = 0;
             stateFilter.SelectionChanged += delegate { Refresh(); };
-            // La liste n'est refaite qu'une fois la frappe terminée : chaque lettre ne reconstruit pas 58 lignes.
-            searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(140) };
-            searchTimer.Tick += delegate { searchTimer.Stop(); Refresh(); };
-            search.TextChanged += delegate { searchTimer.Stop(); searchTimer.Start(); };
+            Ui.Debounce(search, 140, Refresh);
+            F<Button>("BtnResetFilter").Click += delegate { ResetFilters(); };
             btnExplorer.Click += async delegate
             {
                 btnExplorer.IsEnabled = false;
@@ -172,6 +203,27 @@ namespace OptiTech
                 Shell.I.Toast("Explorateur redémarré.");
             };
             MarkRecommended();
+        }
+
+        void ResetFilters()
+        {
+            cat = "Tous";
+            if (catAll != null) catAll.IsChecked = true;
+            stateFilter.SelectedIndex = 0;
+            search.Text = "";
+            Refresh();
+        }
+
+        /// <summary>Appelé par la palette de commandes (Ctrl+K) pour afficher directement un réglage.</summary>
+        public void FocusSearch(string query)
+        {
+            cat = "Tous";
+            if (catAll != null) catAll.IsChecked = true;
+            stateFilter.SelectedIndex = 0;
+            search.Text = query ?? "";
+            Refresh();
+            search.Focus();
+            search.SelectAll();
         }
 
         /// <summary>Signale, sur sa carte, le profil que l'accueil conseille pour ce PC.</summary>
@@ -203,7 +255,7 @@ namespace OptiTech
                 && (state <= 0 || (state == 1) == t.IsApplied)
                 && TweakCatalog.Matches(t, q)).ToList();
             list.ItemsSource = shown;
-            emptyText.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            emptyBox.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             emptyText.Text = q.Length > 0 ? "Aucun réglage ne correspond à « " + q + " »." : "Aucun réglage dans cette sélection.";
             UpdateCount(shown.Count);
         }
@@ -241,17 +293,18 @@ namespace OptiTech
     public sealed class CleanPage : Page
     {
         readonly List<CleanCat> catsAll = Cleaner.BuildCatalog();
-        readonly TextBlock total, sub, analyzePath;
-        readonly Button btnScan, btnClean, btnAnalyze, btnUp;
+        readonly TextBlock total, sub, analyzePath, topFilesLabel;
+        readonly Button btnScan, btnClean, btnAnalyze, btnUp, btnTopFiles;
         readonly ItemsControl analyzeList;
         readonly ComboBox driveCombo;
         readonly ProgressBar analyzeBar;
-        bool scanned, scanning;
-        DirNode node;
+        bool scanned, scanning, showingTop;
+        DirNode scanRoot, node;
         CancellationTokenSource analyzeCts;
         HistoryEntry lastCleanup;
 
         public ICommand Open { get; private set; }
+        public ICommand Reveal { get; private set; }
 
         public CleanPage()
         {
@@ -274,13 +327,16 @@ namespace OptiTech
             F<RadioButton>("TabAnalyze").Checked += delegate { panelClean.Visibility = Visibility.Collapsed; panelAnalyze.Visibility = Visibility.Visible; };
 
             analyzeList = F<ItemsControl>("AnalyzeList"); driveCombo = F<ComboBox>("DriveCombo"); analyzePath = F<TextBlock>("AnalyzePath");
-            btnAnalyze = F<Button>("BtnAnalyze"); btnUp = F<Button>("BtnUp"); analyzeBar = F<ProgressBar>("AnalyzeBar");
+            btnAnalyze = F<Button>("BtnAnalyze"); btnUp = F<Button>("BtnUp"); btnTopFiles = F<Button>("BtnTopFiles"); topFilesLabel = F<TextBlock>("TopFilesLabel");
+            analyzeBar = F<ProgressBar>("AnalyzeBar");
             Open = new RelayCommand(o => OpenNode(o as DirNode));
+            Reveal = new RelayCommand(o => RevealNode(o as DirNode));
             analyzeList.DataContext = this;
             driveCombo.ItemsSource = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).Select(d => d.Name).ToList();
             driveCombo.SelectedIndex = 0;
             btnAnalyze.Click += delegate { Analyze(); };
-            btnUp.Click += delegate { if (node != null && node.Parent != null) ShowNode(node.Parent); };
+            btnUp.Click += delegate { if (showingTop && node != null) ShowNode(node); else if (node != null && node.Parent != null) ShowNode(node.Parent); };
+            btnTopFiles.Click += delegate { ToggleTopFiles(); };
         }
 
         public override void OnShow() { if (!scanned && !scanning) Scan(); }
@@ -307,14 +363,16 @@ namespace OptiTech
             UpdateTotal();
             Task.Factory.StartNew(() =>
             {
-                foreach (var c in catsAll)
+                // Sur SSD : jusqu'à 4 analyses en parallèle pour un résultat quasi-instantané ; sur HDD : 1 à la fois.
+                var dop = SysInfo.Current.SystemDiskIsHdd ? 1 : Math.Min(4, Math.Max(1, Environment.ProcessorCount));
+                Parallel.ForEach(catsAll, new ParallelOptions { MaxDegreeOfParallelism = dop }, c =>
                 {
                     if (!c.SizeUnknown) c.Status = "Analyse…";
                     long n = 0;
                     try { n = c.Scanner(CancellationToken.None); } catch (Exception e) { Logger.Error("Analyse " + c.Id, e); }
                     c.Size = n;
                     c.Status = "";
-                }
+                });
             }).ContinueWith(_ =>
             {
                 scanning = false; scanned = true;
@@ -368,6 +426,9 @@ namespace OptiTech
             analyzeCts = new CancellationTokenSource();
             var ct = analyzeCts.Token;
             btnAnalyze.Content = "Arrêter";
+            btnTopFiles.IsEnabled = false;
+            showingTop = false;
+            topFilesLabel.Text = "Plus gros fichiers";
             analyzeBar.Visibility = Visibility.Visible;
             analyzeList.ItemsSource = null;
             DateTime last = DateTime.MinValue;
@@ -382,27 +443,52 @@ namespace OptiTech
                 btnAnalyze.Content = "Analyser";
                 analyzeBar.Visibility = Visibility.Collapsed;
                 if (t.IsCanceled || t.IsFaulted) { analyzePath.Text = t.IsFaulted ? t.Exception.GetBaseException().Message : "Analyse arrêtée."; return; }
-                ShowNode(t.Result);
+                scanRoot = t.Result;
+                btnTopFiles.IsEnabled = true;
+                ShowNode(scanRoot);
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         void ShowNode(DirNode n)
         {
+            showingTop = false;
+            topFilesLabel.Text = "Plus gros fichiers";
             node = n;
             analyzeList.ItemsSource = n.Kids.Take(200).ToList();
             analyzePath.Text = n.FullPath + " — " + Fmt.Size(n.Size) + (Os.IsAdmin ? "" : " (dossiers protégés non comptés hors mode administrateur)");
             btnUp.IsEnabled = n.Parent != null;
         }
 
+        void ToggleTopFiles()
+        {
+            if (scanRoot == null) return;
+            if (showingTop) { ShowNode(node ?? scanRoot); return; }
+            showingTop = true;
+            topFilesLabel.Text = "Vue dossiers";
+            var top = DiskAnalyzer.TopFiles(scanRoot, 100);
+            analyzeList.ItemsSource = top;
+            analyzePath.Text = top.Count == 0
+                ? "Aucun fichier de plus de 50 Mo repéré sur " + scanRoot.FullPath + "."
+                : Fmt.N(top.Count, "gros fichier") + " (> 50 Mo) sur " + scanRoot.FullPath + " — total " + Fmt.Size(top.Sum(f => f.Size));
+            btnUp.IsEnabled = true;
+        }
+
         void OpenNode(DirNode n)
         {
             if (n == null) return;
-            if (n.IsFile)
-            {
-                try { Process.Start("explorer.exe", File.Exists(n.FullPath) ? "/select,\"" + n.FullPath + "\"" : "\"" + n.FullPath + "\""); } catch { }
-                return;
-            }
+            if (n.IsFile) { RevealNode(n); return; }
             if (n.Kids.Count > 0) ShowNode(n);
+        }
+
+        void RevealNode(DirNode n)
+        {
+            if (n == null || string.IsNullOrEmpty(n.FullPath)) return;
+            try
+            {
+                if (File.Exists(n.FullPath)) Process.Start("explorer.exe", "/select,\"" + n.FullPath + "\"");
+                else if (Directory.Exists(n.FullPath)) Process.Start("explorer.exe", "\"" + n.FullPath + "\"");
+            }
+            catch { }
         }
     }
 
@@ -418,7 +504,7 @@ namespace OptiTech
             list = F<ItemsControl>("List"); sub = F<TextBlock>("Sub"); emptyText = F<TextBlock>("EmptyText");
             search = F<TextBox>("Search"); btnUseless = F<Button>("BtnUseless");
             F<Button>("BtnRefresh").Click += delegate { Load(); };
-            search.TextChanged += delegate { Filter(); };
+            Ui.Debounce(search, 120, Filter);
             btnUseless.Click += delegate { CutUseless(); };
         }
 
@@ -479,34 +565,61 @@ namespace OptiTech
     // ─────────────────────────── Applications ───────────────────────────
     public sealed class AppsPage : Page
     {
-        readonly ItemsControl removeList, installGroups;
-        readonly TextBlock removeInfo, installInfo, installNote;
-        readonly Button btnRemove, btnInstall;
+        readonly ItemsControl removeList, installGroups, upgradeList;
+        readonly TextBlock removeInfo, installInfo, installNote, upgradeInfo, upgradeNote, upgradeEmpty;
+        readonly Button btnRemove, btnInstall, btnInstallNone, btnUpgradeScan, btnUpgradeRun;
         readonly TextBox installSearch;
-        readonly Grid panelInstall;
+        readonly Grid panelRemove, panelInstall, panelUpgrade;
+        readonly RadioButton tabRemove, tabInstall, tabUpgrade;
         List<BloatApp> bloat = new List<BloatApp>();
+        List<UpgradeApp> upgrades = new List<UpgradeApp>();
         readonly List<SoftApp> soft = AppsCatalog.Software();
-        bool loaded, wingetChecked, wingetOk;
+        bool loaded, wingetChecked, wingetOk, upgradeBusy, upgradeScanned;
 
         public AppsPage()
         {
             View = (FrameworkElement)Ui.Load("PageApps.xaml");
-            removeList = F<ItemsControl>("RemoveList"); installGroups = F<ItemsControl>("InstallGroups");
+            removeList = F<ItemsControl>("RemoveList"); installGroups = F<ItemsControl>("InstallGroups"); upgradeList = F<ItemsControl>("UpgradeList");
             removeInfo = F<TextBlock>("RemoveInfo"); installInfo = F<TextBlock>("InstallInfo"); installNote = F<TextBlock>("InstallNote");
-            btnRemove = F<Button>("BtnRemove"); btnInstall = F<Button>("BtnInstall"); installSearch = F<TextBox>("InstallSearch");
-            var pr = F<Grid>("PanelRemove"); panelInstall = F<Grid>("PanelInstall");
-            var pi = panelInstall;
-            F<RadioButton>("TabRemove").Checked += delegate { pr.Visibility = Visibility.Visible; pi.Visibility = Visibility.Collapsed; };
-            F<RadioButton>("TabInstall").Checked += delegate { pr.Visibility = Visibility.Collapsed; pi.Visibility = Visibility.Visible; CheckWinget(); };
+            upgradeInfo = F<TextBlock>("UpgradeInfo"); upgradeNote = F<TextBlock>("UpgradeNote"); upgradeEmpty = F<TextBlock>("UpgradeEmpty");
+            btnRemove = F<Button>("BtnRemove"); btnInstall = F<Button>("BtnInstall"); btnInstallNone = F<Button>("BtnInstallNone");
+            btnUpgradeScan = F<Button>("BtnUpgradeScan"); btnUpgradeRun = F<Button>("BtnUpgradeRun");
+            installSearch = F<TextBox>("InstallSearch");
+            panelRemove = F<Grid>("PanelRemove"); panelInstall = F<Grid>("PanelInstall"); panelUpgrade = F<Grid>("PanelUpgrade");
+            tabRemove = F<RadioButton>("TabRemove"); tabInstall = F<RadioButton>("TabInstall"); tabUpgrade = F<RadioButton>("TabUpgrade");
+
+            tabRemove.Checked += delegate { ShowTab(0); };
+            tabInstall.Checked += delegate { ShowTab(1); };
+            tabUpgrade.Checked += delegate { ShowTab(2); };
             FilterInstall();
-            installSearch.TextChanged += delegate { FilterInstall(); };
+            Ui.Debounce(installSearch, 120, FilterInstall);
             foreach (var s in soft) s.PropertyChanged += delegate { UpdateInstall(); };
             btnRemove.Click += delegate { Remove(); };
             btnInstall.Click += delegate { Install(); };
+            btnInstallNone.Click += delegate { foreach (var s in soft) s.Selected = false; };
+            F<Button>("BtnUpgradeAll").Click += delegate { foreach (var u in upgrades) u.Selected = true; };
+            F<Button>("BtnUpgradeNone").Click += delegate { foreach (var u in upgrades) u.Selected = false; };
+            btnUpgradeScan.Click += delegate { ScanUpgrades(); };
+            btnUpgradeRun.Click += delegate { RunUpgrades(); };
+        }
+
+        public void ShowTab(int idx)
+        {
+            panelRemove.Visibility = idx == 0 ? Visibility.Visible : Visibility.Collapsed;
+            panelInstall.Visibility = idx == 1 ? Visibility.Visible : Visibility.Collapsed;
+            panelUpgrade.Visibility = idx == 2 ? Visibility.Visible : Visibility.Collapsed;
+            if (idx == 0 && tabRemove.IsChecked != true) tabRemove.IsChecked = true;
+            else if (idx == 1 && tabInstall.IsChecked != true) tabInstall.IsChecked = true;
+            else if (idx == 2 && tabUpgrade.IsChecked != true) tabUpgrade.IsChecked = true;
+            if (idx == 1 || idx == 2) CheckWinget(idx == 2);
         }
 
         public override void OnShow() { if (!loaded) LoadBloat(); }
-        public override void OnRefresh() { LoadBloat(); }
+        public override void OnRefresh()
+        {
+            if (panelUpgrade.IsVisible) ScanUpgrades();
+            else LoadBloat();
+        }
         public override bool OnFind()
         {
             if (!panelInstall.IsVisible) return false;
@@ -563,19 +676,27 @@ namespace OptiTech
             }, delegate { LoadBloat(); });
         }
 
-        void CheckWinget()
+        void CheckWinget(bool autoScanUpgrades)
         {
-            if (wingetChecked) return;
+            if (wingetChecked)
+            {
+                if (autoScanUpgrades && wingetOk && !upgradeScanned && !upgradeBusy) ScanUpgrades();
+                return;
+            }
             wingetChecked = true;
             Task.Factory.StartNew(() => AppsCatalog.WingetAvailable()).ContinueWith(t =>
             {
-                wingetOk = t.Result;
+                wingetOk = !t.IsFaulted && t.Result;
                 if (!wingetOk)
                 {
                     installInfo.Text = "winget n'est pas disponible sur ce PC";
                     installNote.Text = "Installez ou mettez à jour « Programme d'installation d'application » depuis le Microsoft Store, puis relancez OptiTech.";
+                    upgradeInfo.Text = "winget n'est pas disponible sur ce PC";
+                    upgradeNote.Text = installNote.Text;
                 }
+                else if (autoScanUpgrades && !upgradeScanned && !upgradeBusy) ScanUpgrades();
                 UpdateInstall();
+                UpdateUpgrades();
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
@@ -584,6 +705,7 @@ namespace OptiTech
             var n = soft.Count(s => s.Selected);
             if (wingetOk || !wingetChecked) installInfo.Text = n == 0 ? "Choisissez vos logiciels" : n + " logiciel" + (n > 1 ? "s" : "") + " à installer";
             btnInstall.IsEnabled = n > 0 && wingetOk;
+            btnInstallNone.Visibility = n > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         async void Install()
@@ -603,6 +725,64 @@ namespace OptiTech
                 job.Progress(100);
                 job.Summary = failed.Count == 0 ? "Tout est installé." : "Échec pour : " + string.Join(", ", failed) + ".";
             });
+        }
+
+        void ScanUpgrades()
+        {
+            if (upgradeBusy) return;
+            if (wingetChecked && !wingetOk) { Shell.I.Toast("winget n'est pas disponible sur ce PC.", "warn"); return; }
+            upgradeBusy = true;
+            upgradeScanned = true;
+            btnUpgradeScan.IsEnabled = false;
+            btnUpgradeRun.IsEnabled = false;
+            upgradeInfo.Text = "Recherche des mises à jour disponibles…";
+            upgradeEmpty.Visibility = Visibility.Collapsed;
+            Task.Factory.StartNew(() => AppsCatalog.ListUpgrades(CancellationToken.None)).ContinueWith(t =>
+            {
+                upgradeBusy = false;
+                btnUpgradeScan.IsEnabled = true;
+                if (t.IsFaulted)
+                {
+                    upgradeInfo.Text = "Recherche impossible : " + t.Exception.GetBaseException().Message;
+                    return;
+                }
+                upgrades = t.Result;
+                foreach (var u in upgrades) u.PropertyChanged += delegate { UpdateUpgrades(); };
+                upgradeList.ItemsSource = upgrades;
+                UpdateUpgrades();
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        void UpdateUpgrades()
+        {
+            if (upgradeBusy || (wingetChecked && !wingetOk)) return;
+            var n = upgrades.Count(u => u.Selected);
+            upgradeEmpty.Visibility = upgradeScanned && upgrades.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            upgradeEmpty.Text = "Tous vos logiciels suivis par winget sont à jour.";
+            upgradeInfo.Text = !upgradeScanned ? "Cliquez sur Rechercher pour vérifier vos logiciels"
+                : upgrades.Count == 0 ? "Aucune mise à jour disponible"
+                : n + " sur " + Fmt.N(upgrades.Count, "mise à jour", "mises à jour") + " sélectionnée" + (n > 1 ? "s" : "");
+            btnUpgradeRun.IsEnabled = n > 0 && wingetOk;
+        }
+
+        async void RunUpgrades()
+        {
+            var sel = upgrades.Where(u => u.Selected).ToList();
+            if (sel.Count == 0) return;
+            await Shell.I.RunJob("Mise à jour de " + Fmt.N(sel.Count, "logiciel"), true, job =>
+            {
+                var failed = new List<string>();
+                for (int i = 0; i < sel.Count; i++)
+                {
+                    job.Token.ThrowIfCancellationRequested();
+                    job.Progress(100.0 * i / sel.Count);
+                    var code = AppsCatalog.Upgrade(sel[i], job);
+                    if (code != 0 && code != -1978335189) failed.Add(sel[i].Name);
+                    else Store.AddHistory("upgrade:" + sel[i].Id, "Mise à jour : " + sel[i].Name, sel[i].VersionSummary);
+                }
+                job.Progress(100);
+                job.Summary = failed.Count == 0 ? "Logiciels mis à jour." : "Échec pour : " + string.Join(", ", failed) + ".";
+            }, delegate { ScanUpgrades(); });
         }
     }
 
@@ -866,13 +1046,16 @@ namespace OptiTech
     {
         readonly ItemsControl dnsList;
         readonly TextBlock dnsCurrent;
+        readonly CheckBox chkLight;
         readonly List<DnsResult> dns = Dns.Candidates();
+        List<ToolAction> tools = new List<ToolAction>();
 
         public ToolsPage()
         {
             View = (FrameworkElement)Ui.Load("PageTools.xaml");
             LoadTools();
             dnsList = F<ItemsControl>("DnsList"); dnsCurrent = F<TextBlock>("DnsCurrent");
+            chkLight = F<CheckBox>("ChkLightweight");
             foreach (var d in dns)
             {
                 var item = d;
@@ -886,6 +1069,8 @@ namespace OptiTech
             var auto = F<CheckBox>("ChkAutoUpdate");
             auto.IsChecked = Updater.Auto;
             auto.Click += delegate { Updater.Auto = auto.IsChecked == true; };
+            chkLight.IsChecked = Ui.Lightweight;
+            chkLight.Click += delegate { Shell.I.SetLightweight(chkLight.IsChecked == true); };
             F<Button>("BtnDnsRestore").Click += async delegate
             {
                 if (!Os.IsAdmin) { Shell.I.Toast("Modifier le DNS demande le mode administrateur.", "warn"); return; }
@@ -896,7 +1081,7 @@ namespace OptiTech
         /// <summary>La liste est refaite après chaque outil : l'entretien automatique change de libellé selon son état.</summary>
         void LoadTools()
         {
-            var tools = Tools.Catalog().Where(t => t.Id != "battery" || SysInfo.Current.IsLaptop).ToList();
+            tools = Tools.Catalog().Where(t => t.Id != "battery" || SysInfo.Current.IsLaptop).ToList();
             foreach (var t in tools)
             {
                 var tool = t;
@@ -905,8 +1090,18 @@ namespace OptiTech
             F<ItemsControl>("ToolList").ItemsSource = tools;
         }
 
+        /// <summary>Appelé depuis la palette de commandes (Ctrl+K) pour lancer un outil directement.</summary>
+        public void LaunchById(string id)
+        {
+            var t = tools.FirstOrDefault(x => x.Id == id);
+            if (t == null) return;
+            if (!t.CanRun) { Shell.I.Toast(t.Title + " demande le mode administrateur.", "warn"); return; }
+            Launch(t);
+        }
+
         public override void OnShow()
         {
+            chkLight.IsChecked = Ui.Lightweight;
             RefreshDns();
             var list = F<ItemsControl>("Win11List");
             if (list.ItemsSource == null)
@@ -937,16 +1132,19 @@ namespace OptiTech
             var btn = F<Button>("BtnDnsTest");
             btn.IsEnabled = false;
             foreach (var d in dns) { d.Ms = -1; d.IsBest = false; }
-            Task.Factory.StartNew(() =>
+            // Les 5 serveurs DNS sont interrogés en parallèle : résultat ~5x plus rapide.
+            var tasks = dns.Select(d => Task.Factory.StartNew(() =>
             {
-                foreach (var d in dns) d.Ms = Dns.Measure(d.Primary, CancellationToken.None);
-            }).ContinueWith(_ =>
+                var ms = Dns.Measure(d.Primary, CancellationToken.None);
+                View.Dispatcher.BeginInvoke(new Action(() => d.Ms = ms));
+            })).ToArray();
+            Task.Factory.ContinueWhenAll(tasks, _ =>
             {
                 btn.IsEnabled = true;
                 var best = dns.Where(d => !double.IsInfinity(d.Ms) && d.Ms >= 0).OrderBy(d => d.Ms).FirstOrDefault();
                 if (best != null) best.IsBest = true;
                 else Shell.I.Toast("Aucun serveur n'a répondu : pare-feu ou connexion ?", "warn");
-            }, TaskScheduler.FromCurrentSynchronizationContext());
+            }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         async void ApplyDns(DnsResult d)
@@ -983,7 +1181,7 @@ namespace OptiTech
             activeList = F<ItemsControl>("ActiveList"); logList = F<ItemsControl>("LogList");
             count = F<TextBlock>("ActiveCount"); none = F<TextBlock>("NoneText"); logEmpty = F<TextBlock>("LogEmpty");
             logSearch = F<TextBox>("LogSearch");
-            logSearch.TextChanged += delegate { FilterLog(); };
+            Ui.Debounce(logSearch, 120, FilterLog);
             F<Button>("BtnExport").Click += delegate { Export(); };
             F<Button>("BtnOpenLogs").Click += delegate { try { Process.Start("explorer.exe", "\"" + Paths.Logs + "\""); } catch (Exception e) { Shell.I.Toast(e.Message, "bad"); } };
             F<Button>("BtnRstrui").Click += delegate { try { Process.Start("rstrui.exe"); } catch (Exception e) { Shell.I.Toast(e.Message, "bad"); } };
@@ -1067,16 +1265,21 @@ namespace OptiTech
             {
                 var ids = Store.BackupIds();
                 int fails = 0;
-                for (int i = 0; i < ids.Length; i++)
+                Store.BeginBatch();
+                try
                 {
-                    job.Token.ThrowIfCancellationRequested();
-                    var t = TweakCatalog.ById(ids[i]);
-                    if (t == null) continue;
-                    job.Status(t.Title);
-                    job.Progress(100.0 * i / ids.Length);
-                    try { TweakEngine.Revert(t); }
-                    catch (Exception e) { fails++; job.Log("  " + e.Message); }
+                    for (int i = 0; i < ids.Length; i++)
+                    {
+                        job.Token.ThrowIfCancellationRequested();
+                        var t = TweakCatalog.ById(ids[i]);
+                        if (t == null) continue;
+                        job.Status(t.Title);
+                        job.Progress(100.0 * i / ids.Length);
+                        try { TweakEngine.Revert(t); }
+                        catch (Exception e) { fails++; job.Log("  " + e.Message); }
+                    }
                 }
+                finally { Store.EndBatch(); }
                 job.Progress(100);
                 job.Summary = fails == 0 ? "Tout est revenu à l'état d'origine. Redémarrez pour finaliser." : fails + " réglage(s) n'ont pas pu être annulés : voir le journal.";
             }, delegate { Reload(); });
