@@ -84,41 +84,54 @@
       <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="16,12">
         <DockPanel>
           <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-            <ComboBox x:Name="DriveCombo" Width="190" Margin="0,0,8,0"/>
+            <ComboBox x:Name="DriveCombo" Width="130" Margin="0,0,8,0"/>
             <Button x:Name="BtnAnalyze" Style="{StaticResource BtnPrimary}" Content="Analyser" Margin="0,0,8,0"/>
-            <Button x:Name="BtnUp" IsEnabled="False">
+            <Button x:Name="BtnUp" IsEnabled="False" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoBack}"/><TextBlock Text="Remonter" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
             </Button>
+            <Button x:Name="BtnTopFiles" IsEnabled="False" ToolTip="Affiche directement les 100 plus gros fichiers (&gt; 50 Mo) de ce disque">
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFile}"/><TextBlock x:Name="TopFilesLabel" Text="Plus gros fichiers" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+            </Button>
           </StackPanel>
-          <TextBlock x:Name="AnalyzePath" Style="{StaticResource TxtSmall}" VerticalAlignment="Center" Margin="16,0,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+          <TextBlock x:Name="AnalyzePath" Style="{StaticResource TxtSmall}" VerticalAlignment="Center" Margin="14,0,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
         </DockPanel>
       </Border>
       <ProgressBar x:Name="AnalyzeBar" DockPanel.Dock="Top" IsIndeterminate="True" Margin="32,0,32,10" Visibility="Collapsed" Height="3"/>
-      <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-        <ItemsControl x:Name="AnalyzeList" Margin="32,0,32,28">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Button Tag="{Binding}" Margin="0,0,0,4" Padding="14,9" HorizontalContentAlignment="Stretch" Background="{DynamicResource Surface}" Command="{Binding DataContext.Open, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+      <ItemsControl x:Name="AnalyzeList" Style="{StaticResource VirtList}" Padding="32,0,32,28">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Grid Margin="0,0,0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Button Tag="{Binding}" Padding="14,9" HorizontalContentAlignment="Stretch" Background="{DynamicResource Surface}" Command="{Binding DataContext.Open, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
                 <Grid>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="26"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="160"/>
                     <ColumnDefinition Width="80"/>
                   </Grid.ColumnDefinitions>
                   <Path x:Name="I" Style="{StaticResource IcoSm}" Data="{StaticResource IcoFolder}" HorizontalAlignment="Left"/>
-                  <TextBlock Grid.Column="1" Text="{Binding Name}" Style="{StaticResource TxtBody}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource TxtBody}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                    <TextBlock Text="{Binding SubPath}" Style="{StaticResource TxtSmallAuto}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                  </StackPanel>
                   <ProgressBar Grid.Column="2" Value="{Binding Share}" Maximum="100" Margin="12,0"/>
                   <TextBlock Grid.Column="3" Text="{Binding SizeText}" Style="{StaticResource TxtBody}" FontWeight="SemiBold" TextAlignment="Right" VerticalAlignment="Center"/>
                 </Grid>
               </Button>
-              <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding IsFile}" Value="True"><Setter TargetName="I" Property="Data" Value="{StaticResource IcoFile}"/></DataTrigger>
-              </DataTemplate.Triggers>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </ScrollViewer>
+              <Button Grid.Column="1" Style="{StaticResource BtnIcon}" ToolTip="Ouvrir dans l'Explorateur" Command="{Binding DataContext.Reveal, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoExternal}"/>
+              </Button>
+            </Grid>
+            <DataTemplate.Triggers>
+              <DataTrigger Binding="{Binding IsFile}" Value="True"><Setter TargetName="I" Property="Data" Value="{StaticResource IcoFile}"/></DataTrigger>
+            </DataTemplate.Triggers>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </DockPanel>
   </Grid>
   </Grid>

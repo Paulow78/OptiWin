@@ -51,6 +51,8 @@
   <Geometry x:Key="IcoWifi">M5 12.55a11 11 0 0 1 14.08 0 M1.42 9a16 16 0 0 1 21.16 0 M8.53 16.11a6 6 0 0 1 6.95 0 M12 20h.01</Geometry>
   <Geometry x:Key="IcoArrowUp">M12 19V5 M5 12l7-7 7 7</Geometry>
   <Geometry x:Key="IcoExternal">M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3</Geometry>
+  <Geometry x:Key="IcoChevron">M9 6l6 6-6 6</Geometry>
+  <Geometry x:Key="IcoBattery">M3 7h15a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z M23 11v2</Geometry>
 
   <ScaleTransform x:Key="Scale18" ScaleX="0.75" ScaleY="0.75"/>
   <ScaleTransform x:Key="Scale14" ScaleX="0.6" ScaleY="0.6"/>
@@ -252,7 +254,14 @@
             </Grid>
           </Border>
           <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Opacity" Value="1"/></Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Trigger.EnterActions>
+                <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1"/></Storyboard></BeginStoryboard>
+              </Trigger.EnterActions>
+              <Trigger.ExitActions>
+                <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.14"/></Storyboard></BeginStoryboard>
+              </Trigger.ExitActions>
+            </Trigger>
             <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Opacity" Value="0.82"/></Trigger>
             <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter TargetName="B" Property="Opacity" Value="0.42"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
@@ -285,6 +294,67 @@
     <Setter Property="Padding" Value="6,5"/>
     <Setter Property="Margin" Value="6,0,0,0"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- Pastille de raccourci clavier (ex. Ctrl+K) -->
+  <Style x:Key="KbdBadge" TargetType="Border">
+    <Setter Property="CornerRadius" Value="5"/>
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="Background" Value="{DynamicResource KbdBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- Bouton de carte d'action rapide -->
+  <Style x:Key="QuickBtn" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+    <Setter Property="Background" Value="{DynamicResource Surface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+    <Setter Property="Padding" Value="14,11"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+  </Style>
+  <!-- Liste virtualisée à défilement fluide au pixel : ne crée que les lignes visibles -->
+  <Style x:Key="VirtList" TargetType="ItemsControl">
+    <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+    <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+    <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
+    <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="ItemsPanel">
+      <Setter.Value><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></Setter.Value>
+    </Setter>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ItemsControl">
+          <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}">
+            <ItemsPresenter/>
+          </ScrollViewer>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <!-- Élément de la palette de commandes (Ctrl+K) -->
+  <Style x:Key="PaletteItem" TargetType="ListBoxItem">
+    <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Margin" Value="0,0,0,2"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Border x:Name="B" CornerRadius="10" Padding="12,9" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+            <ContentPresenter/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource HoverLayer}"/></Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="B" Property="Background" Value="{DynamicResource SelectedLayer}"/>
+              <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource GlassBorder}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
   <!-- Pastille d'icône sur fond accentué, pour les cartes d'outils -->
   <Style x:Key="IconBadge" TargetType="Border">
@@ -523,7 +593,7 @@
           <Border x:Name="B" CornerRadius="8" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1">
             <Grid>
               <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Focusable="False"/>
-              <TextBlock x:Name="Ph" Text="{TemplateBinding Tag}" Margin="12,0,10,0" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource TextFaint}" IsHitTestVisible="False" Visibility="Collapsed" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="Ph" Text="{TemplateBinding Tag}" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource TextFaint}" IsHitTestVisible="False" Visibility="Collapsed" TextTrimming="CharacterEllipsis"/>
             </Grid>
           </Border>
           <ControlTemplate.Triggers>

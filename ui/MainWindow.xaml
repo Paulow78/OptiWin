@@ -15,8 +15,9 @@
       <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
 
-    <!-- Halos de couleur : c'est eux que l'on devine à travers les surfaces de verre -->
-    <Grid Grid.ColumnSpan="2" ClipToBounds="True" IsHitTestVisible="False">
+    <!-- Halos de couleur : mis en cache GPU une seule fois pour rester ultra-fluide -->
+    <Grid x:Name="AmbientLayer" Grid.ColumnSpan="2" ClipToBounds="True" IsHitTestVisible="False">
+      <Grid.CacheMode><BitmapCache/></Grid.CacheMode>
       <Ellipse Width="620" Height="620" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-220,-240,0,0" Fill="{DynamicResource AmbientA}"/>
       <Ellipse Width="760" Height="760" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-260,-320" Fill="{DynamicResource AmbientB}"/>
       <Ellipse Width="560" Height="560" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-200,120,0" Fill="{DynamicResource AmbientC}"/>
@@ -26,32 +27,49 @@
     <!-- Barre latérale -->
     <Border Background="{DynamicResource SidebarBg}">
       <DockPanel Margin="12,0,12,14">
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,18,0,10" ToolTipService.InitialShowDelay="600">
-          <StackPanel.ToolTip>
-            <TextBlock>
-              <Run Text="Raccourcis clavier" FontWeight="SemiBold"/><LineBreak/>
-              <Run Text="Ctrl+1 à Ctrl+0 : changer de page"/><LineBreak/>
-              <Run Text="F5 : actualiser la page"/><LineBreak/>
-              <Run Text="Ctrl+F : chercher dans la page"/><LineBreak/>
-              <Run Text="Ctrl+T : changer de thème"/><LineBreak/>
-              <Run Text="Échap : fermer un dialogue"/>
-            </TextBlock>
-          </StackPanel.ToolTip>
-          <!-- Logo : pastille de verre teintée, reflet en haut, éclair blanc -->
-          <Grid Width="36" Height="36">
-            <Border CornerRadius="11" Background="{DynamicResource LogoGradient}">
-              <Border.Effect><DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.45" Color="#4F8CFF"/></Border.Effect>
-            </Border>
-            <Border CornerRadius="11" BorderBrush="#73FFFFFF" BorderThickness="1"/>
-            <Border CornerRadius="10,10,16,16" Margin="2,2,2,17" Background="{DynamicResource GlassSheen}"/>
-            <Path Data="{StaticResource IcoZap}" Width="24" Height="24" Stretch="None" Fill="White" Stroke="White" StrokeThickness="1.2" StrokeLineJoin="Round" HorizontalAlignment="Center" VerticalAlignment="Center">
-              <Path.LayoutTransform><ScaleTransform ScaleX="0.74" ScaleY="0.74"/></Path.LayoutTransform>
-            </Path>
-          </Grid>
-          <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
-            <TextBlock Text="OptiTech" FontFamily="{StaticResource FontDisplay}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
-            <TextBlock x:Name="VersionText" Text="26.11.2" FontSize="11" Foreground="{DynamicResource TextFaint}" Margin="0,-2,0,0"/>
+        <StackPanel DockPanel.Dock="Top">
+          <StackPanel Orientation="Horizontal" Margin="8,18,0,10" ToolTipService.InitialShowDelay="600">
+            <StackPanel.ToolTip>
+              <TextBlock>
+                <Run Text="Raccourcis clavier" FontWeight="SemiBold"/><LineBreak/>
+                <Run Text="Ctrl+K : recherche rapide et commandes"/><LineBreak/>
+                <Run Text="Ctrl+1 à Ctrl+0 : changer de page"/><LineBreak/>
+                <Run Text="F5 : actualiser la page"/><LineBreak/>
+                <Run Text="Ctrl+F : chercher dans la page"/><LineBreak/>
+                <Run Text="Ctrl+T : changer de thème"/><LineBreak/>
+                <Run Text="Échap : fermer un dialogue"/>
+              </TextBlock>
+            </StackPanel.ToolTip>
+            <!-- Logo : pastille de verre teintée, reflet en haut, éclair blanc -->
+            <Grid Width="36" Height="36">
+              <Grid.CacheMode><BitmapCache/></Grid.CacheMode>
+              <Border CornerRadius="11" Background="{DynamicResource LogoGradient}">
+                <Border.Effect><DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.45" Color="#4F8CFF"/></Border.Effect>
+              </Border>
+              <Border CornerRadius="11" BorderBrush="#73FFFFFF" BorderThickness="1"/>
+              <Border CornerRadius="10,10,16,16" Margin="2,2,2,17" Background="{DynamicResource GlassSheen}"/>
+              <Path Data="{StaticResource IcoZap}" Width="24" Height="24" Stretch="None" Fill="White" Stroke="White" StrokeThickness="1.2" StrokeLineJoin="Round" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Path.LayoutTransform><ScaleTransform ScaleX="0.74" ScaleY="0.74"/></Path.LayoutTransform>
+              </Path>
+            </Grid>
+            <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+              <TextBlock Text="OptiTech" FontFamily="{StaticResource FontDisplay}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
+              <TextBlock x:Name="VersionText" Text="26.11.3" FontSize="11" Foreground="{DynamicResource TextFaint}" Margin="0,-2,0,0"/>
+            </StackPanel>
           </StackPanel>
+
+          <!-- Accès rapide à la palette de commandes -->
+          <Button x:Name="BtnPalette" Margin="0,2,0,10" Padding="11,7" HorizontalContentAlignment="Stretch" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource Stroke}" ToolTip="Ouvrir la recherche rapide (Ctrl+K)">
+            <DockPanel>
+              <Border DockPanel.Dock="Right" Style="{StaticResource KbdBadge}">
+                <TextBlock Text="Ctrl+K" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextFaint}"/>
+              </Border>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSearch}" TextElement.Foreground="{DynamicResource TextFaint}"/>
+                <TextBlock Text="Rechercher…" Margin="8,0,0,0" FontSize="12.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </DockPanel>
+          </Button>
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Bottom">
@@ -103,8 +121,10 @@
     </Border>
 
     <!-- Contenu -->
-    <Border Grid.Column="1" x:Name="ContentPanel" Margin="0,38,0,0" CornerRadius="18,0,0,0" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource GlassBorder}" BorderThickness="1,1,0,0">
-      <ContentControl x:Name="PageHost" Focusable="False"/>
+    <Border Grid.Column="1" x:Name="ContentPanel" Margin="0,38,0,0" CornerRadius="18,0,0,0" Background="{DynamicResource ContentBg}" BorderBrush="{DynamicResource GlassBorder}" BorderThickness="1,1,0,0" ClipToBounds="True">
+      <ContentControl x:Name="PageHost" Focusable="False">
+        <ContentControl.RenderTransform><TranslateTransform x:Name="PageTx" Y="0"/></ContentControl.RenderTransform>
+      </ContentControl>
     </Border>
    </Grid>
 
@@ -114,6 +134,44 @@
       <Button x:Name="BtnMax" Style="{StaticResource CaptionBtn}" ToolTip="Agrandir"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSquare}"/></Button>
       <Button x:Name="BtnClose" Style="{StaticResource CaptionClose}" ToolTip="Fermer"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoX}"/></Button>
     </StackPanel>
+
+    <!-- Palette de commandes (Ctrl+K) -->
+    <Grid x:Name="PaletteLayer" Style="{StaticResource Scrim}" Panel.ZIndex="25">
+      <Border Style="{StaticResource Dialog}" Width="600" MaxHeight="520" Padding="18" VerticalAlignment="Top" Margin="0,84,0,0">
+        <Border.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1"/></Border.RenderTransform>
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+            <TextBox x:Name="PaletteInput" FontSize="14.5" Padding="36,10,12,10" Tag="Aller à une page, un réglage, un outil ou une action…"/>
+            <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoSearch}" TextElement.Foreground="{DynamicResource TextFaint}" HorizontalAlignment="Left" Margin="13,0,0,0" IsHitTestVisible="False"/>
+          </Grid>
+          <DockPanel DockPanel.Dock="Bottom" Margin="2,10,2,0">
+            <TextBlock x:Name="PaletteCount" DockPanel.Dock="Right" Style="{StaticResource TxtSmall}" Foreground="{DynamicResource TextFaint}"/>
+            <TextBlock Style="{StaticResource TxtSmall}" Foreground="{DynamicResource TextFaint}" Text="↑↓ naviguer  ·  Entrée exécuter  ·  Échap fermer"/>
+          </DockPanel>
+          <Grid>
+            <ListBox x:Name="PaletteList" Background="Transparent" BorderThickness="0" MaxHeight="360"
+                     ItemContainerStyle="{StaticResource PaletteItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <DockPanel>
+                    <Border DockPanel.Dock="Right" Style="{StaticResource ChipBase}" Background="{DynamicResource KbdBg}" Margin="10,0,0,0">
+                      <TextBlock Text="{Binding Kind}" Style="{StaticResource ChipText}" Foreground="{DynamicResource TextMuted}"/>
+                    </Border>
+                    <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{Binding IconGeo}" TextElement.Foreground="{DynamicResource Accent}" Margin="0,0,11,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Title}" Style="{StaticResource TxtBody}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                      <TextBlock Text="{Binding Sub}" Style="{StaticResource TxtSmallAuto}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                    </StackPanel>
+                  </DockPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock x:Name="PaletteEmpty" Style="{StaticResource TxtEmpty}" Text="Aucun résultat." Margin="0,24"/>
+          </Grid>
+        </DockPanel>
+      </Border>
+    </Grid>
 
     <!-- Confirmation -->
     <Grid x:Name="ConfirmLayer" Style="{StaticResource Scrim}" Panel.ZIndex="20">

@@ -138,6 +138,7 @@ namespace OptiTech
                 S("Mozilla.Firefox", "Firefox", "Navigateurs", "Navigateur indépendant"),
                 S("Google.Chrome", "Chrome", "Navigateurs", ""),
                 S("Brave.Brave", "Brave", "Navigateurs", "Bloqueur de pubs intégré"),
+                S("LibreWolf.LibreWolf", "LibreWolf", "Navigateurs", "Firefox centré confidentialité"),
 
                 S("7zip.7zip", "7-Zip", "Utilitaires", "Archives"),
                 S("voidtools.Everything", "Everything", "Utilitaires", "Recherche instantanée de fichiers"),
@@ -146,6 +147,8 @@ namespace OptiTech
                 S("ShareX.ShareX", "ShareX", "Utilitaires", "Captures d'écran"),
                 S("SumatraPDF.SumatraPDF", "Sumatra PDF", "Utilitaires", "Lecteur PDF très léger"),
                 S("qBittorrent.qBittorrent", "qBittorrent", "Utilitaires", "Client BitTorrent libre, sans publicité"),
+                S("LocalSend.LocalSend", "LocalSend", "Utilitaires", "Partage local PC / téléphone sans cloud"),
+                S("RustDesk.RustDesk", "RustDesk", "Utilitaires", "Prise en main à distance libre"),
 
                 S("VideoLAN.VLC", "VLC", "Multimédia", "Lit tout"),
                 S("OBSProject.OBSStudio", "OBS Studio", "Multimédia", "Enregistrement et diffusion"),
@@ -153,7 +156,9 @@ namespace OptiTech
                 S("Audacity.Audacity", "Audacity", "Multimédia", "Édition audio"),
                 S("KDE.Krita", "Krita", "Multimédia", "Dessin"),
                 S("GIMP.GIMP", "GIMP", "Multimédia", "Retouche d'images"),
+                S("dotPDN.PaintDotNet", "Paint.NET", "Multimédia", "Retouche photo légère et rapide"),
                 S("Inkscape.Inkscape", "Inkscape", "Multimédia", "Dessin vectoriel"),
+                S("BlenderFoundation.Blender", "Blender", "Multimédia", "Modélisation et rendu 3D"),
                 S("Spotify.Spotify", "Spotify", "Multimédia", "Musique en streaming"),
 
                 S("TheDocumentFoundation.LibreOffice", "LibreOffice", "Bureautique", "Suite bureautique gratuite"),
@@ -188,6 +193,7 @@ namespace OptiTech
                 S("Python.Python.3.13", "Python 3.13", "Développement", ""),
                 S("Microsoft.WindowsTerminal", "Windows Terminal", "Développement", "Terminal moderne à onglets"),
                 S("Oracle.VirtualBox", "VirtualBox", "Développement", "Machines virtuelles"),
+                S("WinSCP.WinSCP", "WinSCP", "Développement", "Transfert SFTP / FTP"),
 
                 S("Microsoft.VCRedist.2015+.x64", "Visual C++ 2015+", "Composants", "Requis par beaucoup de jeux"),
                 S("Microsoft.DotNet.DesktopRuntime.8", ".NET Desktop 8", "Composants", "Requis par certaines applications"),
@@ -205,5 +211,88 @@ namespace OptiTech
             return Proc.Run("winget.exe", "install --id \"" + a.Id + "\" --exact --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity",
                 l => { if (l.Length > 3 && !l.Contains("█") && !l.Contains("▒")) job.Log(l.Trim()); }, job.Token);
         }
+
+        /// <summary>Liste les logiciels installés disposant d'une mise à jour via winget.</summary>
+        public static List<UpgradeApp> ListUpgrades(CancellationToken ct)
+        {
+            var sb = new System.Text.StringBuilder();
+            Proc.Run("winget.exe", "upgrade --source winget --accept-source-agreements --disable-interactivity",
+                l => { lock (sb) sb.AppendLine(l); }, ct);
+            return ParseWingetUpgrades(sb.ToString());
+        }
+
+        static readonly System.Text.RegularExpressions.Regex SafePkgId = new System.Text.RegularExpressions.Regex(@"^[A-Za-z0-9][A-Za-z0-9.+_\-]{0,127}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>Lit le tableau renvoyé par « winget upgrade », quelle que soit la langue de Windows.</summary>
+        public static List<UpgradeApp> ParseWingetUpgrades(string output)
+        {
+            var res = new List<UpgradeApp>();
+            if (string.IsNullOrWhiteSpace(output)) return res;
+            var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            int sep = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var t = lines[i].Trim();
+                if (t.Length >= 20 && t.All(c => c == '-')) { sep = i; break; }
+            }
+            if (sep <= 0) return res;
+
+            // Les en-têtes donnent les positions de colonnes (ex. Nom / ID / Version / Disponible / Source).
+            var header = lines[sep - 1];
+            var cols = System.Text.RegularExpressions.Regex.Matches(header, @"\S+");
+            if (cols.Count < 4) return res;
+            int idCol = cols[1].Index, curCol = cols[2].Index, availCol = cols[3].Index;
+            int srcCol = cols.Count >= 5 ? cols[4].Index : -1;
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = sep + 1; i < lines.Length; i++)
+            {
+                var l = lines[i];
+                if (l.Length <= availCol) continue;
+                // Fin du tableau : ligne de résumé (« 3 mises à niveau disponibles. » ou « 3 upgrades available. »)
+                if (char.IsDigit(l.TrimStart()[0]) && l.IndexOf("  ", StringComparison.Ordinal) < 0) break;
+                var name = Slice(l, 0, idCol);
+                var id = Slice(l, idCol, curCol);
+                var cur = Slice(l, curCol, availCol);
+                var avail = srcCol > availCol ? Slice(l, availCol, srcCol) : Slice(l, availCol, l.Length);
+
+                // Si un nom contient des caractères larges et décale la ligne, repli par découpage sur 2+ espaces.
+                if (!SafePkgId.IsMatch(id))
+                {
+                    var parts = System.Text.RegularExpressions.Regex.Split(l.Trim(), @"\s{2,}");
+                    if (parts.Length < 4 || !SafePkgId.IsMatch(parts[1])) continue;
+                    name = parts[0]; id = parts[1]; cur = parts[2]; avail = parts[3];
+                }
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(avail) || !seen.Add(id)) continue;
+                res.Add(new UpgradeApp { Name = name, Id = id, Current = cur, Available = avail, Selected = true });
+            }
+            return res.OrderBy(u => u.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        static string Slice(string s, int start, int end)
+        {
+            if (start >= s.Length) return "";
+            if (end > s.Length) end = s.Length;
+            return end <= start ? "" : s.Substring(start, end - start).Trim();
+        }
+
+        public static int Upgrade(UpgradeApp a, Job job)
+        {
+            if (a == null || !SafePkgId.IsMatch(a.Id ?? "")) throw new InvalidOperationException("Identifiant de paquet invalide.");
+            job.Status("Mise à jour de " + a.Name);
+            return Proc.Run("winget.exe", "upgrade --id \"" + a.Id + "\" --exact --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity",
+                l => { if (l.Length > 3 && !l.Contains("█") && !l.Contains("▒")) job.Log(l.Trim()); }, job.Token);
+        }
+    }
+
+    public sealed class UpgradeApp : Bindable
+    {
+        public string Name { get; set; }
+        public string Id { get; set; }
+        public string Current { get; set; }
+        public string Available { get; set; }
+        public string VersionSummary { get { return (string.IsNullOrEmpty(Current) ? "?" : Current) + "  →  " + Available; } }
+        bool sel;
+        public bool Selected { get { return sel; } set { Set(ref sel, value); } }
     }
 }

@@ -90,15 +90,19 @@
             <DataTemplate>
               <Grid Margin="0,0,0,7">
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="220"/>
+                  <ColumnDefinition Width="210"/>
                   <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="90"/>
-                  <ColumnDefinition Width="100"/>
+                  <ColumnDefinition Width="84"/>
+                  <ColumnDefinition Width="96"/>
+                  <ColumnDefinition Width="34"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding Name}" Style="{StaticResource TxtBody}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center"/>
                 <ProgressBar Grid.Column="1" Value="{Binding Share, Mode=OneWay}" Maximum="100" Margin="12,0" Foreground="{DynamicResource Info}"/>
                 <TextBlock Grid.Column="2" Text="{Binding MemText}" Style="{StaticResource TxtBody}" FontWeight="SemiBold" TextAlignment="Right" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="3" Text="{Binding CountText}" Style="{StaticResource TxtSmall}" TextAlignment="Right" VerticalAlignment="Center"/>
+                <Button Grid.Column="4" Style="{StaticResource BtnIcon}" Command="{Binding RevealCmd}" ToolTip="Ouvrir l'emplacement du programme" Visibility="{Binding CanReveal, Converter={StaticResource BoolVis}}" Margin="4,0,0,0" Padding="4,3">
+                  <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoExternal}"/>
+                </Button>
               </Grid>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
@@ -106,6 +110,71 @@
         <TextBlock x:Name="ProcStatus" Style="{StaticResource TxtSmallAuto}" Margin="2,6,0,0"/>
       </StackPanel>
     </Border>
+
+    <!-- Réseau actif & stabilité des 30 derniers jours -->
+    <Grid Margin="0,0,0,14">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="14"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,10">
+            <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoWifi}" TextElement.Foreground="{DynamicResource Accent}" Margin="0,0,9,0"/>
+            <TextBlock Text="Réseau actif" Style="{StaticResource TxtH2}" VerticalAlignment="Center"/>
+          </DockPanel>
+          <ItemsControl x:Name="NetList">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="0,0,0,8">
+                  <TextBlock Text="{Binding Name}" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Detail}" Style="{StaticResource TxtSmall}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock x:Name="NetStatus" Style="{StaticResource TxtSmallAuto}"/>
+          <Border x:Name="BatteryBox" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,8,0,0" Visibility="Collapsed">
+            <DockPanel>
+              <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoBattery}" TextElement.Foreground="{DynamicResource Accent}" Margin="0,0,9,0"/>
+              <TextBlock x:Name="BatteryText" Style="{StaticResource TxtBody}" VerticalAlignment="Center"/>
+            </DockPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Column="2" Style="{StaticResource Card}">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,10">
+            <Path DockPanel.Dock="Left" Style="{StaticResource IcoSm}" Data="{StaticResource IcoShield}" TextElement.Foreground="{DynamicResource Accent}" Margin="0,0,9,0"/>
+            <TextBlock Text="Stabilité (30 derniers jours)" Style="{StaticResource TxtH2}" VerticalAlignment="Center"/>
+          </DockPanel>
+          <ItemsControl x:Name="CrashList">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="18"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <Ellipse Style="{StaticResource LevelDot}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                  <StackPanel Grid.Column="1">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding When}" Style="{StaticResource TxtSmall}" Margin="8,0,0,0"/>
+                      <TextBlock Text="{Binding Kind}" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Detail}" Style="{StaticResource TxtSmall}"/>
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock x:Name="CrashStatus" Style="{StaticResource TxtSmallAuto}"/>
+        </StackPanel>
+      </Border>
+    </Grid>
 
     <DockPanel Margin="2,0,0,10">
       <Button x:Name="BtnDisks" DockPanel.Dock="Right" Style="{StaticResource BtnGhost}">

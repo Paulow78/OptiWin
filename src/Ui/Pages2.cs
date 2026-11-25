@@ -109,8 +109,9 @@ namespace OptiTech
     {
         readonly ComboBox baseCombo, afterCombo;
         readonly StackPanel table;
-        readonly ItemsControl metricRows, diskList, procList;
-        readonly TextBlock note, empty, diskStatus, procStatus;
+        readonly ItemsControl metricRows, diskList, procList, netList, crashList;
+        readonly TextBlock note, empty, diskStatus, procStatus, netStatus, crashStatus, batteryText;
+        readonly FrameworkElement batteryBox;
         readonly Button btnMeasure, btnClear, btnProcs;
         bool disksLoaded, filling, procsBusy;
 
@@ -119,7 +120,10 @@ namespace OptiTech
             View = (FrameworkElement)Ui.Load("PageDiagnostic.xaml");
             baseCombo = F<ComboBox>("BaseCombo"); afterCombo = F<ComboBox>("AfterCombo"); table = F<StackPanel>("MetricTable");
             metricRows = F<ItemsControl>("MetricRows"); diskList = F<ItemsControl>("DiskList"); procList = F<ItemsControl>("ProcList");
+            netList = F<ItemsControl>("NetList"); crashList = F<ItemsControl>("CrashList");
             note = F<TextBlock>("MetricNote"); empty = F<TextBlock>("MetricEmpty"); diskStatus = F<TextBlock>("DiskStatus"); procStatus = F<TextBlock>("ProcStatus");
+            netStatus = F<TextBlock>("NetStatus"); crashStatus = F<TextBlock>("CrashStatus"); batteryText = F<TextBlock>("BatteryText");
+            batteryBox = F<FrameworkElement>("BatteryBox");
             btnMeasure = F<Button>("BtnMeasure"); btnClear = F<Button>("BtnClearMetrics"); btnProcs = F<Button>("BtnProcs");
             btnProcs.Click += delegate { LoadProcs(); };
             baseCombo.SelectionChanged += delegate { if (!filling) Compare(); };
@@ -138,9 +142,30 @@ namespace OptiTech
         {
             Reload();
             LoadProcs();
+            LoadNetworkAndStability();
             if (!disksLoaded) LoadDisks();
         }
-        public override void OnRefresh() { Reload(); LoadProcs(); LoadDisks(); }
+        public override void OnRefresh() { Reload(); LoadProcs(); LoadNetworkAndStability(); LoadDisks(); }
+
+        void LoadNetworkAndStability()
+        {
+            int pct; bool ac, chg;
+            if (SysInfo.ReadBattery(out pct, out ac, out chg))
+            {
+                batteryText.Text = "Batterie : " + pct + " % — " + (chg ? "en charge" : ac ? "sur secteur" : "sur batterie");
+                batteryBox.Visibility = Visibility.Visible;
+            }
+            else batteryBox.Visibility = Visibility.Collapsed;
+
+            Task.Factory.StartNew(() => new { Nets = NetworkSnapshot.Read(), Crashes = CrashReader.ReadRecent(30, 5) }).ContinueWith(t =>
+            {
+                if (t.IsFaulted) return;
+                netList.ItemsSource = t.Result.Nets;
+                netStatus.Text = t.Result.Nets.Count == 0 ? "Aucune carte réseau active." : "";
+                crashList.ItemsSource = t.Result.Crashes;
+                crashStatus.Text = t.Result.Crashes.Count == 0 ? "Aucun arrêt imprévu ni écran bleu enregistré ces 30 derniers jours." : "";
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
 
         /// <summary>Les programmes qui pèsent le plus en mémoire, instances regroupées.</summary>
         void LoadProcs()

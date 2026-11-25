@@ -436,10 +436,13 @@ namespace OptiTech
         public static void RestartExplorer()
         {
             foreach (var p in System.Diagnostics.Process.GetProcessesByName("explorer"))
-                try { p.Kill(); } catch { }
+                try { p.Kill(); } catch { } finally { p.Dispose(); }
             // Windows relance normalement l'Explorateur seul ; sinon on le fait après un court délai.
             Thread.Sleep(2500);
-            if (System.Diagnostics.Process.GetProcessesByName("explorer").Length == 0)
+            var after = System.Diagnostics.Process.GetProcessesByName("explorer");
+            var alive = after.Length > 0;
+            foreach (var p in after) p.Dispose();
+            if (!alive)
                 try { System.Diagnostics.Process.Start("explorer.exe"); } catch { }
         }
 

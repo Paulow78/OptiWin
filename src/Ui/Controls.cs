@@ -21,6 +21,32 @@ namespace OptiTech
                 return XamlReader.Load(s);
             }
         }
+
+        /// <summary>
+        /// Mode léger : coupe les animations, le flou et les halos translucides pour garder une interface
+        /// instantanée sur les vieux PC ou sans accélération matérielle.
+        /// </summary>
+        public static bool Lightweight
+        {
+            get
+            {
+                var v = Store.Setting("ui.lightweight");
+                if (v == "1") return true;
+                if (v == "0") return false;
+                try { return !SystemParameters.ClientAreaAnimation || (RenderCapability.Tier >> 16) == 0; }
+                catch { return false; }
+            }
+            set { Store.SetSetting("ui.lightweight", value ? "1" : "0"); }
+        }
+
+        /// <summary>Déclenche une recherche une fois la frappe terminée, pour éviter de reconstruire la liste à chaque lettre.</summary>
+        public static System.Windows.Threading.DispatcherTimer Debounce(System.Windows.Controls.TextBox box, int ms, Action action)
+        {
+            var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ms) };
+            t.Tick += delegate { t.Stop(); action(); };
+            box.TextChanged += delegate { t.Stop(); t.Start(); };
+            return t;
+        }
     }
 
     public abstract class Page
@@ -77,21 +103,29 @@ namespace OptiTech
         static bool TryD(string s, out double d) { return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out d); }
     }
 
-    /// <summary>Jauge circulaire du score de santé.</summary>
+    /// <summary>Jauge circulaire du score de santé. Les stylos sont figés et mis en cache pour animer à 60 i/s sans allocation.</summary>
     public sealed class RingGauge : FrameworkElement
     {
         public static readonly DependencyProperty ValueProperty = DependencyProperty.Register("Value", typeof(double), typeof(RingGauge), new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender));
-        public static readonly DependencyProperty StrokeProperty = DependencyProperty.Register("Stroke", typeof(Brush), typeof(RingGauge), new FrameworkPropertyMetadata(Brushes.Teal, FrameworkPropertyMetadataOptions.AffectsRender));
-        public static readonly DependencyProperty TrackProperty = DependencyProperty.Register("Track", typeof(Brush), typeof(RingGauge), new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender));
-        public static readonly DependencyProperty ThicknessProperty = DependencyProperty.Register("Thickness", typeof(double), typeof(RingGauge), new FrameworkPropertyMetadata(10.0, FrameworkPropertyMetadataOptions.AffectsRender));
+        public static readonly DependencyProperty StrokeProperty = DependencyProperty.Register("Stroke", typeof(Brush), typeof(RingGauge), new FrameworkPropertyMetadata(Brushes.Teal, FrameworkPropertyMetadataOptions.AffectsRender, OnPenPropChanged));
+        public static readonly DependencyProperty TrackProperty = DependencyProperty.Register("Track", typeof(Brush), typeof(RingGauge), new FrameworkPropertyMetadata(Brushes.Gray, FrameworkPropertyMetadataOptions.AffectsRender, OnPenPropChanged));
+        public static readonly DependencyProperty ThicknessProperty = DependencyProperty.Register("Thickness", typeof(double), typeof(RingGauge), new FrameworkPropertyMetadata(10.0, FrameworkPropertyMetadataOptions.AffectsRender, OnPenPropChanged));
         public double Value { get { return (double)GetValue(ValueProperty); } set { SetValue(ValueProperty, value); } }
         public Brush Stroke { get { return (Brush)GetValue(StrokeProperty); } set { SetValue(StrokeProperty, value); } }
         public Brush Track { get { return (Brush)GetValue(TrackProperty); } set { SetValue(TrackProperty, value); } }
         public double Thickness { get { return (double)GetValue(ThicknessProperty); } set { SetValue(ThicknessProperty, value); } }
 
+        Pen trackPen, strokePen;
+        static void OnPenPropChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var g = (RingGauge)d;
+            g.trackPen = null; g.strokePen = null;
+        }
+
         public void AnimateTo(double v)
         {
-            BeginAnimation(ValueProperty, new DoubleAnimation(v, new Duration(TimeSpan.FromMilliseconds(700))) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            if (Ui.Lightweight) { BeginAnimation(ValueProperty, null); Value = v; return; }
+            BeginAnimation(ValueProperty, new DoubleAnimation(v, new Duration(TimeSpan.FromMilliseconds(650))) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         }
 
         protected override void OnRender(DrawingContext dc)
@@ -101,11 +135,21 @@ namespace OptiTech
             if (size <= t) return;
             var r = (size - t) / 2;
             var c = new Point(ActualWidth / 2, ActualHeight / 2);
-            dc.DrawEllipse(null, new Pen(Track, t), c, r, r);
+            if (trackPen == null && Track != null)
+            {
+                trackPen = new Pen(Track, t);
+                if (trackPen.CanFreeze) trackPen.Freeze();
+            }
+            if (trackPen != null) dc.DrawEllipse(null, trackPen, c, r, r);
             var v = Math.Max(0, Math.Min(100, Value));
             if (v <= 0) return;
-            var pen = new Pen(Stroke, t) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
-            if (v >= 99.9) { dc.DrawEllipse(null, pen, c, r, r); return; }
+            if (strokePen == null && Stroke != null)
+            {
+                strokePen = new Pen(Stroke, t) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+                if (strokePen.CanFreeze) strokePen.Freeze();
+            }
+            if (strokePen == null) return;
+            if (v >= 99.9) { dc.DrawEllipse(null, strokePen, c, r, r); return; }
             var a = v / 100 * 2 * Math.PI;
             var start = new Point(c.X, c.Y - r);
             var end = new Point(c.X + r * Math.Sin(a), c.Y - r * Math.Cos(a));
@@ -116,56 +160,112 @@ namespace OptiTech
                 x.ArcTo(end, new Size(r, r), 0, v > 50, SweepDirection.Clockwise, true, false);
             }
             g.Freeze();
-            dc.DrawGeometry(null, pen, g);
+            dc.DrawGeometry(null, strokePen, g);
         }
     }
 
-    /// <summary>Courbe en direct, dessinée sans graphe d'objets pour rester très légère.</summary>
+    /// <summary>Courbe lissée en direct, dessinée sans graphe d'objets et avec pinceaux mis en cache pour rester très légère.</summary>
     public sealed class Sparkline : FrameworkElement
     {
-        public static readonly DependencyProperty StrokeProperty = DependencyProperty.Register("Stroke", typeof(Brush), typeof(Sparkline), new FrameworkPropertyMetadata(Brushes.Teal, FrameworkPropertyMetadataOptions.AffectsRender));
+        public static readonly DependencyProperty StrokeProperty = DependencyProperty.Register("Stroke", typeof(Brush), typeof(Sparkline), new FrameworkPropertyMetadata(Brushes.Teal, FrameworkPropertyMetadataOptions.AffectsRender, OnStrokeChanged));
         public Brush Stroke { get { return (Brush)GetValue(StrokeProperty); } set { SetValue(StrokeProperty, value); } }
         const int N = 60;
         readonly double[] data = new double[N];
+        readonly Point[] pts = new Point[N];
         int count;
+
+        Pen linePen, gridPen;
+        Brush areaBrush, haloBrush;
+        static void OnStrokeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var s = (Sparkline)d;
+            s.linePen = null; s.areaBrush = null; s.haloBrush = null; s.gridPen = null;
+        }
 
         public void Push(double v)
         {
+            v = Math.Max(0, Math.Min(100, v));
             if (count < N) data[count++] = v;
             else { Array.Copy(data, 1, data, 0, N - 1); data[N - 1] = v; }
             InvalidateVisual();
         }
 
-        protected override void OnRender(DrawingContext dc)
+        void EnsureBrushes()
         {
-            dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, ActualWidth, ActualHeight));
-            if (count < 2 || ActualWidth <= 0) return;
-            var h = ActualHeight; var w = ActualWidth;
-            Func<int, Point> P = i => new Point(w * (N - count + i) / (N - 1.0), h - 1 - (h - 2) * Math.Min(100, data[i]) / 100.0);
-            var line = new StreamGeometry();
-            using (var x = line.Open())
-            {
-                x.BeginFigure(P(0), false, false);
-                for (int i = 1; i < count; i++) x.LineTo(P(i), true, true);
-            }
-            line.Freeze();
-            var area = new StreamGeometry();
-            using (var x = area.Open())
-            {
-                x.BeginFigure(new Point(P(0).X, h), true, true);
-                for (int i = 0; i < count; i++) x.LineTo(P(i), false, false);
-                x.LineTo(new Point(P(count - 1).X, h), false, false);
-            }
-            area.Freeze();
+            if (linePen != null || Stroke == null) return;
+            linePen = new Pen(Stroke, 1.8) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            if (linePen.CanFreeze) linePen.Freeze();
             var solid = Stroke as SolidColorBrush;
             if (solid != null)
             {
                 var col = solid.Color;
-                var fill = new LinearGradientBrush(Color.FromArgb(70, col.R, col.G, col.B), Color.FromArgb(0, col.R, col.G, col.B), 90);
-                fill.Freeze();
-                dc.DrawGeometry(fill, null, area);
+                var g = new LinearGradientBrush(Color.FromArgb(68, col.R, col.G, col.B), Color.FromArgb(0, col.R, col.G, col.B), 90);
+                g.Freeze();
+                areaBrush = g;
+                var h = new SolidColorBrush(Color.FromArgb(72, col.R, col.G, col.B));
+                h.Freeze();
+                haloBrush = h;
+                var gp = new Pen(new SolidColorBrush(Color.FromArgb(24, col.R, col.G, col.B)), 1) { DashStyle = DashStyles.Dot };
+                gp.Freeze();
+                gridPen = gp;
             }
-            dc.DrawGeometry(null, new Pen(Stroke, 1.6) { LineJoin = PenLineJoin.Round }, line);
+        }
+
+        protected override void OnRender(DrawingContext dc)
+        {
+            var w = ActualWidth; var h = ActualHeight;
+            if (w <= 2 || h <= 2) return;
+            EnsureBrushes();
+            if (gridPen != null) dc.DrawLine(gridPen, new Point(0, h * 0.5), new Point(w, h * 0.5));
+            if (count < 2) return;
+
+            // Étale proprement la courbe dès les premiers échantillons, puis défile en continu une fois pleine.
+            var padRight = 3.5;
+            var usableW = Math.Max(1, w - padRight);
+            var span = Math.Max(count - 1, 14);
+            var offset = span - (count - 1);
+            for (int i = 0; i < count; i++)
+            {
+                var x = usableW * (offset + i) / span;
+                var y = h - 2.5 - (h - 5.5) * data[i] / 100.0;
+                pts[i] = new Point(x, y);
+            }
+
+            var line = new StreamGeometry();
+            var area = new StreamGeometry();
+            using (var lx = line.Open())
+            using (var ax = area.Open())
+            {
+                lx.BeginFigure(pts[0], false, false);
+                ax.BeginFigure(new Point(pts[0].X, h), true, true);
+                ax.LineTo(pts[0], false, false);
+                if (count == 2)
+                {
+                    lx.LineTo(pts[1], true, true);
+                    ax.LineTo(pts[1], false, false);
+                }
+                else
+                {
+                    for (int i = 1; i < count - 1; i++)
+                    {
+                        var mid = new Point((pts[i].X + pts[i + 1].X) * 0.5, (pts[i].Y + pts[i + 1].Y) * 0.5);
+                        lx.QuadraticBezierTo(pts[i], mid, true, true);
+                        ax.QuadraticBezierTo(pts[i], mid, false, false);
+                    }
+                    var last = pts[count - 1];
+                    lx.LineTo(last, true, true);
+                    ax.LineTo(last, false, false);
+                }
+                ax.LineTo(new Point(pts[count - 1].X, h), false, false);
+            }
+            line.Freeze();
+            area.Freeze();
+
+            if (areaBrush != null) dc.DrawGeometry(areaBrush, null, area);
+            if (linePen != null) dc.DrawGeometry(null, linePen, line);
+            var tip = pts[count - 1];
+            if (haloBrush != null) dc.DrawEllipse(haloBrush, null, tip, 4.8, 4.8);
+            if (Stroke != null) dc.DrawEllipse(Stroke, null, tip, 2.3, 2.3);
         }
     }
 
@@ -175,19 +275,21 @@ namespace OptiTech
         // ou le fond acrylique de Windows 11 quand il est disponible.
         static readonly Dictionary<string, string> Dark = new Dictionary<string, string>
         {
-            {"WinBg","#0A0C13"},{"SidebarBg","#00000000"},{"ContentBg","#0DFFFFFF"},{"SurfaceHover","#26FFFFFF"},{"SurfaceAlt","#38000000"},
-            {"Control","#1AFFFFFF"},{"DialogBg","#F2171B26"},{"Stroke","#1FFFFFFF"},{"StrokeStrong","#42FFFFFF"},{"Text","#F1F3F8"},{"TextMuted","#AEB6C6"},{"TextFaint","#7F889A"},
-            {"Accent","#4FE3C1"},{"AccentSoft","#264FE3C1"},{"OnAccent","#04201A"},{"HoverLayer","#14FFFFFF"},{"SelectedLayer","#1FFFFFFF"},
+            {"WinBg","#090C13"},{"SidebarBg","#00000000"},{"ContentBg","#0EFFFFFF"},{"SurfaceHover","#26FFFFFF"},{"SurfaceAlt","#38000000"},
+            {"Control","#1CFFFFFF"},{"DialogBg","#F4151A25"},{"Stroke","#1FFFFFFF"},{"StrokeStrong","#42FFFFFF"},{"Text","#F3F5FA"},{"TextMuted","#B0B8C9"},{"TextFaint","#7E889C"},
+            {"Accent","#4FE3C1"},{"AccentSoft","#264FE3C1"},{"OnAccent","#04201A"},{"HoverLayer","#16FFFFFF"},{"SelectedLayer","#22FFFFFF"},
             {"Warn","#FFB84D"},{"WarnSoft","#26FFB84D"},{"Danger","#FF6B6B"},{"DangerSoft","#26FF6B6B"},{"OnDanger","#2B0505"},
-            {"Info","#6CB6FF"},{"InfoSoft","#226CB6FF"},{"Ok","#4FE3C1"},{"OkSoft","#224FE3C1"},{"ThumbBg","#3DFFFFFF"},{"ScrimBg","#70000000"},
+            {"Info","#6CB6FF"},{"InfoSoft","#226CB6FF"},{"Ok","#4FE3C1"},{"OkSoft","#224FE3C1"},{"ThumbBg","#3DFFFFFF"},{"ScrimBg","#78000000"},
+            {"KbdBg","#18FFFFFF"},
         };
         static readonly Dictionary<string, string> Light = new Dictionary<string, string>
         {
-            {"WinBg","#E6EBF5"},{"SidebarBg","#00FFFFFF"},{"ContentBg","#59FFFFFF"},{"SurfaceHover","#1F1B2A4A"},{"SurfaceAlt","#8CFFFFFF"},
-            {"Control","#CCFFFFFF"},{"DialogBg","#F7FFFFFF"},{"Stroke","#241B2A4A"},{"StrokeStrong","#4D1B2A4A"},{"Text","#111522"},{"TextMuted","#4C5568"},{"TextFaint","#7A8496"},
-            {"Accent","#00846E"},{"AccentSoft","#1F00846E"},{"OnAccent","#FFFFFF"},{"HoverLayer","#0E000000"},{"SelectedLayer","#C2FFFFFF"},
+            {"WinBg","#E6EBF5"},{"SidebarBg","#00FFFFFF"},{"ContentBg","#66FFFFFF"},{"SurfaceHover","#1F1B2A4A"},{"SurfaceAlt","#94FFFFFF"},
+            {"Control","#D6FFFFFF"},{"DialogBg","#FAFFFFFF"},{"Stroke","#221B2A4A"},{"StrokeStrong","#4A1B2A4A"},{"Text","#111522"},{"TextMuted","#4C5568"},{"TextFaint","#788296"},
+            {"Accent","#00846E"},{"AccentSoft","#1F00846E"},{"OnAccent","#FFFFFF"},{"HoverLayer","#0E000000"},{"SelectedLayer","#CCFFFFFF"},
             {"Warn","#A85F00"},{"WarnSoft","#1FE08A00"},{"Danger","#C42B2B"},{"DangerSoft","#1AC42B2B"},{"OnDanger","#FFFFFF"},
             {"Info","#1565C0"},{"InfoSoft","#1A1565C0"},{"Ok","#00846E"},{"OkSoft","#1A00846E"},{"ThumbBg","#4D1B2A4A"},{"ScrimBg","#4D101828"},
+            {"KbdBg","#121B2A4A"},
         };
 
         public static bool IsDark { get; private set; }
@@ -197,10 +299,11 @@ namespace OptiTech
         public static void Apply(bool dark)
         {
             IsDark = dark;
+            var light = Ui.Lightweight;
             var res = Application.Current.Resources;
             var map = dark ? Dark : Light;
             foreach (var kv in map) res[kv.Key] = Make(kv.Value);
-            if (Mica)
+            if (Mica && !light)
             {
                 res["WinBg"] = Brushes.Transparent;
                 res["ContentBg"] = Make(dark ? "#730C0F17" : "#80F4F6FB");
@@ -210,22 +313,34 @@ namespace OptiTech
             var violet = Hex(dark ? "#9B7BFF" : "#7A55E0");
             res["AccentColor"] = accent;
 
-            // Surfaces de verre : un dégradé de blanc translucide, plus dense en haut à gauche, d'où vient la lumière.
-            res["Surface"] = Linear(new Point(0, 0), new Point(1, 1),
-                White((byte)(dark ? 0x1F : 0xD1)), White((byte)(dark ? 0x0D : 0x94)));
-            // Liseré : clair sur l'arête éclairée, presque éteint à l'opposé.
-            res["GlassBorder"] = Linear(new Point(0, 0), new Point(1, 1),
-                White((byte)(dark ? 0x57 : 0xFF)), White((byte)(dark ? 0x14 : 0x8C)), Color.FromArgb((byte)(dark ? 0x30 : 0x40), accent.R, accent.G, accent.B));
+            if (light)
+            {
+                // En mode léger : surfaces opaques et nettes, sans calcul de transparence ni halos.
+                res["ContentBg"] = Make(dark ? "#111521" : "#F3F6FB");
+                res["Surface"] = Make(dark ? "#171C2B" : "#FFFFFF");
+                res["SurfaceAlt"] = Make(dark ? "#121623" : "#EDF1F8");
+                res["GlassBorder"] = Make(dark ? "#283047" : "#D4DCEB");
+                res["Control"] = Make(dark ? "#1E2538" : "#FFFFFF");
+            }
+            else
+            {
+                // Surfaces de verre : un dégradé de blanc translucide, plus dense en haut à gauche, d'où vient la lumière.
+                res["Surface"] = Linear(new Point(0, 0), new Point(1, 1),
+                    White((byte)(dark ? 0x1F : 0xD6)), White((byte)(dark ? 0x0C : 0x9A)));
+                // Liseré : clair sur l'arête éclairée, presque éteint à l'opposé.
+                res["GlassBorder"] = Linear(new Point(0, 0), new Point(1, 1),
+                    White((byte)(dark ? 0x5A : 0xFF)), White((byte)(dark ? 0x14 : 0x8C)), Color.FromArgb((byte)(dark ? 0x32 : 0x42), accent.R, accent.G, accent.B));
+            }
             res["AccentGradient"] = Linear(new Point(0, 0), new Point(1, 1), accent, blue);
             res["LogoGradient"] = Linear(new Point(0, 0), new Point(1, 1), Hex("#4FE3C1"), Hex("#4F8CFF"), Hex("#9B6BFF"));
             res["GlassSheen"] = Linear(new Point(0, 0), new Point(0, 1), White(0x66), White(0x00));
 
             // Halos de couleur derrière le verre. Plus discrets quand Windows fournit déjà un fond acrylique.
-            var k = Mica ? 0.55 : 1.0;
+            var k = light ? 0.0 : Mica ? 0.55 : 1.0;
             res["AmbientA"] = Halo(accent, (byte)((dark ? 0x52 : 0x66) * k));
             res["AmbientB"] = Halo(violet, (byte)((dark ? 0x4A : 0x52) * k));
             res["AmbientC"] = Halo(blue, (byte)((dark ? 0x40 : 0x4D) * k));
-            res["HeroGlow"] = Glow(accent, (byte)(dark ? 0x40 : 0x2E));
+            res["HeroGlow"] = Glow(accent, (byte)((dark ? 0x40 : 0x2E) * (light ? 0.4 : 1.0)));
         }
 
         static Color Hex(string hex) { return (Color)ColorConverter.ConvertFromString(hex); }

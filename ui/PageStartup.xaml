@@ -16,38 +16,36 @@
       <TextBox x:Name="Search" Width="260" HorizontalAlignment="Left" Tag="Filtrer par nom ou éditeur (Ctrl+F)"/>
     </DockPanel>
   </StackPanel>
-  <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-    <StackPanel Margin="32,0,32,28">
-      <ItemsControl x:Name="List">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <Border Style="{StaticResource Row}" ToolTip="{Binding Command}">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel>
-                  <WrapPanel>
-                    <TextBlock Text="{Binding Name}" Style="{StaticResource TxtRow}" Margin="0,0,9,0"/>
-                    <Border Style="{StaticResource ChipBase}" Background="{DynamicResource WarnSoft}" Margin="0,1,0,0" Visibility="{Binding OftenUseless, Converter={StaticResource BoolVis}}">
-                      <TextBlock Text="Souvent superflu" Style="{StaticResource ChipText}" Foreground="{DynamicResource Warn}"/>
-                    </Border>
-                  </WrapPanel>
-                  <TextBlock Text="{Binding Meta}" Style="{StaticResource TxtSmall}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                  <Button Style="{StaticResource BtnIcon}" Command="{Binding RevealCmd}" ToolTip="Ouvrir l'emplacement du programme" Visibility="{Binding CanReveal, Converter={StaticResource BoolVis}}">
-                    <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoExternal}"/>
-                  </Button>
-                  <ToggleButton Style="{StaticResource Switch}" Margin="12,0,0,0" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"/>
-                </StackPanel>
-              </Grid>
-            </Border>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <TextBlock x:Name="EmptyText" Style="{StaticResource TxtEmpty}"/>
-    </StackPanel>
-  </ScrollViewer>
+  <Grid>
+    <ItemsControl x:Name="List" Style="{StaticResource VirtList}" Padding="32,0,32,28">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <Border Style="{StaticResource Row}" ToolTip="{Binding Command}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <WrapPanel>
+                  <TextBlock Text="{Binding Name}" Style="{StaticResource TxtRow}" Margin="0,0,9,0"/>
+                  <Border Style="{StaticResource ChipBase}" Background="{DynamicResource WarnSoft}" Margin="0,1,0,0" Visibility="{Binding OftenUseless, Converter={StaticResource BoolVis}}">
+                    <TextBlock Text="Souvent superflu" Style="{StaticResource ChipText}" Foreground="{DynamicResource Warn}"/>
+                  </Border>
+                </WrapPanel>
+                <TextBlock Text="{Binding Meta}" Style="{StaticResource TxtSmall}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource BtnIcon}" Command="{Binding RevealCmd}" ToolTip="Ouvrir l'emplacement du programme" Visibility="{Binding CanReveal, Converter={StaticResource BoolVis}}">
+                  <Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoExternal}"/>
+                </Button>
+                <ToggleButton Style="{StaticResource Switch}" Margin="12,0,0,0" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <TextBlock x:Name="EmptyText" Style="{StaticResource TxtEmpty}" VerticalAlignment="Top" Margin="0,42,0,0"/>
+  </Grid>
 </DockPanel>

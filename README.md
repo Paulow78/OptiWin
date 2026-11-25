@@ -25,19 +25,19 @@
 
 | Page | Contenu |
 |---|---|
-| **Accueil** | Score de santé calculé sur des faits mesurés, processeur et mémoire en direct, profil conseillé pour le PC |
-| **Optimiser** | 58 réglages réversibles, 5 profils : Vieux PC, Fraîchement installé, Jeux, Portable, Confidentialité. Recherche et filtre par état |
-| **Nettoyer** | Caches et fichiers temporaires, et analyse de ce qui occupe le disque |
+| **Accueil** | Score de santé calculé sur des faits mesurés, processeur et mémoire en direct, actions rapides et profil conseillé pour le PC |
+| **Optimiser** | 66 réglages réversibles, 5 profils : Vieux PC, Fraîchement installé, Jeux, Portable, Confidentialité. Recherche et filtre par état |
+| **Nettoyer** | Caches système, navigateurs et applications, analyse de l'espace disque et vue directe des plus gros fichiers |
 | **Démarrage** | Activer ou couper les programmes, avec le mécanisme du Gestionnaire des tâches. Les superflus se coupent d'un coup |
-| **Applications** | Retirer les applications préinstallées, installer 46 logiciels courants via winget |
+| **Applications** | Retirer les applications préinstallées, installer 52 logiciels courants et mettre à jour vos logiciels installés via winget |
 | **Téléviseur** | Android TV et Google TV : couper publicités, pistage et applications imposées depuis le PC, vider les caches, accélérer les animations. Rien n'est désinstallé |
 | **Réinstaller** | Exporter réglages et logiciels dans un fichier, puis tout retrouver sur un Windows neuf |
 | **USB et ISO** | Clé bootable Windows ou Linux, clé multiboot, création d'ISO, ISO allégée, téléchargement de Windows, vérification SHA-256 |
-| **Diagnostic** | Mesures avant/après, programmes qui occupent la mémoire, santé réelle des disques (usure, température, erreurs) |
-| **Outils** | Réparation DISM/SFC, réseau, Windows Update, Store, test de la mémoire, rapport d'énergie, sauvegarde des pilotes, kit de secours, test DNS, compatibilité Windows 11 |
+| **Diagnostic** | Mesures avant/après, programmes qui occupent la mémoire, réseau actif, arrêts imprévus (30 jours), santé réelle des disques |
+| **Outils** | Réparation DISM/SFC, réseau, Windows Update, Store, file d'impression, test de la mémoire, rapport d'énergie, sauvegarde des pilotes, kit de secours, test DNS, compatibilité Windows 11 |
 | **Historique** | Tout ce qui a été changé, annulable un par un ou d'un coup, journal filtrable et exportable |
 
-Raccourcis clavier : Ctrl+1 à Ctrl+0 pour changer de page, F5 pour actualiser, Ctrl+F pour chercher, Ctrl+T pour le thème, Échap pour fermer un dialogue. Les nouveautés de chaque version sont dans [CHANGELOG.md](CHANGELOG.md).
+Raccourcis clavier : `Ctrl+K` pour la palette de commandes, `Ctrl+1` à `Ctrl+0` pour changer de page, `F5` pour actualiser, `Ctrl+F` pour chercher, `Ctrl+T` pour le thème, `Échap` pour fermer un dialogue. Un **mode léger** (sans verre dépoli ni animations) s'active automatiquement sans accélération matérielle ou à la main dans Outils. Les nouveautés de chaque version sont dans [CHANGELOG.md](CHANGELOG.md).
 
 > **OptiTech s'appelait OptiWin** jusqu'à la version 26.11.1. Vos réglages, sauvegardes et historique sont repris automatiquement au premier lancement.
 

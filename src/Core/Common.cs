@@ -407,15 +407,37 @@ namespace OptiTech
             }
         }
 
+        static int batchDepth;
+        static bool batchDirty;
+
         static void Save()
+        {
+            if (batchDepth > 0) { batchDirty = true; return; }
+            FlushSave();
+        }
+
+        static void FlushSave()
         {
             try
             {
                 var tmp = FilePath + ".tmp";
                 File.WriteAllText(tmp, new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(St), Encoding.UTF8);
                 if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null); else File.Move(tmp, FilePath);
+                batchDirty = false;
             }
             catch (Exception e) { Logger.Error("Sauvegarde de state.json impossible", e); }
+        }
+
+        /// <summary>Regroupe plusieurs modifications en une seule écriture disque (ex. application d'un profil).</summary>
+        public static void BeginBatch() { lock (gate) batchDepth++; }
+
+        public static void EndBatch()
+        {
+            lock (gate)
+            {
+                if (batchDepth > 0) batchDepth--;
+                if (batchDepth == 0 && batchDirty) FlushSave();
+            }
         }
 
         public static bool HasBackup(string id) { lock (gate) return St.Backups.ContainsKey(id); }

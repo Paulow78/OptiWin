@@ -68,7 +68,25 @@ namespace OptiTech
             };
             s.Ram = (long)RamTotal();
 
-            var cpu = Wmi(@"root\cimv2", "SELECT Name,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed FROM Win32_Processor").FirstOrDefault();
+            PowerStatus ps;
+            s.IsLaptop = GetSystemPowerStatus(out ps) && ps.Flag != 128 && ps.Flag != 255;
+
+            try { int t; if (GetFirmwareType(out t)) s.IsUefi = t == 2; } catch (EntryPointNotFoundException) { }
+            s.SecureBoot = Reg.GetInt(RegistryHive.LocalMachine, @"SYSTEM\CurrentControlSet\Control\SecureBoot\State", "UEFISecureBootEnabled") == 1;
+
+            // Les 4 requêtes WMI sont indépendantes : les lancer en parallèle accélère nettement le démarrage.
+            var tCpu = System.Threading.Tasks.Task.Factory.StartNew(() =>
+                Wmi(@"root\cimv2", "SELECT Name,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed FROM Win32_Processor").FirstOrDefault());
+            var tGpu = System.Threading.Tasks.Task.Factory.StartNew(() =>
+                Wmi(@"root\cimv2", "SELECT Name FROM Win32_VideoController")
+                    .Select(g => S(g, "Name")).Where(n => n != null && !n.Contains("Basic") && !n.Contains("Remote") && !n.Contains("Virtual")).ToList());
+            var tDisk = System.Threading.Tasks.Task.Factory.StartNew(() => ReadSystemDisk(s));
+            var tTpm = System.Threading.Tasks.Task.Factory.StartNew(() =>
+                Wmi(@"root\cimv2\security\microsofttpm", "SELECT SpecVersion FROM Win32_Tpm").FirstOrDefault());
+
+            try { System.Threading.Tasks.Task.WaitAll(tCpu, tGpu, tDisk, tTpm); } catch { }
+
+            var cpu = !tCpu.IsFaulted ? tCpu.Result : null;
             if (cpu != null)
             {
                 s.Cpu = Regex.Replace(S(cpu, "Name") ?? "Inconnu", @"\s+", " ").Replace("(R)", "").Replace("(TM)", "");
@@ -77,19 +95,9 @@ namespace OptiTech
                 s.CpuMhz = (int)N(cpu, "MaxClockSpeed");
             }
 
-            var gpus = Wmi(@"root\cimv2", "SELECT Name FROM Win32_VideoController")
-                .Select(g => S(g, "Name")).Where(n => n != null && !n.Contains("Basic") && !n.Contains("Remote") && !n.Contains("Virtual")).ToList();
-            if (gpus.Count > 0) s.Gpu = string.Join(" + ", gpus);
+            if (!tGpu.IsFaulted && tGpu.Result.Count > 0) s.Gpu = string.Join(" + ", tGpu.Result);
 
-            PowerStatus ps;
-            s.IsLaptop = GetSystemPowerStatus(out ps) && ps.Flag != 128 && ps.Flag != 255;
-
-            try { int t; if (GetFirmwareType(out t)) s.IsUefi = t == 2; } catch (EntryPointNotFoundException) { }
-            s.SecureBoot = Reg.GetInt(RegistryHive.LocalMachine, @"SYSTEM\CurrentControlSet\Control\SecureBoot\State", "UEFISecureBootEnabled") == 1;
-
-            ReadSystemDisk(s);
-
-            var tpm = Wmi(@"root\cimv2\security\microsofttpm", "SELECT SpecVersion FROM Win32_Tpm").FirstOrDefault();
+            var tpm = !tTpm.IsFaulted ? tTpm.Result : null;
             if (tpm != null)
             {
                 var spec = S(tpm, "SpecVersion") ?? "";
@@ -124,6 +132,17 @@ namespace OptiTech
             }
         }
 
+        /// <summary>Lit charge, mémoire utilisée et mémoire totale en un seul appel noyau.</summary>
+        public static bool ReadMemory(out int loadPct, out long usedBytes, out long totalBytes)
+        {
+            var m = new MemStatus { Length = (uint)Marshal.SizeOf(typeof(MemStatus)) };
+            if (!GlobalMemoryStatusEx(ref m)) { loadPct = 0; usedBytes = 0; totalBytes = 0; return false; }
+            loadPct = (int)m.Load;
+            usedBytes = (long)(m.TotalPhys - m.AvailPhys);
+            totalBytes = (long)m.TotalPhys;
+            return true;
+        }
+
         public static ulong RamTotal()
         {
             var m = new MemStatus { Length = (uint)Marshal.SizeOf(typeof(MemStatus)) };
@@ -131,13 +150,28 @@ namespace OptiTech
         }
         public static int RamLoad()
         {
-            var m = new MemStatus { Length = (uint)Marshal.SizeOf(typeof(MemStatus)) };
-            return GlobalMemoryStatusEx(ref m) ? (int)m.Load : 0;
+            int pct; long u, t;
+            return ReadMemory(out pct, out u, out t) ? pct : 0;
         }
         public static long RamUsed()
         {
-            var m = new MemStatus { Length = (uint)Marshal.SizeOf(typeof(MemStatus)) };
-            return GlobalMemoryStatusEx(ref m) ? (long)(m.TotalPhys - m.AvailPhys) : 0;
+            int pct; long u, t;
+            return ReadMemory(out pct, out u, out t) ? u : 0;
+        }
+
+        /// <summary>État de la batterie en direct (portable uniquement).</summary>
+        public static bool ReadBattery(out int percent, out bool pluggedIn, out bool charging)
+        {
+            PowerStatus ps;
+            if (!GetSystemPowerStatus(out ps) || ps.Flag == 128 || ps.Flag == 255 || ps.Percent > 100)
+            {
+                percent = -1; pluggedIn = false; charging = false;
+                return false;
+            }
+            percent = ps.Percent;
+            pluggedIn = ps.AC == 1;
+            charging = (ps.Flag & 8) != 0;
+            return true;
         }
 
         /// <summary>Compteurs bruts du processeur, pour mesurer sur une durée sans gêner la courbe de l'accueil.</summary>

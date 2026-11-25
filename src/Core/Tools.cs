@@ -100,12 +100,82 @@ namespace OptiTech
                     Run = (j, _) =>
                     {
                         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Windows\Explorer");
-                        foreach (var p in Process.GetProcessesByName("explorer")) try { p.Kill(); } catch { }
+                        foreach (var p in Process.GetProcessesByName("explorer")) try { p.Kill(); } catch { } finally { p.Dispose(); }
                         Thread.Sleep(800);
                         try { foreach (var f in Directory.GetFiles(dir, "iconcache_*.db")) try { File.Delete(f); } catch { } } catch { }
                         Thread.Sleep(1500);
-                        if (Process.GetProcessesByName("explorer").Length == 0) Process.Start("explorer.exe");
+                        var after = Process.GetProcessesByName("explorer");
+                        var alive = after.Length > 0;
+                        foreach (var p in after) p.Dispose();
+                        if (!alive) Process.Start("explorer.exe");
                         j.Summary = "Cache d'icônes reconstruit.";
+                    } },
+                new ToolAction { Id = "spooler", Icon = "IcoFile", Title = "Débloquer la file d'impression", Desc = "Arrête le spouleur, vide les documents coincés en file d'attente et relance le service.", Duration = "Quelques secondes", NeedsAdmin = true,
+                    Run = (j, _) =>
+                    {
+                        var dir = Path.Combine(Environment.SystemDirectory, @"spool\PRINTERS");
+                        j.Status("Arrêt du service d'impression");
+                        Proc.Run("net.exe", "stop spooler /y", j.Log, j.Token);
+                        int removed = 0;
+                        try
+                        {
+                            if (Directory.Exists(dir))
+                                foreach (var f in Directory.GetFiles(dir))
+                                    try { File.Delete(f); removed++; } catch (Exception e) { j.Log("  Ignoré : " + Path.GetFileName(f) + " (" + e.Message + ")"); }
+                        }
+                        finally
+                        {
+                            j.Status("Redémarrage du service d'impression");
+                            Proc.Run("net.exe", "start spooler", j.Log, j.Token);
+                        }
+                        j.Summary = removed == 0 ? "Service relancé : aucun document coincé." : Fmt.N(removed, "fichier retiré", "fichiers retirés") + " et service relancé.";
+                    } },
+                new ToolAction { Id = "netdiag", Icon = "IcoWifi", Title = "Diagnostic rapide de la connexion", Desc = "Teste la carte réseau, la latence vers votre box, vers Internet et la résolution DNS.", Duration = "Quelques secondes",
+                    Run = (j, _) =>
+                    {
+                        var nics = NetworkSnapshot.Read();
+                        if (nics.Count == 0) { j.Summary = "Aucune carte réseau active détectée."; return; }
+                        string gw = null;
+                        foreach (var n in nics)
+                        {
+                            j.Log(n.Name + " — " + n.Detail);
+                            if (gw == null && !string.IsNullOrEmpty(n.Gateway)) gw = n.Gateway;
+                        }
+                        Func<string, long> pingHost = target =>
+                        {
+                            try
+                            {
+                                using (var p = new Ping())
+                                {
+                                    var r = p.Send(target, 2000);
+                                    return r != null && r.Status == IPStatus.Success ? r.RoundtripTime : -1;
+                                }
+                            }
+                            catch { return -1; }
+                        };
+                        j.Status("Test de la passerelle locale");
+                        j.Progress(35);
+                        var gwMs = gw != null ? pingHost(gw) : -1;
+                        j.Log("Passerelle (" + (gw ?? "inconnue") + ") : " + (gwMs >= 0 ? gwMs + " ms" : "sans réponse"));
+                        j.Status("Test d'accès Internet et DNS");
+                        j.Progress(70);
+                        var inetMs = pingHost("1.1.1.1");
+                        j.Log("Internet (1.1.1.1) : " + (inetMs >= 0 ? inetMs + " ms" : "sans réponse"));
+                        var dnsMs = Dns.Measure("1.1.1.1", j.Token);
+                        j.Log("Résolution DNS (1.1.1.1) : " + (double.IsInfinity(dnsMs) ? "sans réponse" : Fmt.Num(dnsMs, "0") + " ms"));
+                        j.Progress(100);
+                        j.Summary = inetMs >= 0
+                            ? "Connexion OK : box " + (gwMs >= 0 ? gwMs + " ms" : "—") + ", Internet " + inetMs + " ms (" + nics[0].SpeedText + ")."
+                            : gwMs >= 0 ? "Box joignable (" + gwMs + " ms), mais pas d'accès Internet." : "Aucun accès réseau détecté.";
+                    } },
+                new ToolAction { Id = "license", Icon = "IcoInfo", Title = "État d'activation de Windows", Desc = "Vérifie si la licence Windows est permanente ou temporaire, sans rien modifier.", Duration = "Quelques secondes",
+                    Run = (j, _) =>
+                    {
+                        j.Status("Lecture de l'état de la licence");
+                        var outLines = new List<string>();
+                        var slmgr = Path.Combine(Environment.SystemDirectory, "slmgr.vbs");
+                        Proc.Run("cscript.exe", "//Nologo \"" + slmgr + "\" /xpr", l => { var t = l.Trim(); if (t.Length > 0) { j.Log(t); outLines.Add(t); } }, j.Token);
+                        j.Summary = outLines.Count > 0 ? outLines.Last() : "État lu : voir le journal.";
                     } },
                 new ToolAction { Id = "drivers", Icon = "IcoDownload", Title = "Sauvegarder les pilotes", Desc = "Copie tous les pilotes installés dans un dossier, à réinjecter après une réinstallation.", Duration = "1 à 5 min", NeedsAdmin = true, PickFolder = true,
                     Run = (j, folder) => { j.Status("Export des pilotes"); Proc.RunChecked("DISM.exe", "/Online /Export-Driver /Destination:\"" + folder + "\"", j.Log, j.Token); j.Summary = "Pilotes sauvegardés dans " + folder + "."; } },
@@ -251,8 +321,16 @@ namespace OptiTech
                 b.AppendLine("  [" + (i.IsOn ? "actif" : "inactif") + "] " + i.Name + " — " + i.Command);
             b.AppendLine();
             b.AppendLine("Processus les plus gourmands :");
-            foreach (var p in Process.GetProcesses().OrderByDescending(x => { try { return x.WorkingSet64; } catch { return 0; } }).Take(15))
-                try { b.AppendLine("  " + Fmt.Size(p.WorkingSet64).PadLeft(8) + "  " + p.ProcessName); } catch { }
+            var procs = Process.GetProcesses();
+            var procMem = new List<KeyValuePair<string, long>>();
+            foreach (var p in procs)
+            {
+                try { procMem.Add(new KeyValuePair<string, long>(p.ProcessName, p.WorkingSet64)); }
+                catch { }
+                finally { p.Dispose(); }
+            }
+            foreach (var kv in procMem.OrderByDescending(x => x.Value).Take(15))
+                b.AppendLine("  " + Fmt.Size(kv.Value).PadLeft(8) + "  " + kv.Key);
             b.AppendLine();
             b.AppendLine("Réglages OptiTech appliqués :");
             foreach (var t in TweakCatalog.All.Where(x => { x.RefreshState(); return x.IsApplied; }))
@@ -382,12 +460,14 @@ namespace OptiTech
             catch { return -1; }
         }
 
+        static int dnsSeq = Environment.TickCount & 0xFFFF;
+
         public static byte[] BuildQuery(string domain)
         {
             var m = new MemoryStream();
-            var id = new byte[2];
-            new Random().NextBytes(id);
-            m.Write(id, 0, 2);
+            var seq = Interlocked.Increment(ref dnsSeq);
+            m.WriteByte((byte)((seq >> 8) & 0xFF));
+            m.WriteByte((byte)(seq & 0xFF));
             m.Write(new byte[] { 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 }, 0, 10);
             foreach (var part in domain.Split('.'))
             {

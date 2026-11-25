@@ -64,42 +64,43 @@
 
     <DockPanel Margin="0,0,0,6">
       <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-        <ComboBox x:Name="StateFilter" Width="150" Margin="0,0,8,0" ToolTip="N'afficher que les réglages déjà appliqués, ou ceux qui restent à appliquer"/>
-        <TextBox x:Name="Search" Width="200" Tag="Rechercher (Ctrl+F)"/>
+        <ComboBox x:Name="StateFilter" Width="148" Margin="0,0,8,0" ToolTip="N'afficher que les réglages déjà appliqués, ou ceux qui restent à appliquer"/>
+        <TextBox x:Name="Search" Width="210" Tag="Rechercher (Ctrl+F)"/>
       </StackPanel>
       <WrapPanel x:Name="Cats" VerticalAlignment="Center"/>
     </DockPanel>
     <TextBlock x:Name="CountText" Style="{StaticResource TxtSmall}" Margin="2,0,0,10"/>
   </StackPanel>
 
-  <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-    <StackPanel Margin="32,0,32,28">
-      <ItemsControl x:Name="List">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <Border Style="{StaticResource Row}" ToolTip="{Binding ToolTipText}">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel>
-                  <WrapPanel>
-                    <TextBlock Text="{Binding TitleText}" Style="{StaticResource TxtRow}" Margin="0,0,9,0"/>
-                    <Border Style="{StaticResource RiskChip}" Margin="0,1,6,0"><TextBlock Text="{Binding RiskLabel}" Style="{StaticResource RiskText}"/></Border>
-                    <Border Style="{StaticResource ChipBase}" Background="{DynamicResource HoverLayer}" Margin="0,1,0,0" Visibility="{Binding HasEffect, Converter={StaticResource BoolVis}}">
-                      <TextBlock Text="{Binding EffectLabel}" Style="{StaticResource ChipText}" Foreground="{DynamicResource TextMuted}"/>
-                    </Border>
-                  </WrapPanel>
-                  <TextBlock Text="{Binding DescText}" Style="{StaticResource TxtSmall}" Margin="0,2,0,0"/>
-                </StackPanel>
-                <ToggleButton Grid.Column="1" Style="{StaticResource Switch}" Margin="18,0,0,0" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"/>
-              </Grid>
-            </Border>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <TextBlock x:Name="EmptyText" Style="{StaticResource TxtEmpty}"/>
+  <Grid>
+    <ItemsControl x:Name="List" Style="{StaticResource VirtList}" Padding="32,0,32,28">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <Border Style="{StaticResource Row}" ToolTip="{Binding ToolTipText}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <WrapPanel>
+                  <TextBlock Text="{Binding TitleText}" Style="{StaticResource TxtRow}" Margin="0,0,9,0"/>
+                  <Border Style="{StaticResource RiskChip}" Margin="0,1,6,0"><TextBlock Text="{Binding RiskLabel}" Style="{StaticResource RiskText}"/></Border>
+                  <Border Style="{StaticResource ChipBase}" Background="{DynamicResource HoverLayer}" Margin="0,1,0,0" Visibility="{Binding HasEffect, Converter={StaticResource BoolVis}}">
+                    <TextBlock Text="{Binding EffectLabel}" Style="{StaticResource ChipText}" Foreground="{DynamicResource TextMuted}"/>
+                  </Border>
+                </WrapPanel>
+                <TextBlock Text="{Binding DescText}" Style="{StaticResource TxtSmall}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ToggleButton Grid.Column="1" Style="{StaticResource Switch}" Margin="18,0,0,0" IsChecked="{Binding IsOn, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"/>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel x:Name="EmptyBox" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,42,0,0" Visibility="Collapsed">
+      <TextBlock x:Name="EmptyText" Style="{StaticResource TxtMuted}" TextAlignment="Center" FontSize="14"/>
+      <Button x:Name="BtnResetFilter" Content="Réinitialiser les filtres" HorizontalAlignment="Center" Margin="0,12,0,0"/>
     </StackPanel>
-  </ScrollViewer>
+  </Grid>
 </DockPanel>

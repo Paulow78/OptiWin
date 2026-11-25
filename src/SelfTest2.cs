@@ -570,7 +570,7 @@ namespace OptiTech
                 Is(Shell.VersionText(new Version(26, 11, 1, 0)) == "26.11.1", "26.11.1");
                 Is(Shell.VersionText(new Version(26, 3, 0, 0)) == "26.3", "26.3");
                 var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                Is(v.Major == 26 && v.Minor == 11 && v.Build == 2, "version compilée : " + v);
+                Is(v.Major == 26 && v.Minor == 11 && v.Build == 3, "version compilée : " + v);
             });
             T("accord du pluriel", () =>
             {
@@ -815,6 +815,122 @@ namespace OptiTech
                 var found = o.FirstOrDefault(x => x.StartsWith("WINDOWS_TROUVES:"));
                 Is(found != null && found.Contains(sys), "Windows non détecté : " + string.Join(" | ", o));
                 Line("        " + string.Join("  ", o));
+            });
+        }
+
+        /// <summary>Version 26.11.3 : palette, mode léger, mises à jour winget, gros fichiers, réseau, plantages et optimisations.</summary>
+        static void Modern26113(string tmp)
+        {
+            Line("Version 26.11.3 : fluidité et nouvelles fonctionnalités");
+            T("regroupement des écritures state.json (BeginBatch/EndBatch)", () =>
+            {
+                var path = Path.Combine(Paths.Data, "state.json");
+                Store.SetSetting("batch.init", "1");
+                var t0 = File.GetLastWriteTimeUtc(path);
+                Store.BeginBatch();
+                try
+                {
+                    Store.SetSetting("batch.a", "alpha");
+                    Store.SetSetting("batch.b", "beta");
+                }
+                finally { Store.EndBatch(); }
+                Is(Store.Setting("batch.a") == "alpha" && Store.Setting("batch.b") == "beta", "valeurs en mémoire");
+                var raw = File.ReadAllText(path, Encoding.UTF8);
+                Is(raw.Contains("batch.a") && raw.Contains("batch.b"), "écrites à la fin du lot");
+                Is(File.GetLastWriteTimeUtc(path) >= t0, "horodatage");
+            });
+            T("palette de commandes : recherche multi-mots insensible à la casse", () =>
+            {
+                var e = new PaletteEntry { Kind = "Confidentialité", Title = "Alléger Microsoft Edge", Sub = "Barre latérale et télémétrie", Keywords = "priv.edge_extras" };
+                Is(e.Matches("") && e.Matches("edge") && e.Matches("edge barre") && e.Matches("CONFIDENTIALITÉ edge"), "correspondances");
+                Is(e.Matches("priv.edge_extras"), "mots-clés");
+                Is(!e.Matches("edge firefox") && !e.Matches("xyz"), "exclusions");
+            });
+            T("lecture du tableau « winget upgrade » (français et anglais, identifiants filtrés)", () =>
+            {
+                const string fr =
+                    "Nom                           ID                       Version   Disponible Source\r\n" +
+                    "----------------------------------------------------------------------------------\r\n" +
+                    "7-Zip 24.08                   7zip.7zip                24.08     24.09      winget\r\n" +
+                    "Mozilla Firefox               Mozilla.Firefox          132.0     133.0      winget\r\n" +
+                    "Mozilla Firefox               Mozilla.Firefox          132.0     133.0      winget\r\n" +
+                    "Piège                         bad;id                   1.0       2.0        winget\r\n" +
+                    "2 mises à niveau disponibles.\r\n";
+                var u = AppsCatalog.ParseWingetUpgrades(fr);
+                Is(u.Count == 2, "nombre : " + u.Count);
+                Is(u[0].Id == "7zip.7zip" && u[0].Current == "24.08" && u[0].Available == "24.09" && u[0].Selected, "7-Zip");
+                Is(u[1].Id == "Mozilla.Firefox" && u[1].VersionSummary.Contains("133.0"), "Firefox");
+                Is(AppsCatalog.ParseWingetUpgrades("Aucun package installé n'a de mise à jour.").Count == 0, "vide");
+            });
+            T("catalogue des logiciels étendu (>= 52) et identifiants valides", () =>
+            {
+                var s = AppsCatalog.Software();
+                Is(s.Count >= 52, "nombre : " + s.Count);
+                foreach (var id in new[] { "LocalSend.LocalSend", "LibreWolf.LibreWolf", "dotPDN.PaintDotNet", "BlenderFoundation.Blender", "RustDesk.RustDesk", "WinSCP.WinSCP" })
+                    Is(s.Any(x => x.Id == id), "absent : " + id);
+            });
+            T("nouveaux réglages 26.11.3 présents et bornés", () =>
+            {
+                foreach (var id in new[] { "perf.throttling", "game.vrr", "priv.edge_extras", "priv.clipboard", "ui.sync_ads", "ui.gallery", "ui.shake", "ui.verbose_boot" })
+                    Is(TweakCatalog.ById(id) != null, "absent : " + id);
+                Is(TweakCatalog.ById("ui.gallery").MinBuild == 22631 && TweakCatalog.ById("game.vrr").MinBuild == 22621, "bornes de build");
+                Is(TweakCatalog.All.Count >= 66, "catalogue : " + TweakCatalog.All.Count);
+            });
+            T("nouveaux outils et catégorie de nettoyage d'applications présents", () =>
+            {
+                var tools = Tools.Catalog();
+                foreach (var id in new[] { "spooler", "netdiag", "license" }) Is(tools.Any(t => t.Id == id), "outil absent : " + id);
+                var cats = Cleaner.BuildCatalog();
+                Is(cats.Any(c => c.Id == "apps.cache"), "apps.cache absent");
+            });
+            T("analyseur d'espace : extraction des plus gros fichiers", () =>
+            {
+                var root = new DirNode { Name = "C:\\", FullPath = "C:\\", Size = 500L << 20 };
+                var sub = new DirNode { Name = "Video", FullPath = "C:\\Video", Size = 400L << 20, Parent = root };
+                sub.Kids.Add(new DirNode { Name = "film.mkv", FullPath = "C:\\Video\\film.mkv", IsFile = true, Size = 300L << 20, Parent = sub });
+                sub.Kids.Add(new DirNode { Name = "4 petits fichiers", FullPath = "C:\\Video", IsFile = true, IsLooseGroup = true, Size = 100L << 20, Parent = sub });
+                root.Kids.Add(sub);
+                root.Kids.Add(new DirNode { Name = "iso.iso", FullPath = "C:\\iso.iso", IsFile = true, Size = 100L << 20, Parent = root });
+                var top = DiskAnalyzer.TopFiles(root, 10);
+                Is(top.Count == 2 && top[0].Name == "film.mkv" && top[0].Share == 100 && top[0].SubPath == "C:\\Video", "ordre et chemin");
+                Is(top[1].Name == "iso.iso", "second fichier");
+            });
+            T("vitesse réseau formatée et lecture des cartes actives", () =>
+            {
+                Is(NetworkSnapshot.FormatSpeed(1000000000L) == "1 Gbit/s", "1 Gbit/s");
+                Is(NetworkSnapshot.FormatSpeed(2500000000L) == "2,5 Gbit/s", "2,5 Gbit/s");
+                Is(NetworkSnapshot.FormatSpeed(866000000L) == "866 Mbit/s", "866 Mbit/s");
+                Is(NetworkSnapshot.FormatSpeed(0).Contains("inconnue"), "0");
+                var nics = NetworkSnapshot.Read();
+                Is(nics != null, "liste");
+            });
+            T("lecture des événements d'arrêts imprévus et écrans bleus", () =>
+            {
+                var bsod = "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><EventID>1001</EventID><TimeCreated SystemTime='2026-11-20T10:00:00Z'/></System><EventData><Data Name='param1'>0x000000ef (0x1, 0x2)</Data></EventData></Event>";
+                var r1 = CrashReader.ParseEventXml(bsod);
+                Is(r1 != null && r1.Level == "bad" && r1.Detail.Contains("0x000000ef"), "BSOD 1001");
+                var kp = "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><EventID>41</EventID><TimeCreated SystemTime='2026-11-21T10:00:00Z'/></System><EventData><Data Name='BugcheckCode'>0</Data></EventData></Event>";
+                var r2 = CrashReader.ParseEventXml(kp);
+                Is(r2 != null && r2.Level == "warn" && r2.Detail.Contains("Kernel-Power 41"), "Kernel-Power 41");
+                var kpBug = kp.Replace(">0<", ">239<");
+                var r3 = CrashReader.ParseEventXml(kpBug);
+                Is(r3 != null && r3.Level == "bad" && r3.Detail.Contains("0xEF"), "Kernel-Power avec bugcheck");
+                Is(CrashReader.ParseEventXml("<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><EventID>99</EventID></System></Event>") == null, "autre événement ignoré");
+            });
+            T("mémoire système en un seul appel et identifiants DNS distincts", () =>
+            {
+                int pct; long used, total;
+                Is(SysInfo.ReadMemory(out pct, out used, out total) && total > 0 && used > 0 && pct >= 0 && pct <= 100, "ReadMemory");
+                var q1 = Dns.BuildQuery("www.microsoft.com");
+                var q2 = Dns.BuildQuery("www.microsoft.com");
+                Is(q1[0] != q2[0] || q1[1] != q2[1], "ID DNS identiques");
+            });
+            T("mode léger mémorisé et rétabli", () =>
+            {
+                Ui.Lightweight = true;
+                Is(Ui.Lightweight, "activé");
+                Ui.Lightweight = false;
+                Is(!Ui.Lightweight, "désactivé");
             });
         }
 
