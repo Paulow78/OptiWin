@@ -96,7 +96,7 @@
           </Border>
           <StackPanel VerticalAlignment="Center">
             <TextBlock Text="Nettoyer" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
-            <TextBlock Text="Caches et espace disque" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+            <TextBlock Text="Caches et disque" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
           </StackPanel>
         </DockPanel>
       </Button>
@@ -108,7 +108,7 @@
           </Border>
           <StackPanel VerticalAlignment="Center">
             <TextBlock Text="Mettre à jour" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
-            <TextBlock Text="Logiciels via winget" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+            <TextBlock Text="Via winget" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
           </StackPanel>
         </DockPanel>
       </Button>
@@ -120,7 +120,7 @@
           </Border>
           <StackPanel VerticalAlignment="Center">
             <TextBlock Text="DNS &amp; Outils" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
-            <TextBlock Text="Réseau, DISM, pilotes" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+            <TextBlock Text="Réseau et pilotes" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
           </StackPanel>
         </DockPanel>
       </Button>
@@ -132,7 +132,7 @@
           </Border>
           <StackPanel VerticalAlignment="Center">
             <TextBlock Text="Diagnostic" Style="{StaticResource TxtBody}" FontWeight="SemiBold"/>
-            <TextBlock Text="Disques, RAM et stabilité" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+            <TextBlock Text="Disques et stabilité" Style="{StaticResource TxtSmall}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
           </StackPanel>
         </DockPanel>
       </Button>

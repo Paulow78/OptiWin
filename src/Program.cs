@@ -111,11 +111,11 @@ namespace OptiTech
                 e.Handled = true;
             };
 
+            if (screenshot != null && has("--showcase")) { Os.ShowcaseAdmin(); Ui.Lightweight = false; }
             var theme = val("--theme") ?? Store.Setting("theme");
             Themes.Apply(theme == null ? Themes.SystemPrefersDark() : theme == "dark");
             app.Resources.MergedDictionaries.Add((ResourceDictionary)Ui.Load("Theme.xaml"));
 
-            if (screenshot != null && has("--showcase")) Os.ShowcaseAdmin();
             var shell = new Shell(screenshot != null);
             if (screenshot != null)
             {
