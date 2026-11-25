@@ -143,12 +143,12 @@
       <!-- Bandeau d'état -->
       <Border Style="{StaticResource Card}" Margin="0,0,0,14" Padding="20,16">
         <DockPanel>
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
             <Button x:Name="BtnAutoRunNow" Margin="0,0,8,0" ToolTip="Exécute immédiatement le nettoyage automatique avec les catégories cochées ci-dessous">
-              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoPlay}"/><TextBlock Text="Tester maintenant" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoPlay}"/><TextBlock Text="Tester" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
             </Button>
             <Button x:Name="BtnAutoDisable" Margin="0,0,8,0" Content="Désactiver" IsEnabled="False"/>
-            <Button x:Name="BtnAutoSave" Style="{StaticResource BtnPrimary}" Padding="18,8">
+            <Button x:Name="BtnAutoSave" Style="{StaticResource BtnPrimary}" Padding="16,8">
               <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoCalendar}"/><TextBlock Text="Enregistrer et activer" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
             </Button>
           </StackPanel>
@@ -157,7 +157,7 @@
               <Border x:Name="AutoStateBadge" Style="{StaticResource ChipBase}" Background="{DynamicResource HoverLayer}" Margin="0,0,10,0">
                 <TextBlock x:Name="AutoStateText" Text="Inactif" Style="{StaticResource ChipText}" Foreground="{DynamicResource TextMuted}"/>
               </Border>
-              <TextBlock Text="Nettoyage automatique programmé" Style="{StaticResource TxtH2}" VerticalAlignment="Center"/>
+              <TextBlock Text="Nettoyage automatique" Style="{StaticResource TxtH2}" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
             <TextBlock x:Name="AutoSummary" Style="{StaticResource TxtSmall}" Text="Choisissez votre rythme et vos catégories : Windows exécutera OptiTech en silence en arrière-plan."/>
           </StackPanel>
@@ -228,8 +228,12 @@
               </StackPanel>
             </Grid>
 
-            <CheckBox x:Name="AutoMissed" Content="Exécuter dès que possible si le PC était éteint à l'heure prévue" IsChecked="True" Margin="0,0,0,8"/>
-            <CheckBox x:Name="AutoBattery" Content="Ne pas lancer sur batterie (PC portable uniquement sur secteur)" IsChecked="True" Margin="0,0,0,10"/>
+            <CheckBox x:Name="AutoMissed" IsChecked="True" Margin="0,0,0,8">
+              <TextBlock Text="Exécuter dès que possible si le PC était éteint à l'heure prévue" TextWrapping="Wrap"/>
+            </CheckBox>
+            <CheckBox x:Name="AutoBattery" IsChecked="True" Margin="0,0,0,10">
+              <TextBlock Text="Ne pas lancer sur batterie (PC portable uniquement sur secteur)" TextWrapping="Wrap"/>
+            </CheckBox>
             <TextBlock Style="{StaticResource TxtSmall}" Foreground="{DynamicResource TextFaint}" Text="Note : ne déplacez pas OptiTech.exe après activation, ou cliquez à nouveau sur « Enregistrer et activer » pour mettre à jour le chemin."/>
           </StackPanel>
         </Border>
@@ -270,22 +274,22 @@
   <!-- 4. Détecteur de fichiers en double (lecture seule) -->
   <Grid x:Name="PanelDup" Visibility="Collapsed">
     <DockPanel>
-      <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="16,12">
+      <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Margin="32,0,32,12" Padding="18,14">
         <DockPanel>
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-            <ComboBox x:Name="DupMinSize" Width="135" Margin="0,0,8,0">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+            <ComboBox x:Name="DupMinSize" Width="118" Margin="0,0,8,0">
               <ComboBoxItem Content="≥ 100 Ko" Tag="102400"/>
               <ComboBoxItem Content="≥ 1 Mo" Tag="1048576" IsSelected="True"/>
               <ComboBoxItem Content="≥ 10 Mo" Tag="10485760"/>
               <ComboBoxItem Content="≥ 50 Mo" Tag="52428800"/>
             </ComboBox>
             <Button x:Name="BtnDupPick" Margin="0,0,8,0">
-              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFolder}"/><TextBlock Text="Choisir un dossier…" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
+              <StackPanel Orientation="Horizontal"><Path Style="{StaticResource IcoSm}" Data="{StaticResource IcoFolder}"/><TextBlock Text="Dossier…" Margin="7,0,0,0" VerticalAlignment="Center"/></StackPanel>
             </Button>
             <Button x:Name="BtnDupScan" Style="{StaticResource BtnPrimary}" Content="Chercher les doublons" Padding="16,8"/>
           </StackPanel>
           <StackPanel VerticalAlignment="Center">
-            <TextBlock x:Name="DupSummary" Text="Détecteur de doublons (SHA-256)" Style="{StaticResource TxtH2}"/>
+            <TextBlock x:Name="DupSummary" Text="Détecteur de doublons (SHA-256)" Style="{StaticResource TxtH2}" TextWrapping="Wrap"/>
             <TextBlock x:Name="DupFolderText" Style="{StaticResource TxtSmall}" Text="Choisissez un dossier (Téléchargements, Photos, Documents…) : lecture seule, aucune suppression automatique."/>
           </StackPanel>
         </DockPanel>

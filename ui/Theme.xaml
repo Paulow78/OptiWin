@@ -260,12 +260,13 @@
         <ControlTemplate TargetType="Button">
           <Border x:Name="B" CornerRadius="11" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
             <Grid>
-              <Border Height="1" VerticalAlignment="Top" Margin="10,0,10,0" Background="{DynamicResource CardSheen}" IsHitTestVisible="False"/>
+              <Border x:Name="Sheen" Height="1" VerticalAlignment="Top" Margin="10,0,10,0" Background="{DynamicResource CardSheen}" IsHitTestVisible="False"/>
               <Border x:Name="Hover" CornerRadius="10" Background="{DynamicResource HoverLayer}" Opacity="0"/>
               <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
             </Grid>
           </Border>
           <ControlTemplate.Triggers>
+            <Trigger Property="Background" Value="Transparent"><Setter TargetName="Sheen" Property="Visibility" Value="Collapsed"/></Trigger>
             <Trigger Property="IsMouseOver" Value="True">
               <Trigger.EnterActions>
                 <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.1"/></Storyboard></BeginStoryboard>

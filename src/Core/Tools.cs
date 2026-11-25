@@ -233,7 +233,7 @@ namespace OptiTech
                         if (!string.IsNullOrWhiteSpace(err)) j.Log(err.Trim());
                         j.Summary = "Store réparé. S'il reste muet, redémarrez le PC.";
                     } },
-                new ToolAction { Id = "weekly", Icon = "IcoClock", Title = weekly ? "Retirer l'entretien automatique" : "Activer l'entretien automatique",
+                new ToolAction { Id = "weekly", Icon = "IcoClock", Title = weekly ? "Retirer l'entretien automatique" : "Entretien automatique du PC",
                     Desc = weekly ? "Actif (" + MaintenanceSchedule.Load().SummaryText() + "). Personnalisable dans Nettoyer › Automatisation. Lancer retire la tâche."
                                   : "Nettoie automatiquement vos caches selon votre planning (personnalisable dans Nettoyer › Automatisation).",
                     Duration = "Immédiat", NeedsAdmin = true,

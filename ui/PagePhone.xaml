@@ -19,7 +19,7 @@
             <Border DockPanel.Dock="Left" Style="{StaticResource IconBadge}" Margin="0,0,11,0">
               <Path Style="{StaticResource Ico}" Data="{StaticResource IcoPhone}" TextElement.Foreground="{DynamicResource Accent}" HorizontalAlignment="Center"/>
             </Border>
-            <TextBlock Text="1. Connecter le téléphone (USB ou Wi-Fi)" Style="{StaticResource TxtH2}" VerticalAlignment="Center"/>
+            <TextBlock Text="1. Connecter le téléphone" Style="{StaticResource TxtH2}" VerticalAlignment="Center" TextWrapping="Wrap"/>
           </DockPanel>
 
           <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
