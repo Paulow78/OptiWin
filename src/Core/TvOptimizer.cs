@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -54,6 +55,7 @@ namespace OptiTech
     public static class Adb
     {
         const string PackageId = "Google.PlatformTools";
+        const string GoogleZipUrl = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip";
         static readonly Regex Host = new Regex(@"^[A-Za-z0-9][A-Za-z0-9.\-]{0,252}(:\d{1,5})?$", RegexOptions.Compiled);
         static readonly Regex DnsHost = new Regex(@"^[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$", RegexOptions.Compiled);
         static readonly Regex Pkg = new Regex(@"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$", RegexOptions.Compiled);
@@ -72,16 +74,34 @@ namespace OptiTech
         public static bool IsValidRemoteKey(int key) { return AllowedKeys.Contains(key); }
         public static string WithPort(string h) { return h.Contains(":") ? h : h + ":5555"; }
 
+        public static bool IsTrustedGoogleUri(Uri u)
+        {
+            if (u == null || !string.Equals(u.Scheme, "https", StringComparison.OrdinalIgnoreCase)) return false;
+            var h = u.Host.ToLowerInvariant();
+            return h == "dl.google.com" || h.EndsWith(".google.com") || h.EndsWith(".googleusercontent.com") || h.EndsWith(".gvt1.com");
+        }
+
         public static string Find()
         {
             var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             var candidates = new List<string>
             {
+                Path.Combine(Paths.Data, @"platform-tools\adb.exe"),
                 Path.Combine(local, @"Android\Sdk\platform-tools\adb.exe"),
                 Path.Combine(Path.GetDirectoryName(Paths.Exe) ?? "", @"platform-tools\adb.exe"),
+                Path.Combine(local, @"Microsoft\WinGet\Links\adb.exe"),
             };
             var home = Environment.GetEnvironmentVariable("ANDROID_HOME");
             if (!string.IsNullOrEmpty(home)) candidates.Add(Path.Combine(home, @"platform-tools\adb.exe"));
+            foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                try
+                {
+                    var d = dir.Trim().Trim('"');
+                    if (d.Length > 0) candidates.Add(Path.Combine(d, "adb.exe"));
+                }
+                catch { }
+            }
             foreach (var root in new[] { Path.Combine(local, @"Microsoft\WinGet\Packages"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WinGet\Packages") })
             {
                 try
@@ -95,18 +115,78 @@ namespace OptiTech
             return candidates.FirstOrDefault(File.Exists);
         }
 
+        /// <summary>
+        /// Télécharge directement l'archive officielle Google (dl.google.com) dans %LOCALAPPDATA%\OptiTech\platform-tools.
+        /// Fonctionne aussi bien en administrateur qu'en utilisateur standard, sans dépendre de winget.
+        /// </summary>
+        static string DownloadOfficial(Job job)
+        {
+            ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; // TLS 1.2
+            var targetDir = Path.Combine(Paths.Data, "platform-tools");
+            var tempDir = Path.Combine(Paths.Data, "platform-tools-tmp-" + Guid.NewGuid().ToString("N"));
+            var zipPath = Path.Combine(Paths.Data, "platform-tools-" + Guid.NewGuid().ToString("N") + ".zip");
+            Directory.CreateDirectory(Paths.Data);
+            try
+            {
+                job.Status("Téléchargement des outils Android depuis Google (dl.google.com)");
+                job.Log("Source officielle : " + GoogleZipUrl);
+                var req = (HttpWebRequest)WebRequest.Create(GoogleZipUrl);
+                req.Timeout = 20000; req.ReadWriteTimeout = 30000;
+                req.UserAgent = "OptiTech";
+                using (job.Token.Register(() => { try { req.Abort(); } catch { } }))
+                using (var resp = (HttpWebResponse)req.GetResponse())
+                {
+                    if (!IsTrustedGoogleUri(resp.ResponseUri))
+                        throw new InvalidDataException("Redirection inattendue : " + resp.ResponseUri.Host);
+                    var total = resp.ContentLength;
+                    long got = 0;
+                    using (var src = resp.GetResponseStream())
+                    using (var dst = File.Create(zipPath))
+                    {
+                        var buf = new byte[1 << 16];
+                        int n;
+                        while ((n = src.Read(buf, 0, buf.Length)) > 0)
+                        {
+                            job.Token.ThrowIfCancellationRequested();
+                            dst.Write(buf, 0, n);
+                            got += n;
+                            if (got > 64L << 20) throw new InvalidDataException("Archive Google trop volumineuse.");
+                            if (total > 0) job.Progress(Math.Min(85.0, 85.0 * got / total));
+                        }
+                    }
+                    job.Log("Archive téléchargée (" + Fmt.Size(got) + ").");
+                }
+
+                job.Status("Extraction de platform-tools");
+                job.Progress(90);
+                ZipFile.ExtractToDirectory(zipPath, tempDir);
+                var extracted = Path.Combine(tempDir, "platform-tools");
+                if (!File.Exists(Path.Combine(extracted, "adb.exe")))
+                {
+                    var found = Directory.GetFiles(tempDir, "adb.exe", SearchOption.AllDirectories).FirstOrDefault();
+                    if (found == null) throw new InvalidDataException("adb.exe introuvable dans l'archive officielle.");
+                    extracted = Path.GetDirectoryName(found);
+                }
+                if (Directory.Exists(targetDir)) Directory.Delete(targetDir, true);
+                Directory.Move(extracted, targetDir);
+                var exe = Path.Combine(targetDir, "adb.exe");
+                if (!File.Exists(exe)) throw new InvalidOperationException("Extraction d'adb.exe incomplète.");
+                job.Log("Outils Android installés dans " + targetDir);
+                Store.AddHistory("soft:" + PackageId, "Outils Android (Google Platform-Tools)", "Installé depuis dl.google.com");
+                job.Progress(100);
+                return exe;
+            }
+            finally
+            {
+                try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { }
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
         public static string Ensure(Job job)
         {
             var exe = Find();
-            if (exe == null)
-            {
-                if (!AppsCatalog.WingetAvailable()) throw new InvalidOperationException("winget est indisponible : impossible de récupérer les outils Android de Google (adb).");
-                job.Status("Récupération des outils Android de Google via winget");
-                var code = AppsCatalog.Install(new SoftApp { Id = PackageId, Label = "Android SDK Platform-Tools" }, job);
-                exe = Find();
-                if (exe == null) throw new InvalidOperationException("Les outils Android n'ont pas pu être installés (winget, code " + code + ").");
-                Store.AddHistory("soft:" + PackageId, "Logiciel : Android Platform-Tools", "Installé");
-            }
+            if (exe == null) exe = DownloadOfficial(job);
             StartServer(exe);
             return exe;
         }

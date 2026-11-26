@@ -55,7 +55,7 @@
             </Grid>
             <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
               <TextBlock Text="OptiTech" FontFamily="{StaticResource FontDisplay}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
-              <TextBlock x:Name="VersionText" Text="26.11.4" FontSize="11" Foreground="{DynamicResource TextFaint}" Margin="0,-2,0,0"/>
+              <TextBlock x:Name="VersionText" Text="26.11.5" FontSize="11" Foreground="{DynamicResource TextFaint}" Margin="0,-2,0,0"/>
             </StackPanel>
           </StackPanel>
 

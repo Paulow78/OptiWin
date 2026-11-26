@@ -127,9 +127,9 @@ namespace OptiTech
         async Task<bool> ConfirmAdbIfMissing()
         {
             if (Adb.Find() != null) return true;
-            return await Shell.I.Confirm("Récupérer les outils Android ?",
-                "Pour dialoguer avec le téléviseur, OptiTech utilise adb, l'outil officiel de Google (Android SDK Platform-Tools). Il sera récupéré via winget, depuis sa source officielle. Le récupérer vaut acceptation de sa licence.",
-                "Récupérer", false);
+            return await Shell.I.Confirm("Télécharger les outils Android de Google ?",
+                "Pour dialoguer avec le téléviseur, OptiTech utilise adb, l'outil officiel de Google (Android SDK Platform-Tools, ~7 Mo). Il sera téléchargé en HTTPS directement depuis Google (dl.google.com) dans le dossier d'OptiTech.",
+                "Télécharger", false);
         }
 
         async void Pair()

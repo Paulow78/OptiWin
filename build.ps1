@@ -15,6 +15,7 @@ New-Item -ItemType Directory -Force -Path $dist | Out-Null
 $refs = @(
     "$fx\WPF\PresentationFramework.dll", "$fx\WPF\PresentationCore.dll", "$fx\WPF\WindowsBase.dll",
     "$fx\System.Xaml.dll", "$fx\System.Management.dll", "$fx\System.Web.Extensions.dll",
+    "$fx\System.IO.Compression.FileSystem.dll",
     "$fx\Microsoft.CSharp.dll", "$fx\System.Core.dll", "$fx\System.Xml.dll", "$fx\System.dll"
 ) | ForEach-Object { "/r:`"$_`"" }
 

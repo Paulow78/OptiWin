@@ -1,6 +1,14 @@
 # Journal des versions
 
-Le numéro de version suit la date : `26.11.4` est la quatrième version publiée en novembre 2026. Jusqu'à la 26.11.1, l'application s'appelait OptiWin.
+Le numéro de version suit la date : `26.11.5` est la cinquième version publiée en novembre 2026. Jusqu'à la 26.11.1, l'application s'appelait OptiWin.
+
+## 26.11.5
+
+### Correctifs
+
+- **Android (Téléphone & Téléviseur) — téléchargement direct d'`adb` depuis Google** : corrige l'erreur `winget code -1978335107` (*« The requested operation is not permitted from an administrator context on packages installed within the user scope »*) qui bloquait l'installation des outils Android lorsque OptiTech tourne en administrateur. `adb` (Android SDK Platform-Tools) est désormais téléchargé directement en HTTPS depuis `dl.google.com` et extrait dans `%LOCALAPPDATA%\OptiTech\platform-tools`, sans dépendre de `winget`.
+- **Détection `adb` améliorée** : repère également un `adb.exe` déjà présent dans le `PATH` ou dans `%LOCALAPPDATA%\Microsoft\WinGet\Links`.
+- **Applications (`winget`)** : repli automatique vers `--scope machine` si `winget` refuse une installation utilisateur depuis un contexte administrateur (`-1978335107`).
 
 ## 26.11.4
 
