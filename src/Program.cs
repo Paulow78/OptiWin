@@ -16,9 +16,9 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("OptiTech")]
 [assembly: AssemblyProduct("OptiTech")]
 [assembly: AssemblyDescription("Optimisation de Windows et création de clés bootables")]
-[assembly: AssemblyVersion("26.11.4.0")]
-[assembly: AssemblyFileVersion("26.11.4.0")]
-[assembly: AssemblyInformationalVersion("26.11.4")]
+[assembly: AssemblyVersion("26.11.5.0")]
+[assembly: AssemblyFileVersion("26.11.5.0")]
+[assembly: AssemblyInformationalVersion("26.11.5")]
 
 namespace OptiTech
 {

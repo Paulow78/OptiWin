@@ -205,11 +205,21 @@ namespace OptiTech
             try { return Proc.Run("winget.exe", "--version", null) == 0; } catch { return false; }
         }
 
+        const int WingetAdminScopeBlocked = -1978335107; // 0x8A1500CD : paquet user-scope refusé en mode administrateur
+
         public static int Install(SoftApp a, Job job)
         {
             job.Status("Installation de " + a.Label);
-            return Proc.Run("winget.exe", "install --id \"" + a.Id + "\" --exact --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity",
+            var baseArgs = "install --id \"" + a.Id + "\" --exact --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity";
+            var code = Proc.Run("winget.exe", baseArgs,
                 l => { if (l.Length > 3 && !l.Contains("█") && !l.Contains("▒")) job.Log(l.Trim()); }, job.Token);
+            if (code == WingetAdminScopeBlocked)
+            {
+                job.Log("winget refuse l'installation utilisateur en mode administrateur : nouvelle tentative au niveau machine…");
+                code = Proc.Run("winget.exe", baseArgs + " --scope machine",
+                    l => { if (l.Length > 3 && !l.Contains("█") && !l.Contains("▒")) job.Log(l.Trim()); }, job.Token);
+            }
+            return code;
         }
 
         /// <summary>Liste les logiciels installés disposant d'une mise à jour via winget.</summary>

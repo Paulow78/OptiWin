@@ -570,7 +570,7 @@ namespace OptiTech
                 Is(Shell.VersionText(new Version(26, 11, 1, 0)) == "26.11.1", "26.11.1");
                 Is(Shell.VersionText(new Version(26, 3, 0, 0)) == "26.3", "26.3");
                 var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                Is(v.Major == 26 && v.Minor == 11 && v.Build == 4, "version compilée : " + v);
+                Is(v.Major == 26 && v.Minor == 11 && v.Build == 5, "version compilée : " + v);
             });
             T("accord du pluriel", () =>
             {
@@ -1049,6 +1049,19 @@ namespace OptiTech
                     "GUID du mode de gestion de l'alimentation : 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Performances élevées)\r\n";
                 var list = PowerPlans.ParseList(sample);
                 Is(list.Count == 2 && list[0].IsActive && !list[1].IsActive && list[1].Name == "Performances élevées", "parse");
+            });
+            T("ADB : vérification hôte officiel Google et détection locale dans Paths.Data", () =>
+            {
+                Is(Adb.IsTrustedGoogleUri(new Uri("https://dl.google.com/android/repository/platform-tools-latest-windows.zip")), "dl.google.com");
+                Is(Adb.IsTrustedGoogleUri(new Uri("https://redirector.gvt1.com/edgedl/android/platform-tools.zip")), "gvt1.com");
+                Is(!Adb.IsTrustedGoogleUri(new Uri("http://dl.google.com/a.zip")), "http refusé");
+                Is(!Adb.IsTrustedGoogleUri(new Uri("https://evil.example.com/dl.google.com/a.zip")), "hôte étranger refusé");
+                var ptDir = Path.Combine(Paths.Data, "platform-tools");
+                Directory.CreateDirectory(ptDir);
+                var fakeAdb = Path.Combine(ptDir, "adb.exe");
+                File.WriteAllText(fakeAdb, "");
+                try { Is(string.Equals(Adb.Find(), fakeAdb, StringComparison.OrdinalIgnoreCase), "détection locale"); }
+                finally { try { File.Delete(fakeAdb); Directory.Delete(ptDir, true); } catch { } }
             });
         }
 
